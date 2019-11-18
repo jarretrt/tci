@@ -1,1 +1,6 @@
+# user-specific files
 .Rproj.user
+
+
+# development files
+R/development.R
