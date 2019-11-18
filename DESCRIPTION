@@ -9,3 +9,5 @@ Encoding: UTF-8
 LazyData: true
 URL: http://github.com/jarretrt/tci
 BugReports: http://github.com/jarretrt/tci/issues
+Suggests: 
+    testthat (>= 2.1.0)
