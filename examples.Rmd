@@ -3,6 +3,7 @@ title: "Selected examples using the TCI package"
 author: "Ryan Jarrett"
 date: "2/18/2020"
 output: github_document
+bibliography: "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/journal_submissions/AA/Extras/bibfile.bib"
 ---
 
 ```{r setup, include=FALSE}
@@ -424,6 +425,7 @@ plot(pkmod3cptm, inf_cmpt2, pars = pars_3cpt, init = c(0,0,0,0),
 ```
 
 
+
 We now need a function to iterate any arbitrary TCI algorithm across a series of targets. By default, the function will update infusion rates at fixed intervals (e.g. every 10 seconds); however, users will have the option of waiting only calculating infusions after the prior target has been obtained. 
 
 The user passes the `iterate_tci` function a matrix of target concentrations and times at which the target is set. This is translated into a step function that defines the concentration target at all times. 
@@ -500,6 +502,29 @@ legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex =
 ```
 
 
+As seen in the above plot, continuing to target the effect-site results in substantial oscillations within the plasma concentration. This can be avoided by allowing the algorithm to switch to plasma targeting when the plasma and effect site concentrations are within bounds of the targets. @Jacobs1993 suggest switching when the plasma concentration is within 10\% of the target and the effect-site concentration is within 0.5\% of the target.
+
+We introduce modification of the above TCI algorithms that implements this procedure.
+
+```{r, tci-combined}
+tci_comb <- function(Cet, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt = 4, ...){
+  list2env(list(...), envir = environment())
+  if(is.null(init)) init <- eval(formals(pkmod)$init)
+  
+  if(abs((Cet-init[cp_cmpt]) / Cet) <= cptol & abs((Cet-init[ce_cmpt]) / Cet) <= cetol){
+    tci_plasma(Cpt = Cet, pkmod = pkmod, ...)
+  } else{
+    tci_effect(Cet = Cet, pkmod = pkmod, ...)
+  }
+}
+
+tci_3cpt_comb <- iterate_tci_grid(Cet, tms, tci = tci_comb, pkmod = pkmod3cptm, pars = pars_3cpt)
+
+plot(stepfun(tms, Cet), ylim = c(0,7), xlim = c(0,15), main = "Combined plasma- effect-site-targeting TCI algorithm", xlab = "min", ylab = "concentration")
+lines(tci_3cpt_comb$starttm, tci_3cpt_comb$c1_start, col = 2)
+lines(tci_3cpt_comb$starttm, tci_3cpt_comb$c4_start, col = 3)
+legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex = 0.8)
+```
 
 
 

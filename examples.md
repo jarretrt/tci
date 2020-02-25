@@ -3,105 +3,67 @@ Selected examples using the TCI package
 Ryan Jarrett
 2/18/2020
 
-## Infusion objects
+<!-- ## Infusion objects -->
 
-The package structure allows for the creation of infusion objects that
-are passed on to any specified PK or PK-PD model. The user can specify a
-dataframe with times and infusion rates expressed in terms of mL or mg.
-Infusion objects are returned as lists of piece-wise infusions in terms
-of mg/m. Unless otherwise specified, it is assumed that the infusions
-start at time \(t=0\).
+<!-- The package structure allows for the creation of infusion objects that are passed on to any specified PK or PK-PD model. The user can specify a dataframe with times and infusion rates expressed in terms of mL or mg. Infusion objects are returned as lists of piece-wise infusions in terms of mg/m. Unless otherwise specified, it is assumed that the infusions start at time $t=0$.  -->
 
-The example below creates an infusion object with a rate of 1000 mL/h
-from time \(t=0.5\) to \(t=3.5\) minutes, followed by an infusion of
-rate 250 mL/h until time \(t=8.5\) minutes.
+<!-- The example below creates an infusion object with a rate of 1000 mL/h from time $t=0.5$ to $t=3.5$ minutes, followed by an infusion of rate 250 mL/h until time $t=8.5$ minutes.  -->
 
-``` r
-#' Function to create an infusion object from a dosing schedule with infusion rates provided
-inf_base <- function(d, unit = c("mg","mL"), tm_unit = c("m","h"), mgpermL = 10, starttm = 0){
+<!-- ```{r, inf-base} -->
 
-  unit <- match.arg(unit)
-  tm_unit <- match.arg(tm_unit)
-  rt <- d$infrt
+<!-- #' Function to create an infusion object from a dosing schedule with infusion rates provided -->
 
-  if(unit == "mL") rt <- rt*mgpermL
-  if(tm_unit == "h") rt <- rt / 60
+<!-- inf_base <- function(d, unit = c("mg","mL"), tm_unit = c("m","h"), mgpermL = 10, starttm = 0){ -->
 
-  tms <- c(starttm, d$time)
-  
-  return(lapply(1:length(rt), function(k) list(begin = tms[k], end = tms[k+1], k_R = rt[k])))
-}
- 
-dose <- data.frame(time = c(0.5,3.5,8.5), infrt = c(0,1000,250))
-inf_base(dose, unit = "mL", tm_unit = "h")
-```
+<!--   unit <- match.arg(unit) -->
 
-    ## [[1]]
-    ## [[1]]$begin
-    ## [1] 0
-    ## 
-    ## [[1]]$end
-    ## [1] 0.5
-    ## 
-    ## [[1]]$k_R
-    ## [1] 0
-    ## 
-    ## 
-    ## [[2]]
-    ## [[2]]$begin
-    ## [1] 0.5
-    ## 
-    ## [[2]]$end
-    ## [1] 3.5
-    ## 
-    ## [[2]]$k_R
-    ## [1] 166.6667
-    ## 
-    ## 
-    ## [[3]]
-    ## [[3]]$begin
-    ## [1] 3.5
-    ## 
-    ## [[3]]$end
-    ## [1] 8.5
-    ## 
-    ## [[3]]$k_R
-    ## [1] 41.66667
+<!--   tm_unit <- match.arg(tm_unit) -->
 
-We would also like to be able to create infusion objects based on a set
-of target concentrations to be used by TCI algorithms. Since TCI
-algorithms check the target with a regular frequency, we create a
-function to expand the set of target infusions into one separated into
-regular time periods.
+<!--   rt <- d$infrt -->
 
-Here the user specifies target plasma concentrations (`Cpt`) of
-\((0,2,1)\) for the time intervals, with the expectation that the TCI
-algorithm will update its target every 10 seconds (1/6 of a minute). The
-infusions are left-continuous, such that the final infusion finishes at
-the last time specified with no new infusion beginning at the final
-time.
+<!--   if(unit == "mL") rt <- rt*mgpermL -->
 
-``` r
-#' Function to expand time / target dataframe to be passed on to TCI algorithm
-expand_infs <- function(d, starttm = 0, freq = 1/6, val_name = NULL){
-  library(plyr)
-  if(is.null(val_name)) val_name <- try(match.arg(c("Cpt","Cet","BIS"), names(d), several.ok = T), silent = T)
-  if(class(val_name) == "try-error") stop('Dataframe d requires the target name column to be one of c("Cpt","Cet","BIS") or specified through the val_name argument')
-  schd <- data.frame(start = c(starttm, head(d$time,-1)), end = d$time, d[val_name], freq = freq)
-  rbind(arrange(ddply(schd, val_name, summarise, time = seq(start, end-freq, by = freq)), time), c(NA,tail(d$time,1)))
-}
+<!--   if(tm_unit == "h") rt <- rt / 60 -->
 
-ds <- data.frame(time = c(0.5,3.5,8.5), Cpt = c(0,2,1))
-head(expand_infs(ds))
-```
+<!--   tms <- c(starttm, d$time) -->
 
-    ##   Cpt      time
-    ## 1   0 0.0000000
-    ## 2   0 0.1666667
-    ## 3   0 0.3333333
-    ## 4   2 0.5000000
-    ## 5   2 0.6666667
-    ## 6   2 0.8333333
+<!--   return(lapply(1:length(rt), function(k) list(begin = tms[k], end = tms[k+1], k_R = rt[k]))) -->
+
+<!-- } -->
+
+<!-- dose <- data.frame(time = c(0.5,3.5,8.5), infrt = c(0,1000,250)) -->
+
+<!-- inf_base(dose, unit = "mL", tm_unit = "h") -->
+
+<!-- ``` -->
+
+<!-- We would also like to be able to create infusion objects based on a set of target concentrations to be used by TCI algorithms. Since TCI algorithms check the target with a regular frequency, we create a function to expand the set of target infusions into one separated into regular time periods.  -->
+
+<!-- Here the user specifies target plasma concentrations (`Cpt`) of $(0,2,1)$ for the time intervals, with the expectation that the TCI algorithm will update its target every 10 seconds (1/6 of a minute). The infusions are left-continuous, such that the final infusion finishes at the last time specified with no new infusion beginning at the final time. -->
+
+<!-- ```{r, expand-inf} -->
+
+<!-- #' Function to expand time / target dataframe to be passed on to TCI algorithm -->
+
+<!-- expand_infs <- function(d, starttm = 0, freq = 1/6, val_name = NULL){ -->
+
+<!--   library(plyr) -->
+
+<!--   if(is.null(val_name)) val_name <- try(match.arg(c("Cpt","Cet","BIS"), names(d), several.ok = T), silent = T) -->
+
+<!--   if(class(val_name) == "try-error") stop('Dataframe d requires the target name column to be one of c("Cpt","Cet","BIS") or specified through the val_name argument') -->
+
+<!--   schd <- data.frame(start = c(starttm, head(d$time,-1)), end = d$time, d[val_name], freq = freq) -->
+
+<!--   rbind(arrange(ddply(schd, val_name, summarise, time = seq(start, end-freq, by = freq)), time), c(NA,tail(d$time,1))) -->
+
+<!-- } -->
+
+<!-- ds <- data.frame(time = c(0.5,3.5,8.5), Cpt = c(0,2,1)) -->
+
+<!-- head(expand_infs(ds)) -->
+
+<!-- ``` -->
 
 ## PK models
 
@@ -240,16 +202,15 @@ sapply(1:nrow(con), function(i) lines(tms, con[i,], col = i)); legend("topleft",
 
 <img src="examples_files/figure-gfm/pk-3cpt-1.png" style="display: block; margin: auto;" />
 
-We need to be able to extend each PK function to any arbitrary infusion
-schedule, which we do by applying the function to each infusion in
-succession and using the final predicted concentrations as the starting
-point for the subsequent infusion.
-
-As an example, we apply both PK models to the infusion schedule
-specified at the beginning.
+We now need to be able to extend each PK function to any arbitrary
+infusion schedule. We do this by writing predict method for PK models
+that takes in a dosing schedule and returns predicted concentrations
+either for a grid of points across the duration of the dosing interval,
+or at specified time points.
 
 ``` r
-# function to extract the last 
+# Misc functions
+# function to extract the last element from a vector or the last column from a matrix 
 tail_vec <- function(...){
   args <- list(...)[[1]]
   if(is.null(dim(args)))
@@ -285,14 +246,10 @@ create_intvl(dose)
 seqby <- function(from, to, by)
   sort(union(seq(from, to, by), c(from, to)))
 
-seq(0,0.767,1/6)
+seq(0,0.767,1/6); seqby(0,0.767,1/6)
 ```
 
     ## [1] 0.0000000 0.1666667 0.3333333 0.5000000 0.6666667
-
-``` r
-seqby(0,0.767,1/6)
-```
 
     ## [1] 0.0000000 0.1666667 0.3333333 0.5000000 0.6666667 0.7670000
 
@@ -305,7 +262,6 @@ predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, len_out = NULL, retu
   pred <- vector("list", length(inf$infrt))
   init <- vector("list", length(inf$infrt)+1)
 
-  # browser()
   # Times to evaluate concentrations at. Defaults to a sequence of values at intervals of dt.
   if(!is.null(tms)){
     b <- unique(as.numeric(unlist(stringr::str_extract_all(inf$intvl,"-?[0-9.]+"))))
@@ -686,3 +642,36 @@ legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex =
 ```
 
 <img src="examples_files/figure-gfm/iterate-tci-3.png" style="display: block; margin: auto;" />
+
+As seen in the above plot, continuing to target the effect-site results
+in substantial oscillations within the plasma concentration. This can be
+avoided by allowing the algorithm to switch to plasma targeting when the
+plasma and effect site concentrations are within bounds of the targets.
+(<span class="citeproc-not-found" data-reference-id="Jacobs1993">**???**</span>)
+suggest switching when the plasma concentration is within 10% of the
+target and the effect-site concentration is within 0.5% of the target.
+
+We introduce modification of the above TCI algorithms that implements
+this procedure.
+
+``` r
+tci_comb <- function(Cet, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt = 4, ...){
+  list2env(list(...), envir = environment())
+  if(is.null(init)) init <- eval(formals(pkmod)$init)
+  
+  if(abs((Cet-init[cp_cmpt]) / Cet) <= cptol & abs((Cet-init[ce_cmpt]) / Cet) <= cetol){
+    tci_plasma(Cpt = Cet, pkmod = pkmod, ...)
+  } else{
+    tci_effect(Cet = Cet, pkmod = pkmod, ...)
+  }
+}
+
+tci_3cpt_comb <- iterate_tci_grid(Cet, tms, tci = tci_comb, pkmod = pkmod3cptm, pars = pars_3cpt)
+
+plot(stepfun(tms, Cet), ylim = c(0,7), xlim = c(0,15), main = "Combined plasma- effect-site-targeting TCI algorithm", xlab = "min", ylab = "concentration")
+lines(tci_3cpt_comb$starttm, tci_3cpt_comb$c1_start, col = 2)
+lines(tci_3cpt_comb$starttm, tci_3cpt_comb$c4_start, col = 3)
+legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex = 0.8)
+```
+
+<img src="examples_files/figure-gfm/tci-combined-1.png" style="display: block; margin: auto;" />
