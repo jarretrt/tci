@@ -166,12 +166,14 @@ dat <- data.frame(AGE  = c(20,40,65),
 #' schnider_poppk(dat, rand = F, rate = F)
 #' schnider_poppk(dat, rand = T, rate = T)
 
-eleveld_poppk <- function(df, rate = F){
+eleveld_poppk <- function(df, rate = F, rand = F){
 
   # fixed effect estimates
   theta <- c(6.28,25.5,273,1.79,1.75,1.11,0.191,42.3,9.06,-0.0156,-0.00286,33.6,-0.0138,68.3,2.10,1.30,1.42,0.68)
   # random effect variances
   omega <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463)
+  # simulate random effects if rand
+  if(rand) eta <- mvtnorm::rmvnorm(n=nrow(df), mean = rep(0,length(omega)), sigma=diag(omega))
 
   AGE  <- df$AGE
   PMA  <- df$PMA
@@ -205,16 +207,17 @@ eleveld_poppk <- function(df, rate = F){
   fQ3maturation_ref <- fsigmoid(AGEref*52+40,theta[14],1)
   fopiates <- function(x) ifelse(OPIATE,exp(x*AGE),1)
 
-  fAlSallami <-     ifelse(MALE, (0.88+(1-0.88)/(1+(AGE/13.4)^(-12.7)))*(9270*WGT)/(6680+216*BMI),
+  fAlSallami <- ifelse(MALE, (0.88+(1-0.88)/(1+(AGE/13.4)^(-12.7)))*(9270*WGT)/(6680+216*BMI),
                            (1.11+(1-1.11)/(1+(AGE/7.1)^(-1.1)))*(9270*WGT)/(8780+244*BMI))
-
   fAlSallami_ref <- (0.88+(1-0.88)/(1+(AGEref/13.4)^(-12.7))) *(9270*WGTref)/(6680+216*BMIref)
-  V1arterial <- theta[1]*fcentral(WGT)/fcentral(WGTref)*exp(eta[1])
-  V1venous <- V1arterial*(1+theta[17]*(1-fcentral(WGT)))
-  V2 <- theta[2]*WGT/WGTref*faging(theta[10])*exp(eta[2])
-  V3 <- theta[3]*(fAlSallami/fAlSallami_ref)*fopiates(theta[13])*exp(eta[3])
 
-  CL <- c(t(c(MALE,1-MALE))%*%theta[c(4,15)]*(WGT/WGTref)^0.75*(fCLmaturation/fCLmaturation_ref)*fopiates(theta[11])*exp(eta[4]))
+  V1arterial <- theta[1]*fcentral(WGT)/fcentral(WGTref)*exp(eta[,1])
+  V1venous <- V1arterial*(1+theta[17]*(1-fcentral(WGT)))
+  V2 <- theta[2]*WGT/WGTref*faging(theta[10])*exp(eta[,2])
+  V3 <- theta[3]*(fAlSallami/fAlSallami_ref)*fopiates(theta[13])*exp(eta[,3])
+
+  CL <- (MALE*theta[4] + (1-MALE)*theta[15])*(WGT/WGTref)^0.75*(fCLmaturation/fCLmaturation_ref)*fopiates(theta[11])*exp(eta[,4]))
+  CL <- c(t(c(MALE,1-MALE))%*%theta[c(4,15)]*(WGT/WGTref)^0.75*(fCLmaturation/fCLmaturation_ref)*fopiates(theta[11])*exp(eta[,4]))
   Q2arterial <- theta[5]*(V2/V2ref)^(0.75)*(1+theta[16]*(1-fQ3maturation))*exp(eta[5])
   Q2venous <- Q2arterial*theta[18]
   Q3 <- theta[6]*(V3/V3ref)^(0.75)*(fQ3maturation/fQ3maturation_ref)*exp(eta[6])
@@ -226,6 +229,25 @@ eleveld_poppk <- function(df, rate = F){
   K13 = Q3/V1
   K31 = Q3/V3
 
+  if(rate){
+    df$K10 <- K10
+    df$K12 <- K12
+    df$K21 <- K21
+    df$K13 <- K13
+    df$K31 <- K31
+    df$V1  <- V1
+    df$V2  <- V2
+    df$V3  <- V3
+  } else{
+    df$CL <- CL
+    df$Q2 <- ifelse(ARTERIAL, Q2arterial, Q2venous)
+    df$Q3 <- Q3
+    df$V1  <- V1
+    df$V2  <- V2
+    df$V3  <- V3
+  }
+
+
   if(!returnQ){
     return(c(k10 = K10, k12 = K12, k21 = K21, k13 = K13, k31 = K31, v1 = V1, v2 = V2, v3 = V3))
   } else{
@@ -236,7 +258,7 @@ eleveld_poppk <- function(df, rate = F){
 
 pk <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pk_model.posthoc.txt",
                  header = T, sep = "", skip = 1)
-df <- pk[,c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
+df <- pk[1:20,c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
 eleveld_poppk(df)
 
 

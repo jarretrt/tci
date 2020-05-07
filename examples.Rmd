@@ -666,7 +666,7 @@ plot(tci_bis_res)
 
 ## Simulation functions
 
-We need a function to generate data from a specified PK or PK-PD model given a set of infusions. The infusions are passed in the form of a matrix with columns specifying the infusion rate, the infusion duration, and the starting time of the infusion with the column headers ("infrt","begin","end"). All of these are provided as outputs from both the `create_intvl` and the `iterate_tci_grid` functions, so that the outputsn can be passed directly to the `gen_data` function. Data can be generated at alternate times by specifying a set of times through the `tms` argument. 
+We need a function to generate data from a specified PK or PK-PD model given a set of infusions. The infusions are passed in the form of a matrix with columns specifying the infusion rate, the infusion duration, and the starting time of the infusion with the column headers ("infrt","begin","end"). All of these are provided as outputs from both the `create_intvl` and the `iterate_tci_grid` functions, so that the outputs can be passed directly to the `gen_data` function. Data can be generated at alternate times by specifying a set of times through the `tms` argument. 
 
 
 ```{r, gen-data}
@@ -843,21 +843,30 @@ plot.datasim <- function(datasim){
   out
 }
 
-plot(pkdsim)
+plot(pkpddsim)
 plot(pkpddsim_init)
 plot(combine_sim(pkpddsim, pkpddsim_init))
 ```
 
 
-We now define functions to generate hypothetical patient PK-PD data according to specified population PK or PK-PD models. While a number of commonly used models are provided, such as the Marsh and Schnider PK models or the Eleveld PK-PD model, it is also possible for the user to define custom PK models. Population models should be 
+We now define functions to generate hypothetical patient PK-PD data according to specified population PK or PK-PD models. While a number of commonly used models are provided in the file `poppk_mods.R`, such as the Marsh and Schnider PK models or the Eleveld PK-PD model, it is also possible for the user to define custom PK models. Each model should take in a dataframe of patient covariates and perform the relevant computation to calculate the patient's corresponding PK or PK-PD parameters. If random sampling from the population model is desired, it should be performed within the population PK or PK-PD function using the argument `rand`.
 
-The user begins by creating a patient population object by passing a named list of patient covariate values to the function `gen_pop` along with the name of a population PK or PK-PD model. The function checks that all 
+The `apply_poppk` function is a wrapper function for applying the stored population models. 
+
 
 ```{r, gen-patient-data}
+apply_poppk <- function(patient_df, mod = c("marsh","schnider","eleveld"), ...){
+  switch(match.arg(mod),
+         marsh = marsh_poppk(patient_df, ...),
+         schnider = schnider_poppk(patient_df, ...),
+         eleveld = eleveld_poppk(patient_df, ...))
+}
 
-
-gen_pop <- function(patient_cov, model)
-
+dat <- data.frame(AGE  = c(20,40,65),
+                  TBM  = c(50,70,90),
+                  HGT  = c(150,170,200),
+                  MALE = c(TRUE,FALSE,TRUE))
+identical(schnider_poppk(dat, rand = F, rate = F), apply_poppk(dat, "schnider"))
 
 ```
 
