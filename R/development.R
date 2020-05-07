@@ -1,6 +1,365 @@
 # Functions in development
 
 
+#' User should be able to define and simulate data from an arbitrary infusion schedule
+#' (e.g. kR = 1000 mL/hr for first 3.5 min, followed by kr = 250, until 8.5 min. Example - Soltesz 2012)
+#' Or an infusion of 12mg/kg/h until 3–5min after loss of consciousness (Sepúlveda, 2010)
+#' Step function is inputs, but can be in infusion rate space (mL/hr or mg/kg/hr), target Ce/Cp space, or BIS space.
+#'
+#' Infusion rate space can be translated into an infusion schedule without a model.
+#' Target Ce space requires a PK model and can be back-transformed to provide infusion rates.
+#' Target BIS requires a PD and PK model and can be back-transformed to provide target Ce AND infusion rates.
+#'
+#' It makes sense to target the outcome furthest along the prediction model.
+#' If simulation functions take inputs at the infusion rate space, supplementary functions can be provided for the back-tranformations
+#'
+
+
+#' Function to create an infusion object from a dosing schedule with infusion rates provided
+#' @param d dataframe with columns "time" and "infrt". "time" refers to the end times of each infusion.
+#' @param unit units of measurement (weight or volume) used in infrt
+#' @param tm_unit time unit of measurement (minutes or hours)
+#' @param mgpermL number of miligrams per mililiter of drug being infused. Defaults to 10mg/mL which is the conversion for propofol.
+#' @param starttm starting time of infusions. Defaults to time = 0.
+inf_base <- function(d, unit = c("mg","mL"), tm_unit = c("m","h"), mgpermL = 10, starttm = 0){
+
+  unit <- match.arg(unit)
+  tm_unit <- match.arg(tm_unit)
+  rt <- d$infrt
+
+  if(unit == "mL") rt <- rt*mgpermL
+  if(tm_unit == "h") rt <- rt / 60
+
+  tms <- c(starttm, d$time)
+
+  return(lapply(1:length(rt), function(k) list(begin = tms[k], end = tms[k+1], k_R = rt[k])))
+}
+#' @examples
+#' dose <- data.frame(time = c(0.5,3.5,8.5), infrt = c(0,1000,250))
+#' inf_base(dose, unit = "mL")
+
+
+#' Function to expand time / target dataframe to be passed on to TCI algorithm
+expand_infs <- function(d, starttm = 0, freq = 1/6, val_name = NULL){
+  library(plyr)
+  if(is.null(val_name)) val_name <- try(match.arg(c("Cpt","Cet","BIS"), names(d), several.ok = T), silent = T)
+  if(class(val_name) == "try-error") stop('Dataframe d requires the target name column to be one of c("Cpt","Cet","BIS") or specified through the val_name argument')
+  schd <- data.frame(start = c(starttm, head(d$time,-1)), end = d$time, d[val_name], freq = freq)
+  rbind(arrange(ddply(schd, val_name, summarise, time = seq(start, end-freq, by = freq)), time), c(NA,tail(d$time,1)))
+}
+#' @examples
+#' ds <- data.frame(time = c(0.5,3.5,8.5), Cpt = c(0,2,1))
+#' expand_infs(ds)
+
+
+
+#' PK models are created with a set of parameters and return a function that takes in inputs of infusion rates
+#'
+#' All PK models have elements "kR", "pars", "init" and return predicted concentrations
+
+#' A function to return the basic solution for a one compartment PK model.
+#' @param t A vector of time values to be evaluated.
+#' @param kR A numeric value specifying an infusion rate.
+#' @param pars A named vector of PK parameters with names "k10" "v" or alternately "CL" and "v".
+#' @param init Optional initial concentration in central compartment.
+#' @return Predicted concentrations as a function of time for a one-compartment PK model.
+#' @export
+pkmod1cpt <- function(tm, kR, pars, init = 0){
+
+  if(!all(hasName(pars, c("ke","v"))) & !all(hasName(pars, c("CL","v")))) stop('pars must have names "ke","v" or "CL","v"')
+
+  list2env(as.list(pars), envir = environment())
+
+  if("CL" %in% ls())
+    ke <- CL / v
+
+  return((kR/ke*(1-exp(-tm*ke)) + init*v * exp(-tm*ke)) / v)
+}
+class(pkmod1cpt) <- "pkmod"
+#' @examples
+#' pkmod1cpt(tm = seq(0,5,0.5), kR = 1, pars = exp(c(ke=-2.496,v=2.348)), init = 0)
+
+#' Update method for pk models. Used to set or replace function values
+#' This doesn't (yet) have any safeguards to prevent the user from updating the function with incompatible values.
+update.args <- function(x, argslist){
+  formals(x)[names(argslist)] <- argslist
+  return(x)
+}
+#' @examples
+#' pk1fit <- update.args(pkmod1cpt, list(pars = exp(c(ke=-3,v=2)), init = 1))
+#' pk1fit(tm = seq(0,5,0.5), kR = 1)
+
+
+#' A function to return the concentrations for a three compartment PK model with a metabolite compartment.
+#' @param tm A vector of times to be evaluated.
+#' @param kR A numeric value specifying an infusion rate.
+#' @param pars A named list of PK parameters with names ("k10","k12","k21","k13","k31" "v1","v2","v3","ke0").
+#' Elimination from the second or third compartments can be permitted by including "k20" or "k30", respectively within the list of parameters.
+#' @param init Optional initial concentration in central compartment. Default is to assume no existing medication in any compartment.
+#' @param returncpt Which compartments should have their concentrations calculated. Defaults to all compartments.
+#' @return A function that calculates compartment concentrations as a function of time for the specified PK model.
+#' @export
+pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), returncpt = c("all","cpt1","cpt2","cpt3","cpt4")) {
+
+  list2env(as.list(pars), envir = environment())
+  returncpt <- match.arg(returncpt)
+
+  if(!("k20" %in% ls())){
+    k20 <- 0
+  }
+  if(!("k30" %in% ls())){
+    k30 <- 0
+  }
+
+  kme <- ke0 # k41
+  km  <- kme / 1e5 # k14 Absorption into the effect site is much slower than elimination --> as soon as any drug enters, it is eliminated
+  v4  <- v1 / 1e5
+  # km = 0
+  # v4 = 0
+  E1 <- k10+k12+k13+km
+  E2 <- k21+k20
+  E3 <- k31+k30
+
+  a <- E1+E2+E3
+  b <- E1*E2+E3*(E1+E2)-k12*k21-k13*k31
+  c <- E1*E2*E3-E3*k12*k21-E2*k13*k31
+
+  m <- (3*b - a^2)/3
+  n <- (2*a^3 - 9*a*b + 27*c)/27
+  Q <- (n^2)/4 + (m^3)/27
+
+  alpha <- sqrt(-1*Q)
+  beta <- -1*n/2
+  gamma <- sqrt(beta^2+alpha^2)
+  theta <- atan2(alpha,beta)
+
+  lambda1 <- a/3 + gamma^(1/3)*(cos(theta/3) + sqrt(3)*sin(theta/3))
+  lambda2 <- a/3 + gamma^(1/3)*(cos(theta/3) - sqrt(3)*sin(theta/3))
+  lambda3 <- a/3 -(2*gamma^(1/3)*cos(theta/3))
+
+  A1last <- init[1]*v1
+  A2last <- init[2]*v2
+  A3last <- init[3]*v3
+  Amlast <- init[4]*v4
+
+  B = A2last*k21+A3last*k31
+  C = E3*A2last*k21+E2*A3last*k31
+  I = A1last*k12*E3-A2last*k13*k31+A3last*k12*k31
+  J = A1last*k13*E2+A2last*k13*k21-A3last*k12*k21
+
+  if(returncpt %in% c("all", "cpt1")){
+    A1term1 = A1last*(exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/((lambda2-lambda1)*(lambda3-lambda1))+exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/((lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/((lambda1-lambda3)*(lambda2-lambda3)))
+    A1term2 = exp(-tm*lambda1)*(C-B*lambda1)/((lambda1-lambda2)*(lambda1-lambda3))+exp(-tm*lambda2)*(B*lambda2-C)/((lambda1-lambda2)*(lambda2-lambda3))+exp(-tm*lambda3)*(B*lambda3-C)/((lambda1-lambda3)*(lambda3-lambda2))
+    A1term3 = kR*((E2*E3)/(lambda1*lambda2*lambda3)-exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/(lambda1*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/(lambda2*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/(lambda3*(lambda1-lambda3)*(lambda2-lambda3)))
+    A1term = A1term1+A1term2+A1term3
+  } else A1term = NULL
+
+
+  if(returncpt %in% c("all", "cpt2")){
+    A2term1 = A2last*(exp(-tm*lambda1)*(E1-lambda1)*(E3-lambda1)/((lambda2-lambda1)*(lambda3-lambda1))+exp(-tm*lambda2)*(E1-lambda2)*(E3-lambda2)/((lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E1-lambda3)*(E3-lambda3)/((lambda1-lambda3)*(lambda2-lambda3)))
+    A2term2 = exp(-tm*lambda1)*(I-A1last*k12*lambda1)/((lambda1-lambda2)*(lambda1-lambda3))+exp(-tm*lambda2)*(A1last*k12*lambda2-I)/((lambda1-lambda2)*(lambda2-lambda3))+exp(-tm*lambda3)*(A1last*k12*lambda3-I)/((lambda1-lambda3)*(lambda3-lambda2))
+    A2term3 = kR*k12*(E3/(lambda1*lambda2*lambda3)-exp(-tm*lambda1)*(E3-lambda1)/(lambda1*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E3-lambda2)/(lambda2*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E3-lambda3)/(lambda3*(lambda1-lambda3)*(lambda2-lambda3)))
+    A2term = A2term1+A2term2+A2term3
+  } else A2term = NULL
+
+
+  if(returncpt %in% c("all", "cpt3")){
+    A3term1 = A3last*(exp(-tm*lambda1)*(E1-lambda1)*(E2-lambda1)/((lambda2-lambda1)*(lambda3-lambda1))+exp(-tm*lambda2)*(E1-lambda2)*(E2-lambda2)/((lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E1-lambda3)*(E2-lambda3)/((lambda1-lambda3)*(lambda2-lambda3)))
+    A3term2 = exp(-tm*lambda1)*(J-A1last*k13*lambda1)/((lambda1-lambda2)*(lambda1-lambda3))+exp(-tm*lambda2)*(A1last*k13*lambda2-J)/((lambda1-lambda2)*(lambda2-lambda3))+exp(-tm*lambda3)*(A1last*k13*lambda3-J)/((lambda1-lambda3)*(lambda3-lambda2))
+    A3term3 = kR*k13*(E2/(lambda1*lambda2*lambda3)-exp(-tm*lambda1)*(E2-lambda1)/(lambda1*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E2-lambda2)/(lambda2*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E2-lambda3)/(lambda3*(lambda1-lambda3)*(lambda2-lambda3)))
+    A3term = A3term1+A3term2+A3term3
+  } else A3term = NULL
+
+  if(returncpt %in% c("all", "cpt4")){
+    Amterm1 = Amlast*exp(-tm*kme) +km*A1last*(exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/((lambda2-lambda1)*(lambda3-lambda1)*(kme-lambda1))+exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/((kme-lambda2)*(lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/((kme-lambda3)*(lambda1-lambda3)*(lambda2-lambda3))+exp(-tm*kme)*(E2-kme)*(E3-kme)/((lambda1-kme)*(lambda2-kme)*(lambda3-kme)))
+    Amterm2 = km*(exp(-tm*lambda1)*(B*lambda1-C)/((lambda1-lambda2)*(lambda1-lambda3)*(lambda1-kme))+exp(-tm*lambda2)*(C-B*lambda2)/((lambda1-lambda2)*(lambda2-lambda3)*(lambda2-kme))+exp(-tm*lambda3)*(C-B*lambda3)/((lambda1-lambda3)*(lambda3-lambda2)*(lambda3-kme))-exp(-tm*kme)*(B*kme-C)/((lambda1-kme)*(kme-lambda2)*(kme-lambda3)))
+    Amterm3 = km*kR*((E2*E3)/(lambda1*lambda2*lambda3*kme)-exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/(lambda1*(kme-lambda1)*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/(lambda2*(kme-lambda2)*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/(lambda3*(kme-lambda3)*(lambda1-lambda3)*(lambda2-lambda3))-exp(-tm*kme)*(E2-kme)*(E3-kme)/(kme*(lambda1-kme)*(lambda2-kme)*(lambda3-kme)))
+    Amterm = Amterm1+Amterm2+Amterm3
+  } else Amterm = NULL
+
+  return(rbind(A1term/v1, A2term/v2, A3term/v3, Amterm/v4))
+
+}
+class(pkmod3cptm) <- "pkmod"
+#' @examples
+#' pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,k31=0.8,v1=10,v2=15,v3=100,ke0=4)
+#' fit3cptm <- update.args(pkmod3cptm, list(pars = pars_3cpt, init = c(0,0,0,0)))
+#' fit3cptm(tm = seq(1,6,1), kR = 1)
+#' fit3cptm(tm = seq(1,6,1), kR = 1, returncpt = "cpt1")
+
+
+
+#' TCI function takes in target concentration, a PK model, and starting concentrations and returns the infusion rate estimated to reach the target
+#' This function is iterated down a dataframe of expanded infusions by another function.
+
+#' Plasma-targeting TCI function
+tci_plasma <- function(Cpt, mod, dt, maxrt = 200, ...){
+  Cp1 <- mod(tm = dt, kR = 1, ...)
+  Cp2 <- mod(tm = dt, kR = 2, ...)
+  m <- Cp2 - Cp1
+  b <- Cp1 - m
+  infrt <- (Cpt - b) / m
+  if(infrt < 0)
+    infrt <- 0
+  if(infrt > maxrt)
+    infrt <- maxrt
+  return(c(infrt))
+}
+#' @examples
+#' pk1fit <- update.args(pkmod1cpt, list(pars = exp(c(ke=-3,v=2)), init = 1))
+#' inf_est <- tci_plasma(Cpt = 2, dt = 2, mod = pk1fit) # find infusion to increase plasma concentration to 2 within 2 minutes.
+#' pk1fit(tm = 2, kR = inf_est) # verify results
+#'
+#' # check that arguments can be passed correctly
+#' identical(inf_est, tci_plasma(Cpt = 2, dt = 2, mod = pkmod1cpt, pars = exp(c(ke=-3,v=2)), init = 1))
+#'
+#' # add default values
+#' tci_fit <- update.args(tci_plasma, list(dt = 1/6, mod = pk1fit)) # change infusion interval to 10s
+#' pk1fit(tm = 1/6, kR = tci_fit(Cpt = 2)) # verify that it reaches Cp = 2 in 10s
+#'
+#' # check for 3cpt model
+#' pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,k31=0.8,v1=10,v2=15,v3=100,ke0=4)
+#' tci_plasma(Cpt = 2, dt = 1/6, mod = pkmod3cptm, pars = pars_3cpt, returncpt = "cpt1")
+#' pkmod3cptm(tm = 1/6, kR = tci_plasma(Cpt = 2, dt = 1/6, mod = pkmod3cptm, pars = pars_3cpt, returncpt = "cpt1"), pars = pars_3cpt)
+
+
+
+#' Apply plasma targeting to a sequence of targets
+iterate_tci <- function(d, tci, ini = 0, ncpt = 1, val_name = NULL, pkmod.args = NULL, ...){
+  browser()
+  if(is.null(val_name)) val_name <- try(match.arg(c("Cpt","Cet","BIS"), names(d), several.ok = T), silent = T)
+  if(class(val_name) == "try-error") stop('Dataframe d requires the target name column to be one of c("Cpt","Cet","BIS") or specified through the val_name argument')
+
+  dt <- diff(d$time)
+  d$infrt <- NA
+
+  for(i in 1:ncpt)
+    d[,paste0("comp",i)] <- NA
+
+  compix <- grep("comp",names(d))
+  d[1,compix] <- ini
+
+  for(i in 1:(nrow(d)-1)){
+    # calculate infusion
+    d$infrt[i] <- tci(Cpt = d[i,val_name], dt = dt[i], init = d[i,compix], ...)
+    # calculate predicted values given the infusion
+    # Need to be able to pass on arguments to pkmod
+    pkmodargs <- c(tm = dt[i], kR = d$infrt[i], init = d[i,compix], pkmod.args)
+    d[i+1,compix] <- do.call(formals(tci)$mod, pkmodargs)
+    # d[i+1,compix] <- formals(tci)$mod(tm = dt[i], kR = d$infrt[i], init = d[i,compix])
+  }
+
+  return(d)
+}
+#' @examples
+#' pk1fit <- update.args(pkmod1cpt, list(pars = exp(c(ke=-3,v=2)), init = 0)) # set initial values and parameters
+#' tci_fit <- update.args(tci_plasma, list(dt = 1/6, mod = pk1fit)) # update tci algorithm
+#' tci_plasma(Cpt = 2, dt = 2, mod = pkmod1cpt, pars = exp(c(ke=-3,v=2)), init = 1)
+#'
+#' ds <- data.frame(time = c(0.5,3.5,8.5), Cpt = c(0,2,1))
+#' inf_sched <- iterate_tci(expand_infs(ds), tci_fit, mod = pkmod1cpt, pars = exp(c(ke=-3,v=2)))
+#' inf_base(inf_sched)
+#'
+#'
+#' # Infusion schedule with 3 cpt model
+#' pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,k31=0.8,v1=10,v2=15,v3=100,ke0=4)
+#'
+#' inf_sched <- iterate_tci(expand_infs(ds), tci_fit, mod = pkmod1cpt, pars = exp(c(ke=-3,v=2)))
+#'
+#' pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,k31=0.8,v1=10,v2=15,v3=100,ke0=4)
+#' tci_plasma(Cpt = 2, dt = 1/6, mod = pkmod3cptm, pars = pars_3cpt, returncpt = "cpt1")
+#' pkmod3cptm(tm = 1/6, kR = tci_plasma(Cpt = 2, dt = 1/6, mod = pkmod3cptm, pars = pars_3cpt, returncpt = "cpt1"), pars = pars_3cpt)
+
+
+
+
+#' Function to collapse infusions
+collapse_inf <- function(inf){
+
+  inf_start <- which(c(TRUE, abs(diff(sapply(inf, `[[`, "k_R"))) > 1e-5))
+  inftmp <- unlist(inf[inf_start])
+  inf_endtm <- sapply(inf[c(inf_start[-1]-1, length(inf))], `[[`, "end")
+  inftmp[names(inftmp) == "end"] <- inf_endtm
+
+  return(relist(inftmp, inf[inf_start]))
+}
+#' @examples
+#' ds <- data.frame(time = c(0.5,3.5,8.5), Cpt = c(0,2,1))
+#' inf_sched <- iterate_tci(expand_infs(ds), tci_fit, mod = pkmod1cpt, pars = exp(c(ke=-3,v=2)))
+#' collapse_inf(inf_base(inf_sched))
+
+
+
+#' Predict method for pkmod
+predict <- function (x, ...) {UseMethod("predict", x, ...)}
+
+#' Function to apply pk model piecewise to infusion schedule
+predict.pkmod <- function(pkmod, inf, dt = 1/6, ...){
+
+  begin <- sapply(inf, `[[`, "begin")
+  end_inf <- sapply(inf, `[[`, "end")
+  end <- c(head(end_inf,-1)-dt, tail(end_inf,1))
+  if(any(end < begin)) stop("dt must be no bigger than the minimum time between infusions.")
+  kR <- sapply(inf, `[[`, "k_R")
+  tms_eval <- mapply(seq, begin, end, by = dt)
+  pred <- vector("list", length(kR))
+  init <- vector("list", length(kR)+1)
+  init[[1]] <- formals(pkmod)$init
+
+  for(i in 1:length(kR)){
+    pred[[i]] <- pkmod(tm = tms_eval[[i]], kR = kR[i], init = init[[i]])
+    init[[i+1]] <- pred[[i]][,ncol(pred[[i]])]
+  }
+
+  predtms <- cbind(unique(unlist(tms_eval)),  t(do.call("cbind", pred)))
+  colnames(predtms) <- c("time",paste0("c",1:length(init[[1]])))
+  return(predtms)
+}
+
+#' @examples
+#' # dosing schedule
+#' ds <- data.frame(time = c(0.5,3.5,8.5), Cpt = c(0,2,1))
+#' inf_sched <- iterate_tci(expand_infs(ds), tci_fit, mod = pkmod1cpt, pars = exp(c(ke=-3,v=2)))
+#' inf_sched <- collapse_inf(inf_base(inf_sched))
+#'
+#' # 3cpt pk model
+#' pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,k31=0.8,v1=10,v2=15,v3=100,ke0=4)
+#'
+#' # update base tci algorithm with parameters
+#' tci_fit <- update.args(tci_plasma, list(dt = 1/6, mod = pk1fit)) # update tci algorithm
+#' inf_sched_3cpt <- iterate_tci(expand_infs(ds), tci_fit, mod = pkmod3cptm, pars = pars_3cpt)
+#' fit3cptm <- update.args(pkmod3cptm, list(pars = pars_3cpt, init = c(0,0,0,0)))
+#'
+#' con_pred <- predict.pkmod(pkmod = fit3cptm, inf = inf_sched, dt = 1/60)
+#' plot(con_pred[,"time"], con_pred[,"c1"], type = "l", xlab = "minutes", ylab = "mg/L"); sapply(2:4, function(i) lines(con_pred[,"time"], con_pred[,i+1], col = i))
+
+
+
+#' Function to add an infusion schedule to an existing PK model and return a function that gives predictions at any time
+add_inf <- function(pkmod, inf){
+
+  ints <- sapply(inf, `[`, c("begin","end"))
+  kR <- sapply(inf, `[[`, "k_R")
+
+  # get initial concentrations at each end point
+  init <- vector("list", length(kR)+1)
+  init[[1]] <- formals(pkmod)$init
+
+  for(i in 1:length(kR)){
+    init[[i+1]] <- pkmod(tm = ints[["end",i]], kR = kR[i], init = init[[i]])
+  }
+
+
+
+}
+
+
+
+
+
+
+
+
 #' A function to return the basic solution for a one compartment PK model.
 #'
 #' @param kR A numeric value specifying an infusion rate.
@@ -25,7 +384,7 @@ pk_basic_solution_1cpt <- function(kR, pars, init = 0){
   attributes(out) <- c(attributes(out), list(infusion = kR, param = pars, initial = init))
   return(out)
 }
-attributes(pk_basic_solution_1cpt) <- list(ncompartments = 1)
+# attributes(pk_basic_solution_1cpt) <- list(ncompartments = 1)
 
 #' @examples
 #' pars_1cpt <- exp(c(k10=-2.496,v1=2.348))
@@ -33,9 +392,6 @@ attributes(pk_basic_solution_1cpt) <- list(ncompartments = 1)
 
 
 
-custom_pk1cpt <- function(kR, pars, init){
-
-}
 
 
 #' A function to return the basic solution for a two compartment PK model.
@@ -615,5 +971,16 @@ iterate_tci <- function(tci, init, start_tm = 0, ...){
 #' @examples
 #' Ce <- c(1,1.5,2,1.5)
 #' tms <- 1:4
+
+
+
+
+
+#' Unit disposition function for a 3 cpt model in polyexponential form
+udfe <- function(pars, pi, alpha, beta){
+
+
+}
+
 
 

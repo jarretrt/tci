@@ -7,6 +7,132 @@
 #' central compartment (i.e. k41). The rate of absorption into the effect-site compartment is set at 1/10,000 the value of ke0.
 #' The function returns a set of functions that calculate the concentration in each of the four compartments as a function of
 #' time.
+#' @param tm Vector of times to evaluate the PK function at
+#' @param kR Infusion rate (e.g. ml/min).
+#' @param pars Named vector of parameters with names ('ke','v') or ('CL)
+#' @param init Initial concentration
+#' @param inittm Time of initiation of infusion
+pkmod1cpt <- function(tm, kR, pars, init = 0, inittm = 0){
+
+  if(!all(hasName(pars, c("ke","v"))) & !all(hasName(pars, c("cl","v")))) stop('pars must have names "ke","v" or "cl","v"')
+  tm <- tm - inittm
+
+  list2env(as.list(pars), envir = environment())
+
+  if("cl" %in% ls())
+    ke <- cl / v
+
+  return((kR/ke*(1-exp(-tm*ke)) + init*v * exp(-tm*ke)) / v)
+}
+class(pkmod1cpt) <- "pkmod"
+
+
+#' 3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
+#' The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
+#' Abuhelwa et al. 2015.
+#'
+#' This function takes in arguments for each of the absorption and elimination rate constants of a three-compartment model
+#' as well as initial concentrations, c0. ke0 gives the rate of elimination from the effect-site compartment into the
+#' central compartment (i.e. k41). The rate of absorption into the effect-site compartment is set at 1/10,000 the value of ke0.
+#' The function returns a set of functions that calculate the concentration in each of the four compartments as a function of
+#' time.
+#' @param tm Vector of times to evaluate the PK function at
+#' @param kR Infusion rate (e.g. ml/min).
+#' @param pars Named vector of parameters with names (k10,k12,k21,k13,k31,ke0,v1,v2,v3)
+#' @param init Initial concentration
+#' @param inittm Time of initiation of infusion
+pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0, returncpt = c("all","cpt1","cpt2","cpt3","cpt4")) {
+
+  list2env(as.list(pars), envir = environment())
+  returncpt <- match.arg(returncpt)
+  tm <- tm - inittm
+
+  if(!("k20" %in% ls())){
+    k20 <- 0
+  }
+  if(!("k30" %in% ls())){
+    k30 <- 0
+  }
+
+  kme <- ke0 # k41
+  km  <- kme / 1e5 # k14 Absorption into the effect site is much slower than elimination --> as soon as any drug enters, it is eliminated
+  v4  <- v1 / 1e5
+  E1 <- k10+k12+k13+km
+  E2 <- k21+k20
+  E3 <- k31+k30
+
+  a <- E1+E2+E3
+  b <- E1*E2+E3*(E1+E2)-k12*k21-k13*k31
+  c <- E1*E2*E3-E3*k12*k21-E2*k13*k31
+
+  m <- (3*b - a^2)/3
+  n <- (2*a^3 - 9*a*b + 27*c)/27
+  Q <- (n^2)/4 + (m^3)/27
+
+  alpha <- sqrt(-1*Q)
+  beta <- -1*n/2
+  gamma <- sqrt(beta^2+alpha^2)
+  theta <- atan2(alpha,beta)
+
+  lambda1 <- a/3 + gamma^(1/3)*(cos(theta/3) + sqrt(3)*sin(theta/3))
+  lambda2 <- a/3 + gamma^(1/3)*(cos(theta/3) - sqrt(3)*sin(theta/3))
+  lambda3 <- a/3 -(2*gamma^(1/3)*cos(theta/3))
+
+  A1last <- init[1]*v1
+  A2last <- init[2]*v2
+  A3last <- init[3]*v3
+  Amlast <- init[4]*v4
+
+  B = A2last*k21+A3last*k31
+  C = E3*A2last*k21+E2*A3last*k31
+  I = A1last*k12*E3-A2last*k13*k31+A3last*k12*k31
+  J = A1last*k13*E2+A2last*k13*k21-A3last*k12*k21
+
+  if(returncpt %in% c("all", "cpt1")){
+    A1term1 = A1last*(exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/((lambda2-lambda1)*(lambda3-lambda1))+exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/((lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/((lambda1-lambda3)*(lambda2-lambda3)))
+    A1term2 = exp(-tm*lambda1)*(C-B*lambda1)/((lambda1-lambda2)*(lambda1-lambda3))+exp(-tm*lambda2)*(B*lambda2-C)/((lambda1-lambda2)*(lambda2-lambda3))+exp(-tm*lambda3)*(B*lambda3-C)/((lambda1-lambda3)*(lambda3-lambda2))
+    A1term3 = kR*((E2*E3)/(lambda1*lambda2*lambda3)-exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/(lambda1*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/(lambda2*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/(lambda3*(lambda1-lambda3)*(lambda2-lambda3)))
+    A1term = A1term1+A1term2+A1term3
+  } else A1term = NULL
+
+
+  if(returncpt %in% c("all", "cpt2")){
+    A2term1 = A2last*(exp(-tm*lambda1)*(E1-lambda1)*(E3-lambda1)/((lambda2-lambda1)*(lambda3-lambda1))+exp(-tm*lambda2)*(E1-lambda2)*(E3-lambda2)/((lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E1-lambda3)*(E3-lambda3)/((lambda1-lambda3)*(lambda2-lambda3)))
+    A2term2 = exp(-tm*lambda1)*(I-A1last*k12*lambda1)/((lambda1-lambda2)*(lambda1-lambda3))+exp(-tm*lambda2)*(A1last*k12*lambda2-I)/((lambda1-lambda2)*(lambda2-lambda3))+exp(-tm*lambda3)*(A1last*k12*lambda3-I)/((lambda1-lambda3)*(lambda3-lambda2))
+    A2term3 = kR*k12*(E3/(lambda1*lambda2*lambda3)-exp(-tm*lambda1)*(E3-lambda1)/(lambda1*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E3-lambda2)/(lambda2*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E3-lambda3)/(lambda3*(lambda1-lambda3)*(lambda2-lambda3)))
+    A2term = A2term1+A2term2+A2term3
+  } else A2term = NULL
+
+
+  if(returncpt %in% c("all", "cpt3")){
+    A3term1 = A3last*(exp(-tm*lambda1)*(E1-lambda1)*(E2-lambda1)/((lambda2-lambda1)*(lambda3-lambda1))+exp(-tm*lambda2)*(E1-lambda2)*(E2-lambda2)/((lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E1-lambda3)*(E2-lambda3)/((lambda1-lambda3)*(lambda2-lambda3)))
+    A3term2 = exp(-tm*lambda1)*(J-A1last*k13*lambda1)/((lambda1-lambda2)*(lambda1-lambda3))+exp(-tm*lambda2)*(A1last*k13*lambda2-J)/((lambda1-lambda2)*(lambda2-lambda3))+exp(-tm*lambda3)*(A1last*k13*lambda3-J)/((lambda1-lambda3)*(lambda3-lambda2))
+    A3term3 = kR*k13*(E2/(lambda1*lambda2*lambda3)-exp(-tm*lambda1)*(E2-lambda1)/(lambda1*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E2-lambda2)/(lambda2*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E2-lambda3)/(lambda3*(lambda1-lambda3)*(lambda2-lambda3)))
+    A3term = A3term1+A3term2+A3term3
+  } else A3term = NULL
+
+  if(returncpt %in% c("all", "cpt4")){
+    Amterm1 = Amlast*exp(-tm*kme) +km*A1last*(exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/((lambda2-lambda1)*(lambda3-lambda1)*(kme-lambda1))+exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/((kme-lambda2)*(lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/((kme-lambda3)*(lambda1-lambda3)*(lambda2-lambda3))+exp(-tm*kme)*(E2-kme)*(E3-kme)/((lambda1-kme)*(lambda2-kme)*(lambda3-kme)))
+    Amterm2 = km*(exp(-tm*lambda1)*(B*lambda1-C)/((lambda1-lambda2)*(lambda1-lambda3)*(lambda1-kme))+exp(-tm*lambda2)*(C-B*lambda2)/((lambda1-lambda2)*(lambda2-lambda3)*(lambda2-kme))+exp(-tm*lambda3)*(C-B*lambda3)/((lambda1-lambda3)*(lambda3-lambda2)*(lambda3-kme))-exp(-tm*kme)*(B*kme-C)/((lambda1-kme)*(kme-lambda2)*(kme-lambda3)))
+    Amterm3 = km*kR*((E2*E3)/(lambda1*lambda2*lambda3*kme)-exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/(lambda1*(kme-lambda1)*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/(lambda2*(kme-lambda2)*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/(lambda3*(kme-lambda3)*(lambda1-lambda3)*(lambda2-lambda3))-exp(-tm*kme)*(E2-kme)*(E3-kme)/(kme*(lambda1-kme)*(lambda2-kme)*(lambda3-kme)))
+    Amterm = Amterm1+Amterm2+Amterm3
+  } else Amterm = NULL
+
+  return(rbind(A1term/v1, A2term/v2, A3term/v3, Amterm/v4))
+
+}
+class(pkmod3cptm) <- "pkmod"
+
+
+#' 3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
+#' The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
+#' Abuhelwa et al. 2015.
+#'
+#' This function takes in arguments for each of the absorption and elimination rate constants of a three-compartment model
+#' as well as initial concentrations, c0. ke0 gives the rate of elimination from the effect-site compartment into the
+#' central compartment (i.e. k41). The rate of absorption into the effect-site compartment is set at 1/10,000 the value of ke0.
+#' The function returns a set of functions that calculate the concentration in each of the four compartments as a function of
+#' time.
 #' @param kR Infusion rate (e.g. ml/min).
 #' @param k10 Rate of excretion from central compartment.
 #' @param k12 Rate of transfer from compartment 1 to compartment 2.
@@ -104,6 +230,27 @@ pk_basic_solution_3cpt_metab <- function(kR,
   return(list(c_1=c_1, c_2=c_2, c_3=c_3, c_4=c_4))
 }
 
+#' @examples
+#' pk_pars <- eleveld_pk[eleveld_pk$ID == 403,c("V1","V2","V3","CL","Q2","Q3")]
+#' pd_pars <- eleveld_pd[eleveld_pd$ID == 403,c("E50","KE0","EMAX","GAM","GAM1","RESD")]
+#'
+#' sol <- pk_basic_solution_3cpt_metab(kR = 1,
+#'                                     k10 = pk_pars$CL / pk_pars$V1,
+#'                                     k12 = pk_pars$Q2 / pk_pars$V1,
+#'                                     k21 = pk_pars$Q2 / pk_pars$V2,
+#'                                     k13 = pk_pars$Q3 / pk_pars$V1,
+#'                                     k31 = pk_pars$Q3 / pk_pars$V3,
+#'                                     v1 = pk_pars$V1,
+#'                                     v2 = pk_pars$V2,
+#'                                     v3 = pk_pars$V3,
+#'                                     ke0 = pd_pars$KE0,
+#'                                     c0 = c(0,0,0,0))
+#' # concentration in central and effect site compartments
+#' tms <- seq(0,1,0.1)
+#' cbind(sol$c_1(tms), sol$c_4(tms))
+
+
+
 # compiled version
 pk_basic_solution_3cpt_metab_c <- compiler::cmpfun(pk_basic_solution_3cpt_metab)
 
@@ -177,6 +324,31 @@ pk_solution_3cpt_metab <- function(pars, ivt = ivt_d, init=init_d)
   return(ret)
 }
 
+#' @examples
+#' pk_pars <- eleveld_pk[eleveld_pk$ID == 403,c("V1","V2","V3","CL","Q2","Q3")]
+#' pd_pars <- eleveld_pd[eleveld_pd$ID == 403,c("E50","KE0","EMAX","GAM","GAM1","RESD")]
+#' pars <- c(k10 = pk_pars$CL / pk_pars$V1,
+#'           k12 = pk_pars$Q2 / pk_pars$V1,
+#'           k21 = pk_pars$Q2 / pk_pars$V2,
+#'           k13 = pk_pars$Q3 / pk_pars$V1,
+#'           k31 = pk_pars$Q3 / pk_pars$V3,
+#'           v1 = pk_pars$V1,
+#'           v2 = pk_pars$V2,
+#'           v3 = pk_pars$V3,
+#'           ke0 = pd_pars$KE0)
+#' ivt <- list(list(begin=0.0, end=0.5, k_R=6),
+#'             list(begin=8.0, end=8.5, k_R=6),
+#'             list(begin=16.0, end=16.5, k_R=6),
+#'             list(begin=24.0, end=24.5, k_R=6),
+#'             list(begin=32.0, end=32.5, k_R=6))
+#' init <- c(0,0,0,0)
+#' sol <- pk_solution_3cpt_metab(pars, ivt, init)
+#' tms <- seq(0,32,0.1)
+#' plot(tms, sol(tms)[1,], type = "l", xlab = "Minutes", ylab = "Concentration")
+#' lines(tms, sol(tms)[4,], col = 2)
+#' legend("bottomright", c("Central concentration", "Effect-site concentration"), col = c(1,2), lty = c(1,1))
+
+
 #' Piecewise solution for a single infusion followed by a period with no infusion.
 #' This function is similar to pk_solution_3cpt_metab, except that it accepts and
 #' implements only the first infusion (ivt[[1]]). This function exists primarily for
@@ -225,7 +397,25 @@ pk_solution_3cpt_metab_singleinf <- function(pars, ivt, init, ce_only = F){
   }
   return(calc_con)
 }
-
+#' @examples
+#' pk_pars <- eleveld_pk[eleveld_pk$ID == 403,c("V1","V2","V3","CL","Q2","Q3")]
+#' pd_pars <- eleveld_pd[eleveld_pd$ID == 403,c("E50","KE0","EMAX","GAM","GAM1","RESD")]
+#' pars <- c(k10 = pk_pars$CL / pk_pars$V1,
+#'           k12 = pk_pars$Q2 / pk_pars$V1,
+#'           k21 = pk_pars$Q2 / pk_pars$V2,
+#'           k13 = pk_pars$Q3 / pk_pars$V1,
+#'           k31 = pk_pars$Q3 / pk_pars$V3,
+#'           v1 = pk_pars$V1,
+#'           v2 = pk_pars$V2,
+#'           v3 = pk_pars$V3,
+#'           ke0 = pd_pars$KE0)
+#' ivt <- list(begin = 0, end = 0.5, k_R = 1)
+#' init <- c(0,0,0,0)
+#' sol <- pk_solution_3cpt_metab_singleinf(pars, ivt, init)
+#' tms <- seq(0,20,0.1)
+#' plot(tms, sol(tms)[1,], type = "l", xlab = "Minutes", ylab = "Concentration")
+#' lines(tms, sol(tms)[4,], col = 2)
+#' legend("bottomright", c("Central concentration", "Effect-site concentration"), col = c(1,2), lty = c(1,1))
 
 
 #' Function to generate PK parameters for Eleveld model.
@@ -270,10 +460,7 @@ gen_eleveld_pk_pars <- function(theta, eta, patient_vars, returnQ = F){
 
   fAlSallami <-     ifelse(MALE, (0.88+(1-0.88)/(1+(AGE/13.4)^(-12.7)))*(9270*WGT)/(6680+216*BMI),
                            (1.11+(1-1.11)/(1+(AGE/7.1)^(-1.1)))*(9270*WGT)/(8780+244*BMI))
-  # fAlSallami_ref <- ifelse(MALE, (0.88+(1-0.88)/(1+(AGEref/13.4)^(-12.7))) *(9270*WGTref)/(6680+216*BMIref),
-  # (1.11+(1-1.11)/(1+(AGEref/7.1)^(-1.1)))*(9270*WGTref)/(8780+244*BMIref))
 
-  # apparently the reference case doesn't change with sex
   fAlSallami_ref <- (0.88+(1-0.88)/(1+(AGEref/13.4)^(-12.7))) *(9270*WGTref)/(6680+216*BMIref)
   V1arterial <- theta[1]*fcentral(WGT)/fcentral(WGTref)*exp(eta[1])
   V1venous <- V1arterial*(1+theta[17]*(1-fcentral(WGT)))
@@ -299,6 +486,20 @@ gen_eleveld_pk_pars <- function(theta, eta, patient_vars, returnQ = F){
     return(c(CL = CL, Q2 = Q2, Q3 = Q3, v1 = V1, v2 = V2, v3 = V3))
   }
 }
+
+#' @Examples
+#'
+#' # PK fixed effect values and random effect variances from Eleveld et al. (2018)
+#' eleveld_theta_pk_est <- c(6.28,25.5,273,1.79,1.75,1.11,0.191,42.3,9.06,-0.0156,-0.00286,33.6,-0.0138,68.3,2.10,1.30,1.42,0.68)
+#' eleveld_eta_pk_var <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463)
+#'
+#' # Example patient covariate values, fixed effects, and random effects
+#' patient_covariates <- eleveld_pk[eleveld_pk$ID == 403,c("AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
+#' gen_eleveld_pk_pars(theta = eleveld_theta_pk_est,
+#'                     eta = eleveld_eta_pk_var,
+#'                     patient_vars = patient_covariates)
+
+
 
 #' R code adapted from nonmem PK file provided in supplementary material of Eleveld et al. Function takes in fixed effect
 #' parameter estimates and random effect variance estimates to return parameters for a 3 compartment pk model with an
@@ -398,6 +599,18 @@ gen_eleveld_pk_pars_nonmem <- function(THETA, ETA, PATIENT_VARS, returnQ = F){
   else return(c(k10 = K10, k12 = K12, k21 = K21, k13 = K13, k31 = K31, V1 = V1, V2 = V2, V3 = V3))
 }
 
+#' @Examples
+#'
+#' # PK fixed effect values and random effect variances from Eleveld et al. (2018)
+#' eleveld_theta_pk_est <- c(6.28,25.5,273,1.79,1.75,1.11,0.191,42.3,9.06,-0.0156,-0.00286,33.6,-0.0138,68.3,2.10,1.30,1.42,0.68)
+#' eleveld_eta_pk_var <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463)
+#'
+#' # Example patient covariate values, fixed effects, and random effects
+#' patient_covariates <- eleveld_pk[eleveld_pk$ID == 403,c("AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
+#' gen_eleveld_pk_pars_nonmem(THETA = eleveld_theta_pk_est,
+#'                            ETA = eleveld_eta_pk_var,
+#'                            PATIENT_VARS = patient_covariates)
+
 
 #' Function to generate Emax PD model described by Eleveld et al
 #' @param theta Fixed effect parameters on non-logged scale
@@ -418,3 +631,14 @@ gen_eleveld_pd_pars <- function(theta, eta, patient_vars){
   bis_delay = 15 + exp(theta[6]*AGE)
   return(c(ke0 = ke0, c50 = Ce50, gamma = gamma, gamma2 = gamma2, E0 = BISbaseline, sigma = sigma, bis_delay = bis_delay))
 }
+
+#' @Examples
+#'
+#' # PD fixed effect values and random effect variances from Eleveld et al. (2018)
+#' eleveld_theta_pd_est <- c(3.08,0.146,93.0,1.47,8.03,0.0517,-0.00635,1.24,1.89)
+#' eleveld_eta_pd_var <- c(0.242,0.702,0.230)
+#'
+#' patient_covariates <- eleveld_pd[eleveld_pd$ID == 403,c("AGE","WGT","HGT","M1F2","PMA","TECH","A1V2")]
+#' gen_eleveld_pd_pars(theta = eleveld_theta_pd_est,
+#'                     eta = eleveld_eta_pd_var,
+#'                     patient_vars = patient_covariates)
