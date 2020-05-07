@@ -94,11 +94,11 @@ schnider_poppk <- function(df, rate = F, rand = F){
   return(df)
 }
 #' @examples
-dat <- data.frame(AGE  = c(20,40,65),
-                  TBM  = c(50,70,90),
-                  HGT  = c(150,170,200),
-                  MALE = c(TRUE,FALSE,TRUE))
-
+#' dat <- data.frame(AGE  = c(20,40,65),
+#'                   TBM  = c(50,70,90),
+#'                   HGT  = c(150,170,200),
+#'                   MALE = c(TRUE,FALSE,TRUE))
+#'
 #' schnider_poppk(dat, rand = F, rate = F)
 #' schnider_poppk(dat, rand = T, rate = T)
 
@@ -158,11 +158,10 @@ schnider_poppk <- function(df, rate = F, rand = F){
   return(df)
 }
 #' @examples
-dat <- data.frame(AGE  = c(20,40,65),
-                  TBM  = c(50,70,90),
-                  HGT  = c(150,170,200),
-                  MALE = c(TRUE,FALSE,TRUE))
-
+#' dat <- data.frame(AGE  = c(20,40,65),
+#'                   TBM  = c(50,70,90),
+#'                   HGT  = c(150,170,200),
+#'                   MALE = c(TRUE,FALSE,TRUE))
 #' schnider_poppk(dat, rand = F, rate = F)
 #' schnider_poppk(dat, rand = T, rate = T)
 
@@ -216,8 +215,8 @@ eleveld_poppk <- function(df, rate = F, rand = F){
   V2 <- theta[2]*WGT/WGTref*faging(theta[10])*exp(eta[,2])
   V3 <- theta[3]*(fAlSallami/fAlSallami_ref)*fopiates(theta[13])*exp(eta[,3])
 
-  CL <- (MALE*theta[4] + (1-MALE)*theta[15])*(WGT/WGTref)^0.75*(fCLmaturation/fCLmaturation_ref)*fopiates(theta[11])*exp(eta[,4]))
-  CL <- c(t(c(MALE,1-MALE))%*%theta[c(4,15)]*(WGT/WGTref)^0.75*(fCLmaturation/fCLmaturation_ref)*fopiates(theta[11])*exp(eta[,4]))
+  CL <- (MALE*theta[4] + (1-MALE)*theta[15])*(WGT/WGTref)^0.75*(fCLmaturation/fCLmaturation_ref)*fopiates(theta[11])*exp(eta[,4])
+  # CL <- c(t(c(MALE,1-MALE))%*%theta[c(4,15)]*(WGT/WGTref)^0.75*(fCLmaturation/fCLmaturation_ref)*fopiates(theta[11])*exp(eta[,4]))
   Q2arterial <- theta[5]*(V2/V2ref)^(0.75)*(1+theta[16]*(1-fQ3maturation))*exp(eta[5])
   Q2venous <- Q2arterial*theta[18]
   Q3 <- theta[6]*(V3/V3ref)^(0.75)*(fQ3maturation/fQ3maturation_ref)*exp(eta[6])
@@ -256,23 +255,23 @@ eleveld_poppk <- function(df, rate = F, rand = F){
   }
 }
 
-pk <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pk_model.posthoc.txt",
-                 header = T, sep = "", skip = 1)
-df <- pk[1:20,c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
-eleveld_poppk(df)
-
-
-pd <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pd_model.posthoc.txt",
-                 header = T, sep = "", skip = 1)
-                   # "../data/final_pd_model.posthoc.txt", header = T, sep = "", skip = 1)
-
-
-
-pk$k10 = pk$CL / pk$V1
-pk$k12 = pk$Q2 / pk$V1
-pk$k21 = pk$Q2 / pk$V2
-pk$k13 = pk$Q3 / pk$V1
-pk$k31 = pk$Q3 / pk$V3
-pkpd <- merge(pk,pd,by = intersect(names(pk), names(pd)))
-gen_eleveld_pk_pars(theta = eleveld_theta_pk_est, eta = eleveld_eta_pk_var, patient_vars = pkpd[i,], returnQ = F)
+# pk <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pk_model.posthoc.txt",
+#                  header = T, sep = "", skip = 1)
+# df <- pk[1:20,c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
+# eleveld_poppk(df)
+#
+#
+# pd <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pd_model.posthoc.txt",
+#                  header = T, sep = "", skip = 1)
+#                    # "../data/final_pd_model.posthoc.txt", header = T, sep = "", skip = 1)
+#
+#
+#
+# pk$k10 = pk$CL / pk$V1
+# pk$k12 = pk$Q2 / pk$V1
+# pk$k21 = pk$Q2 / pk$V2
+# pk$k13 = pk$Q3 / pk$V1
+# pk$k31 = pk$Q3 / pk$V3
+# pkpd <- merge(pk,pd,by = intersect(names(pk), names(pd)))
+# gen_eleveld_pk_pars(theta = eleveld_theta_pk_est, eta = eleveld_eta_pk_var, patient_vars = pkpd[i,], returnQ = F)
 

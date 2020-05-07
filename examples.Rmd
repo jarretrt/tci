@@ -862,6 +862,7 @@ apply_poppk <- function(patient_df, mod = c("marsh","schnider","eleveld"), ...){
          eleveld = eleveld_poppk(patient_df, ...))
 }
 
+source("./R/poppk_mods.R")
 dat <- data.frame(AGE  = c(20,40,65),
                   TBM  = c(50,70,90),
                   HGT  = c(150,170,200),
@@ -873,113 +874,113 @@ identical(schnider_poppk(dat, rand = F, rate = F), apply_poppk(dat, "schnider"))
 
 
 
-We now need a function to perform Bayesian updates to a PK-PD model parameters with simulated data. To do this, we first define functions for the log prior, log likelihood, and log posterior. 
+<!-- We now need a function to perform Bayesian updates to a PK-PD model parameters with simulated data. To do this, we first define functions for the log prior, log likelihood, and log posterior.  -->
 
-```{r, update-pkpd}
-#' Parameter estimates from Eleveld et al. (2018)
-eleveld_eta_pk_var <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463)
-eleveld_eta_pd_var <- c(0.242,0.702,0.230)
-lvars <- c(eleveld_eta_pk_var, eleveld_eta_pd_var)
-names(lvars) <- c("V1","V2","V3","CL","Q2","Q3","RESID_PK","Ce50","ke0","RESID_PD")
-lvars <- c(lvars, c(k10 = unname(lvars["CL"] + lvars["V1"]),
-                    k12 = unname(lvars["Q2"] + lvars["V1"]),
-                    k21 = unname(lvars["Q2"] + lvars["V2"]),
-                    k13 = unname(lvars["Q3"] + lvars["V1"]),
-                    k31 = unname(lvars["Q3"] + lvars["V3"])))
-lhyper0 <- diag(lvars[c("k10","k12","k21","k13","k31","V1","V2","V3","ke0","Ce50","RESID_PD")])
-
-
-
-#' Function to return the prior probability for a set of parameters assuming they are log-normally distributed.
-#' It is assumed that the last value of of lpr is the prior mean for the variance parameter.
-#' @param lpr log parameter values to evaluate
-#' @param lhyper hyperparameters for mean and error distributions. List with values "mu", "sig" described below.
-#' mu: mean for model parameters and mean of the error distribution
-#' sig: variance covariance matrix for model parameters and standard deviation of error distribution
-log_prior <- function(lpr, lhyper){
-  dmvnorm(lpr, lhyper$mu, lhyper$sig, log = TRUE)
-}
-
-lpr <- log(c(pars_3cpt0, pars_emax0))
-lhyper
-log_prior(lpr, )
-
-#' @param lpr log parameter values to evaluate
-#' @param datasim object of class "datasim" 
-log_likelihood <- function(lpr, datasim, ...){
-  
-  epr <- exp(lpr)
-  pklen <- length(datasim$pars_pk)
-  cp <- data.frame(predict(pkmod = datasim$pkmod, 
-                         inf = datasim$inf, 
-                         tms = datasim$sim$time,
-                         pars = head(epr,pklen), ...))
-  
-  pdp <- datasim$pdmod(ce = cp[,paste0("c",datasim$ecmpt)], pars = tail(epr,length(epr)-pklen))
-    
-  sum(truncnorm::dtruncnorm(x = datasim$sim$pdobs, 
-                            mean = pdp, 
-                            sd = datasim$sigma.add, 
-                            a = 0, b = 100))
-}
-
-
-#' Function to evaluate the log likelihood given a set of logged parameter values and a set of observed BIS values.
-#' @param lpr logged PK-PD-error parameter values
-#' @param ivt infusion schedule
-#' @param dat data frame with columns c("time","bis") corresponding to observed time and bis values
-#' @param ini initial concentrations
-
-log_likelihood <- function(lpr, ivt, dat, gamma, E0, ini = c(0,0,0,0), sum_vals = T){
-  epr <- exp(lpr)
-  pars_pk <- epr[1:9]; pars_pd <- epr[10]; sig = epr[11]
-  sol <- pk_solution_3cpt_metab(pars_pk, ivt = ivt, init = ini)
-  con_est <- sol(dat$time)
-  con_est[con_est<0] <- 0
-  bis_p <- Emax1(pars = pars_pd, ce = con_est[4,], gamma = gamma, E0 = E0)
-  # truncated normal distribution
-  if(sum_vals) {return(with(dat, sum(log(truncnorm::dtruncnorm(x = bis, mean = bis_p, sd = sig, a = 0, b = 100)))))}
-  else{return(with(dat, truncnorm::dtruncnorm(x = bis, mean = bis_p, sd = sig, a = 0, b = 100)))}
-}
-
-
-#' Function to evaluate the negative log posterior given a set of logged parameter values and observed BIS values.
-#' @param lpr logged PK-PD-error parameter values
-#' @param ivt infusion schedule
-#' @param dat data frame with columns corresponding to  observed time and bis values
-#' @param lhyper hyperparameter values to be passed to log_prior()
-#' @param gamma gamma parameter of PD model (fixed in Eleveld model)
-#' @param E0 E0 parameter of PD model (fixed in Eleveld model)
-log_posterior_neg <- function(lpr, ivt, dat, lhyper, gamma, E0) {
-  dat <- na.omit(dat)
-  if(nrow(dat) < 1) {
-    -1*log_prior(lpr,lhyper)
-  } else {
-    -1*(log_prior(lpr,lhyper) + log_likelihood(lpr, ivt, dat, gamma = gamma, E0 = E0))
-  }
-}
+<!-- ```{r, update-pkpd} -->
+<!-- #' Parameter estimates from Eleveld et al. (2018) -->
+<!-- eleveld_eta_pk_var <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463) -->
+<!-- eleveld_eta_pd_var <- c(0.242,0.702,0.230) -->
+<!-- lvars <- c(eleveld_eta_pk_var, eleveld_eta_pd_var) -->
+<!-- names(lvars) <- c("V1","V2","V3","CL","Q2","Q3","RESID_PK","Ce50","ke0","RESID_PD") -->
+<!-- lvars <- c(lvars, c(k10 = unname(lvars["CL"] + lvars["V1"]), -->
+<!--                     k12 = unname(lvars["Q2"] + lvars["V1"]), -->
+<!--                     k21 = unname(lvars["Q2"] + lvars["V2"]), -->
+<!--                     k13 = unname(lvars["Q3"] + lvars["V1"]), -->
+<!--                     k31 = unname(lvars["Q3"] + lvars["V3"]))) -->
+<!-- lhyper0 <- diag(lvars[c("k10","k12","k21","k13","k31","V1","V2","V3","ke0","Ce50","RESID_PD")]) -->
 
 
 
-update_mod <- function(mod, dat){
-  
-  
-  
-}
+<!-- #' Function to return the prior probability for a set of parameters assuming they are log-normally distributed. -->
+<!-- #' It is assumed that the last value of of lpr is the prior mean for the variance parameter. -->
+<!-- #' @param lpr log parameter values to evaluate -->
+<!-- #' @param lhyper hyperparameters for mean and error distributions. List with values "mu", "sig" described below. -->
+<!-- #' mu: mean for model parameters and mean of the error distribution -->
+<!-- #' sig: variance covariance matrix for model parameters and standard deviation of error distribution -->
+<!-- log_prior <- function(lpr, lhyper){ -->
+<!--   dmvnorm(lpr, lhyper$mu, lhyper$sig, log = TRUE) -->
+<!-- } -->
 
-update_pars <- function(lp, dat, ivt, lpr, gamma, E0){
-  post_est <- nlm(f = log_posterior_neg, p = lp, ivt=ivt, dat=dat,  lhyper = lpr, gamma = gamma, E0 = E0,
-                  hessian = T,
-                  steptol=1e-6, gradtol=1e-6, stepmax = 5,
-                  iterlim = 2000)
-  post_est_pars <- post_est$estimate
-  post_hes <- post_est$hessian
-  lpost <- list(mu = post_est_pars, sig = solve(post_hes))
-  return(lpost)
-}
+<!-- lpr <- log(c(pars_3cpt0, pars_emax0)) -->
+<!-- lhyper -->
+<!-- log_prior(lpr, ) -->
+
+<!-- #' @param lpr log parameter values to evaluate -->
+<!-- #' @param datasim object of class "datasim"  -->
+<!-- log_likelihood <- function(lpr, datasim, ...){ -->
+
+<!--   epr <- exp(lpr) -->
+<!--   pklen <- length(datasim$pars_pk) -->
+<!--   cp <- data.frame(predict(pkmod = datasim$pkmod,  -->
+<!--                          inf = datasim$inf,  -->
+<!--                          tms = datasim$sim$time, -->
+<!--                          pars = head(epr,pklen), ...)) -->
+
+<!--   pdp <- datasim$pdmod(ce = cp[,paste0("c",datasim$ecmpt)], pars = tail(epr,length(epr)-pklen)) -->
+
+<!--   sum(truncnorm::dtruncnorm(x = datasim$sim$pdobs,  -->
+<!--                             mean = pdp,  -->
+<!--                             sd = datasim$sigma.add,  -->
+<!--                             a = 0, b = 100)) -->
+<!-- } -->
 
 
-```
+<!-- #' Function to evaluate the log likelihood given a set of logged parameter values and a set of observed BIS values. -->
+<!-- #' @param lpr logged PK-PD-error parameter values -->
+<!-- #' @param ivt infusion schedule -->
+<!-- #' @param dat data frame with columns c("time","bis") corresponding to observed time and bis values -->
+<!-- #' @param ini initial concentrations -->
+
+<!-- log_likelihood <- function(lpr, ivt, dat, gamma, E0, ini = c(0,0,0,0), sum_vals = T){ -->
+<!--   epr <- exp(lpr) -->
+<!--   pars_pk <- epr[1:9]; pars_pd <- epr[10]; sig = epr[11] -->
+<!--   sol <- pk_solution_3cpt_metab(pars_pk, ivt = ivt, init = ini) -->
+<!--   con_est <- sol(dat$time) -->
+<!--   con_est[con_est<0] <- 0 -->
+<!--   bis_p <- Emax1(pars = pars_pd, ce = con_est[4,], gamma = gamma, E0 = E0) -->
+<!--   # truncated normal distribution -->
+<!--   if(sum_vals) {return(with(dat, sum(log(truncnorm::dtruncnorm(x = bis, mean = bis_p, sd = sig, a = 0, b = 100)))))} -->
+<!--   else{return(with(dat, truncnorm::dtruncnorm(x = bis, mean = bis_p, sd = sig, a = 0, b = 100)))} -->
+<!-- } -->
+
+
+<!-- #' Function to evaluate the negative log posterior given a set of logged parameter values and observed BIS values. -->
+<!-- #' @param lpr logged PK-PD-error parameter values -->
+<!-- #' @param ivt infusion schedule -->
+<!-- #' @param dat data frame with columns corresponding to  observed time and bis values -->
+<!-- #' @param lhyper hyperparameter values to be passed to log_prior() -->
+<!-- #' @param gamma gamma parameter of PD model (fixed in Eleveld model) -->
+<!-- #' @param E0 E0 parameter of PD model (fixed in Eleveld model) -->
+<!-- log_posterior_neg <- function(lpr, ivt, dat, lhyper, gamma, E0) { -->
+<!--   dat <- na.omit(dat) -->
+<!--   if(nrow(dat) < 1) { -->
+<!--     -1*log_prior(lpr,lhyper) -->
+<!--   } else { -->
+<!--     -1*(log_prior(lpr,lhyper) + log_likelihood(lpr, ivt, dat, gamma = gamma, E0 = E0)) -->
+<!--   } -->
+<!-- } -->
+
+
+
+<!-- update_mod <- function(mod, dat){ -->
+
+
+
+<!-- } -->
+
+<!-- update_pars <- function(lp, dat, ivt, lpr, gamma, E0){ -->
+<!--   post_est <- nlm(f = log_posterior_neg, p = lp, ivt=ivt, dat=dat,  lhyper = lpr, gamma = gamma, E0 = E0, -->
+<!--                   hessian = T, -->
+<!--                   steptol=1e-6, gradtol=1e-6, stepmax = 5, -->
+<!--                   iterlim = 2000) -->
+<!--   post_est_pars <- post_est$estimate -->
+<!--   post_hes <- post_est$hessian -->
+<!--   lpost <- list(mu = post_est_pars, sig = solve(post_hes)) -->
+<!--   return(lpost) -->
+<!-- } -->
+
+
+<!-- ``` -->
 
 
 
