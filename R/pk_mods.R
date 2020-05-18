@@ -1,12 +1,8 @@
-#' 3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
-#' The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
-#' Abuhelwa et al. 2015.
-#'
-#' This function takes in arguments for each of the absorption and elimination rate constants of a three-compartment model
-#' as well as initial concentrations, c0. ke0 gives the rate of elimination from the effect-site compartment into the
-#' central compartment (i.e. k41). The rate of absorption into the effect-site compartment is set at 1/10,000 the value of ke0.
-#' The function returns a set of functions that calculate the concentration in each of the four compartments as a function of
-#' time.
+# --------------------------------------------------------------------------------------------------------------------------------
+# - Library of PK functions for 1, 2, and 3 compartment models with effect-site compartment for 3 cmpt model ---------------------
+# --------------------------------------------------------------------------------------------------------------------------------
+
+#' 1 compartment IV infusion with first-order elimination.
 #' @param tm Vector of times to evaluate the PK function at
 #' @param kR Infusion rate (e.g. ml/min).
 #' @param pars Named vector of parameters with names ('ke','v') or ('CL)
@@ -57,6 +53,8 @@ pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0, returncpt = 
   kme <- ke0 # k41
   km  <- kme / 1e5 # k14 Absorption into the effect site is much slower than elimination --> as soon as any drug enters, it is eliminated
   v4  <- v1 / 1e5
+  # km = 0
+  # v4 = 0
   E1 <- k10+k12+k13+km
   E2 <- k21+k20
   E3 <- k31+k30
@@ -122,7 +120,6 @@ pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0, returncpt = 
 
 }
 class(pkmod3cptm) <- "pkmod"
-
 
 #' 3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
 #' The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by

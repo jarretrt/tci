@@ -165,14 +165,18 @@ schnider_poppk <- function(df, rate = F, rand = F){
 #' schnider_poppk(dat, rand = F, rate = F)
 #' schnider_poppk(dat, rand = T, rate = T)
 
-eleveld_poppk <- function(df, rate = F, rand = F){
+eleveld_poppk <- function(df, PD = TRUE, rate = FALSE, rand = FALSE){
 
   # fixed effect estimates
   theta <- c(6.28,25.5,273,1.79,1.75,1.11,0.191,42.3,9.06,-0.0156,-0.00286,33.6,-0.0138,68.3,2.10,1.30,1.42,0.68)
   # random effect variances
   omega <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463)
-  # simulate random effects if rand
-  if(rand) eta <- mvtnorm::rmvnorm(n=nrow(df), mean = rep(0,length(omega)), sigma=diag(omega))
+  # simulate random effects if rand = TRUE
+  if(rand){
+    eta <- mvtnorm::rmvnorm(n=nrow(df), mean = rep(0,length(omega)), sigma=diag(omega))
+  } else{
+    eta <- matrix(0, nrow = nrow(df), ncol = length(omega))
+  }
 
   AGE  <- df$AGE
   PMA  <- df$PMA
@@ -216,10 +220,9 @@ eleveld_poppk <- function(df, rate = F, rand = F){
   V3 <- theta[3]*(fAlSallami/fAlSallami_ref)*fopiates(theta[13])*exp(eta[,3])
 
   CL <- (MALE*theta[4] + (1-MALE)*theta[15])*(WGT/WGTref)^0.75*(fCLmaturation/fCLmaturation_ref)*fopiates(theta[11])*exp(eta[,4])
-  # CL <- c(t(c(MALE,1-MALE))%*%theta[c(4,15)]*(WGT/WGTref)^0.75*(fCLmaturation/fCLmaturation_ref)*fopiates(theta[11])*exp(eta[,4]))
-  Q2arterial <- theta[5]*(V2/V2ref)^(0.75)*(1+theta[16]*(1-fQ3maturation))*exp(eta[5])
+  Q2arterial <- theta[5]*(V2/V2ref)^(0.75)*(1+theta[16]*(1-fQ3maturation))*exp(eta[,5])
   Q2venous <- Q2arterial*theta[18]
-  Q3 <- theta[6]*(V3/V3ref)^(0.75)*(fQ3maturation/fQ3maturation_ref)*exp(eta[6])
+  Q3 <- theta[6]*(V3/V3ref)^(0.75)*(fQ3maturation/fQ3maturation_ref)*exp(eta[,6])
 
   V1 = ifelse(ARTERIAL, V1arterial, V1venous)
   K10 = CL/V1
@@ -246,19 +249,36 @@ eleveld_poppk <- function(df, rate = F, rand = F){
     df$V3  <- V3
   }
 
+  if(!PD) df$LN_SIGMA <- theta[7]*exp(eta[,7])
 
-  if(!returnQ){
-    return(c(k10 = K10, k12 = K12, k21 = K21, k13 = K13, k31 = K31, v1 = V1, v2 = V2, v3 = V3))
-  } else{
-    Q2 <- ifelse(ARTERIAL, Q2arterial, Q2venous)
-    return(c(CL = CL, Q2 = Q2, Q3 = Q3, v1 = V1, v2 = V2, v3 = V3))
+  if(PD){
+    theta_pd <- c(3.08,0.146,93.0,1.47,8.03,0.0517,-0.00635,1.24,1.89)
+    omega_pd <- c(0.242,0.702,0.230)
+
+    if(rand){
+      eta_pd <- mvtnorm::rmvnorm(n=nrow(df), mean = rep(0,length(omega_pd)), sigma=diag(omega_pd))
+    } else{
+      eta_pd <- matrix(0, nrow = nrow(df), ncol = length(omega_pd))
+    }
+
+    df$CE50 = theta_pd[1]*faging(theta_pd[7])*exp(eta_pd[,1])
+    df$KE0 = ifelse(ARTERIAL, theta_pd[2]*(WGT/70)^(-0.25)*exp(eta[2]), theta_pd[8]*(WGT/70)^(-0.25)*exp(eta_pd[,2]))
+    df$BIS0 = theta_pd[3]
+    df$GAMMA = theta_pd[4] # value of gamma when Ce < Ce50
+    df$GAMMA2 = theta_pd[9]
+    df$SIGMA = theta_pd[5]*exp(eta_pd[,3])
+    df$BIS_DELAY = 15 + exp(theta_pd[6]*AGE)
   }
+
+  return(df)
 }
 
-# pk <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pk_model.posthoc.txt",
-#                  header = T, sep = "", skip = 1)
-# df <- pk[1:20,c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
-# eleveld_poppk(df)
+#' @examples
+#' pk <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pk_model.posthoc.txt",
+#' header = T, sep = "", skip = 1)
+#' df <- pk[1:20,c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
+#' eleveld_poppk(df, rate = T)
+#' eleveld_poppk(df, rate = F, PD = T, rand = T)
 #
 #
 # pd <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pd_model.posthoc.txt",

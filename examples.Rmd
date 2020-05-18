@@ -13,58 +13,17 @@ library(microbenchmark)
 library(ggplot2)
 library(reshape) 
 library(gridExtra)
-source("./R/misc_functions.R")
-
-# setwd("~/tci")
+library(RColorBrewer)
+setwd("~/tci")
+source("./R/misc_functions.R") # miscellaneous functions unrelated to pkpd modeling
+source("./R/pk_mods.R") # library of pk models
+source("./R/pd_mods.R") # library of pd models
+source("./R/pkpd_assist.R") # functions related to pkpd modeling
+source("./R/tci_algorithms.R") # functions implementing TCI algorithms
+source("./R/simulations.R") # functions implementing TCI simulations
+source("./R/poppk_mods.R") # pre-saved population PK and PK-PD models
 knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.align="center")
 ```
-
-<!-- ## Infusion objects -->
-
-<!-- The package structure allows for the creation of infusion objects that are passed on to any specified PK or PK-PD model. The user can specify a dataframe with times and infusion rates expressed in terms of mL or mg. Infusion objects are returned as lists of piece-wise infusions in terms of mg/m. Unless otherwise specified, it is assumed that the infusions start at time $t=0$.  -->
-
-<!-- The example below creates an infusion object with a rate of 1000 mL/h from time $t=0.5$ to $t=3.5$ minutes, followed by an infusion of rate 250 mL/h until time $t=8.5$ minutes.  -->
-
-<!-- ```{r, inf-base} -->
-<!-- #' Function to create an infusion object from a dosing schedule with infusion rates provided -->
-<!-- inf_base <- function(d, unit = c("mg","mL"), tm_unit = c("m","h"), mgpermL = 10, inittm = 0){ -->
-
-<!--   unit <- match.arg(unit) -->
-<!--   tm_unit <- match.arg(tm_unit) -->
-<!--   rt <- d$infrt -->
-
-<!--   if(unit == "mL") rt <- rt*mgpermL -->
-<!--   if(tm_unit == "h") rt <- rt / 60 -->
-
-<!--   tms <- c(inittm, d$time) -->
-
-<!--   return(lapply(1:length(rt), function(k) list(begin = tms[k], end = tms[k+1], k_R = rt[k]))) -->
-<!-- } -->
-
-<!-- dose <- data.frame(time = c(0.5,3.5,8.5), infrt = c(0,1000,250)) -->
-<!-- inf_base(dose, unit = "mL", tm_unit = "h") -->
-<!-- ``` -->
-
-
-
-
-<!-- We would also like to be able to create infusion objects based on a set of target concentrations to be used by TCI algorithms. Since TCI algorithms check the target with a regular frequency, we create a function to expand the set of target infusions into one separated into regular time periods.  -->
-
-<!-- Here the user specifies target plasma concentrations (`Cpt`) of $(0,2,1)$ for the time intervals, with the expectation that the TCI algorithm will update its target every 10 seconds (1/6 of a minute). The infusions are left-continuous, such that the final infusion finishes at the last time specified with no new infusion beginning at the final time. -->
-
-<!-- ```{r, expand-inf} -->
-<!-- #' Function to expand time / target dataframe to be passed on to TCI algorithm -->
-<!-- expand_infs <- function(d, inittm = 0, freq = 1/6, val_name = NULL){ -->
-<!--   library(plyr) -->
-<!--   if(is.null(val_name)) val_name <- try(match.arg(c("Cpt","Cet","BIS"), names(d), several.ok = T), silent = T) -->
-<!--   if(class(val_name) == "try-error") stop('Dataframe d requires the target name column to be one of c("Cpt","Cet","BIS") or specified through the val_name argument') -->
-<!--   schd <- data.frame(start = c(inittm, head(d$time,-1)), end = d$time, d[val_name], freq = freq) -->
-<!--   rbind(arrange(ddply(schd, val_name, summarise, time = seq(start, end-freq, by = freq)), time), c(NA,tail(d$time,1))) -->
-<!-- } -->
-
-<!-- ds <- data.frame(time = c(0.5,3.5,8.5), Cpt = c(0,2,1)) -->
-<!-- head(expand_infs(ds)) -->
-<!-- ``` -->
 
 
 
@@ -75,182 +34,22 @@ For illustration, we consider two PK models with IV infusions: a one-compartment
 The functions below gives the predicted concentrations in each compartment for both models associated with a continuous infusion of 1 mg/m over five minutes.
 
 ```{r, pk-1cpt}
-pkmod1cpt <- function(tm, kR, pars, init = 0, inittm = 0){
-  
-  if(!all(hasName(pars, c("ke","v"))) & !all(hasName(pars, c("cl","v")))) stop('pars must have names "ke","v" or "cl","v"')
-  tm <- tm - inittm
-  
-  list2env(as.list(pars), envir = environment())
-  
-  if("cl" %in% ls())
-    ke <- cl / v
-  
-  return((kR/ke*(1-exp(-tm*ke)) + init*v * exp(-tm*ke)) / v)
-}
-class(pkmod1cpt) <- "pkmod"
-
 tms <- seq(0,5,0.1)
 pars_1cpt <- c(ke = 0.1, v = 10)
 plot(tms, pkmod1cpt(tm = tms, kR = 1, pars = pars_1cpt, init = 0), type = "l", xlab = "min", ylab = "Cp")
 ```
 
 ```{r, pk-3cpt}
-pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0, returncpt = c("all","cpt1","cpt2","cpt3","cpt4")) {
-
-  list2env(as.list(pars), envir = environment())
-  returncpt <- match.arg(returncpt)
-  tm <- tm - inittm
-
-  if(!("k20" %in% ls())){
-    k20 <- 0
-  }
-  if(!("k30" %in% ls())){
-    k30 <- 0
-  }
-
-  kme <- ke0 # k41
-  km  <- kme / 1e5 # k14 Absorption into the effect site is much slower than elimination --> as soon as any drug enters, it is eliminated
-  v4  <- v1 / 1e5
-  # km = 0
-  # v4 = 0
-  E1 <- k10+k12+k13+km
-  E2 <- k21+k20
-  E3 <- k31+k30
-
-  a <- E1+E2+E3
-  b <- E1*E2+E3*(E1+E2)-k12*k21-k13*k31
-  c <- E1*E2*E3-E3*k12*k21-E2*k13*k31
-
-  m <- (3*b - a^2)/3
-  n <- (2*a^3 - 9*a*b + 27*c)/27
-  Q <- (n^2)/4 + (m^3)/27
-
-  alpha <- sqrt(-1*Q)
-  beta <- -1*n/2
-  gamma <- sqrt(beta^2+alpha^2)
-  theta <- atan2(alpha,beta)
-
-  lambda1 <- a/3 + gamma^(1/3)*(cos(theta/3) + sqrt(3)*sin(theta/3))
-  lambda2 <- a/3 + gamma^(1/3)*(cos(theta/3) - sqrt(3)*sin(theta/3))
-  lambda3 <- a/3 -(2*gamma^(1/3)*cos(theta/3))
-
-  A1last <- init[1]*v1
-  A2last <- init[2]*v2
-  A3last <- init[3]*v3
-  Amlast <- init[4]*v4
-
-  B = A2last*k21+A3last*k31
-  C = E3*A2last*k21+E2*A3last*k31
-  I = A1last*k12*E3-A2last*k13*k31+A3last*k12*k31
-  J = A1last*k13*E2+A2last*k13*k21-A3last*k12*k21
-
-  if(returncpt %in% c("all", "cpt1")){
-    A1term1 = A1last*(exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/((lambda2-lambda1)*(lambda3-lambda1))+exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/((lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/((lambda1-lambda3)*(lambda2-lambda3)))
-    A1term2 = exp(-tm*lambda1)*(C-B*lambda1)/((lambda1-lambda2)*(lambda1-lambda3))+exp(-tm*lambda2)*(B*lambda2-C)/((lambda1-lambda2)*(lambda2-lambda3))+exp(-tm*lambda3)*(B*lambda3-C)/((lambda1-lambda3)*(lambda3-lambda2))
-    A1term3 = kR*((E2*E3)/(lambda1*lambda2*lambda3)-exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/(lambda1*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/(lambda2*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/(lambda3*(lambda1-lambda3)*(lambda2-lambda3)))
-    A1term = A1term1+A1term2+A1term3
-  } else A1term = NULL
-
-
-  if(returncpt %in% c("all", "cpt2")){
-    A2term1 = A2last*(exp(-tm*lambda1)*(E1-lambda1)*(E3-lambda1)/((lambda2-lambda1)*(lambda3-lambda1))+exp(-tm*lambda2)*(E1-lambda2)*(E3-lambda2)/((lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E1-lambda3)*(E3-lambda3)/((lambda1-lambda3)*(lambda2-lambda3)))
-    A2term2 = exp(-tm*lambda1)*(I-A1last*k12*lambda1)/((lambda1-lambda2)*(lambda1-lambda3))+exp(-tm*lambda2)*(A1last*k12*lambda2-I)/((lambda1-lambda2)*(lambda2-lambda3))+exp(-tm*lambda3)*(A1last*k12*lambda3-I)/((lambda1-lambda3)*(lambda3-lambda2))
-    A2term3 = kR*k12*(E3/(lambda1*lambda2*lambda3)-exp(-tm*lambda1)*(E3-lambda1)/(lambda1*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E3-lambda2)/(lambda2*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E3-lambda3)/(lambda3*(lambda1-lambda3)*(lambda2-lambda3)))
-    A2term = A2term1+A2term2+A2term3
-  } else A2term = NULL
-
-
-  if(returncpt %in% c("all", "cpt3")){
-    A3term1 = A3last*(exp(-tm*lambda1)*(E1-lambda1)*(E2-lambda1)/((lambda2-lambda1)*(lambda3-lambda1))+exp(-tm*lambda2)*(E1-lambda2)*(E2-lambda2)/((lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E1-lambda3)*(E2-lambda3)/((lambda1-lambda3)*(lambda2-lambda3)))
-    A3term2 = exp(-tm*lambda1)*(J-A1last*k13*lambda1)/((lambda1-lambda2)*(lambda1-lambda3))+exp(-tm*lambda2)*(A1last*k13*lambda2-J)/((lambda1-lambda2)*(lambda2-lambda3))+exp(-tm*lambda3)*(A1last*k13*lambda3-J)/((lambda1-lambda3)*(lambda3-lambda2))
-    A3term3 = kR*k13*(E2/(lambda1*lambda2*lambda3)-exp(-tm*lambda1)*(E2-lambda1)/(lambda1*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E2-lambda2)/(lambda2*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E2-lambda3)/(lambda3*(lambda1-lambda3)*(lambda2-lambda3)))
-    A3term = A3term1+A3term2+A3term3
-  } else A3term = NULL
-
-  if(returncpt %in% c("all", "cpt4")){
-    Amterm1 = Amlast*exp(-tm*kme) +km*A1last*(exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/((lambda2-lambda1)*(lambda3-lambda1)*(kme-lambda1))+exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/((kme-lambda2)*(lambda1-lambda2)*(lambda3-lambda2))+exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/((kme-lambda3)*(lambda1-lambda3)*(lambda2-lambda3))+exp(-tm*kme)*(E2-kme)*(E3-kme)/((lambda1-kme)*(lambda2-kme)*(lambda3-kme)))
-    Amterm2 = km*(exp(-tm*lambda1)*(B*lambda1-C)/((lambda1-lambda2)*(lambda1-lambda3)*(lambda1-kme))+exp(-tm*lambda2)*(C-B*lambda2)/((lambda1-lambda2)*(lambda2-lambda3)*(lambda2-kme))+exp(-tm*lambda3)*(C-B*lambda3)/((lambda1-lambda3)*(lambda3-lambda2)*(lambda3-kme))-exp(-tm*kme)*(B*kme-C)/((lambda1-kme)*(kme-lambda2)*(kme-lambda3)))
-    Amterm3 = km*kR*((E2*E3)/(lambda1*lambda2*lambda3*kme)-exp(-tm*lambda1)*(E2-lambda1)*(E3-lambda1)/(lambda1*(kme-lambda1)*(lambda2-lambda1)*(lambda3-lambda1))-exp(-tm*lambda2)*(E2-lambda2)*(E3-lambda2)/(lambda2*(kme-lambda2)*(lambda1-lambda2)*(lambda3-lambda2))-exp(-tm*lambda3)*(E2-lambda3)*(E3-lambda3)/(lambda3*(kme-lambda3)*(lambda1-lambda3)*(lambda2-lambda3))-exp(-tm*kme)*(E2-kme)*(E3-kme)/(kme*(lambda1-kme)*(lambda2-kme)*(lambda3-kme)))
-    Amterm = Amterm1+Amterm2+Amterm3
-  } else Amterm = NULL
-
-  return(rbind(A1term/v1, A2term/v2, A3term/v3, Amterm/v4))
-
-}
-class(pkmod3cptm) <- "pkmod"
-
 pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,k31=0.8,v1=10,v2=15,v3=100,ke0=1)
 con <- pkmod3cptm(tm = tms, kR = 1, pars = pars_3cpt, init = c(0,0,0,0))
 plot(tms, tms, type = "n", ylim = range(con), ylab = "concentration (mg/mL)", xlab = "min")
-sapply(1:nrow(con), function(i) lines(tms, con[i,], col = i)); legend("topleft", paste("compartment",1:4), col = 1:4, lty = 1, cex = 0.8)
+sapply(1:nrow(con), function(i) lines(tms, con[i,], col = i)); legend("topleft", paste("compartment",1:4), col = 1:4, lty = 1, cex = 0.8, bty = "n")
 ```
 
 
 
 We now need to be able to extend each PK function to any arbitrary infusion schedule. We do this by  writing predict method for PK models that takes in a dosing schedule and returns predicted concentrations either for a grid of points across the duration of the dosing interval, or at specified time points. 
 ```{r, predict-pkmod}
-# dosing schedule
-create_intvl <- function(dose, inittm = 0){
-  # b <- cut2(dose$time, breaks = c(inittm,dose$time), include.lowest = TRUE, right = FALSE)
-  b <- cut2(dose$time +inittm, breaks = c(inittm,dose$time+inittm), include.lowest = TRUE, right = FALSE)
-  ss <- t(sapply(stringr::str_extract_all(levels(b),"-?[0-9.]+"), as.numeric))
-  setNames(data.frame(levels(b), dose$infrt, ss), c("intvl","infrt","begin","end"))
-}
-dose <- data.frame(time = c(0.5,4,4.5,10), infrt = c(100,0,100,0))
-create_intvl(dose)
-
-# predict method to apply pk model piecewise to infusion schedule
-predict <- function (pkmod, ...) {UseMethod("predict", pkmod)}
-
-predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, len_out = NULL, return_init = FALSE, remove_bounds = TRUE, ...){
-
-  pred <- vector("list", length(inf$infrt))
-  init <- vector("list", length(inf$infrt)+1)
-
-  # Times to evaluate concentrations at. Defaults to a sequence of values at intervals of dt.
-  if(!is.null(tms)){
-    b <- unique(as.numeric(unlist(stringr::str_extract_all(inf$intvl,"-?[0-9.]+"))))
-    tms_all <- unique(sort(c(b,tms)))
-    # tms_eval <- split(tms_all, cut(tms_all, breaks = b, right = T))
-    tms_eval <- split(tms_all, findInterval(tms_all, b, rightmost.closed = T, left.open = T))
-  } else{
-    if(is.null(len_out)) tms_eval <- mapply(seqby, inf$begin+dt, inf$end, by = dt, SIMPLIFY = F)
-    else tms_eval <- mapply(seq, inf$begin+dt, inf$end, length.out = len_out)
-  }
-
-  # Pass on initial concentrations to first element of init. Use values if specified, else defaults.
-  dot.args <- list(...)
-  if("init" %in% names(dot.args)){ 
-    init[[1]] <- unlist(dot.args$init)
-    dot.args$init <- NULL
-  } else { 
-    init[[1]] <- eval(formals(pkmod)$init)
-  }
-  
-  # Predict concentrations and store initial values.
-  for(i in 1:nrow(inf)){
-    pred[[i]] <- do.call("pkmod", c(list(tm = tms_eval[[i]], kR = inf$infrt[i], init = init[[i]], inittm = inf$begin[i]), dot.args))
-    init[[i+1]] <- tail_vec(pred[[i]]) # extract last element OR column
-  }
-  pred <- lapply(pred, function(x) ifelse(x < 0, 0, x))
-
-  # Return predicted concentrations
-  if(is.null(dim(pred[[1]]))) {
-    predtms <- cbind(unique(unlist(tms_eval)),  do.call("c", pred))
-  } else{
-    predtms <- cbind(unique(unlist(tms_eval)),  t(do.call("cbind", pred)))
-  }
-
-  # Add on t=0 concentrations
-  if(return_init) predtms <- rbind(c(inf$begin[1], init[[1]]), predtms)
-
-  # remove transition concentrations
-  if(!is.null(tms) & remove_bounds) predtms <- matrix(predtms[which(predtms[,1] %in% tms),], nrow = length(tms), byrow = F)
-  
-  colnames(predtms) <- c("time",paste0("c",1:length(init[[1]])))
-  return(predtms)
-}
-
 # predict for 1cpt model
 head(predict(pkmod = pkmod1cpt, inf = create_intvl(dose), pars = pars_1cpt, init = 2, return_init = T))
 # predict for 3cpt model
@@ -260,38 +59,10 @@ head(predict(pkmod = pkmod3cptm, inf = create_intvl(dose), pars = pars_3cpt, tms
 ```
 
 
-<!-- We also create wrapper functions to evaluate the PK model at the transition point. -->
-
-<!-- ```{r, begin-end-vals} -->
-<!-- begin_vals <- function(pkmod, inf, ...) -->
-<!--   cbind(inf, predict(pkmod, inf, tms = inf$begin, return_init = T, ...)[1:length(inf$begin),-1]) -->
-
-<!-- end_vals <- function(pkmod, inf, ...) -->
-<!--   cbind(inf, predict(pkmod, inf, tms = inf$begin, return_init = F, ...)[,-1]) -->
-
-<!-- begin_vals(pkmod = pkmod3cptm, inf = create_intvl(dose), pars = pars_3cpt) -->
-<!-- end_vals(pkmod = pkmod3cptm, inf = create_intvl(dose), pars = pars_3cpt) -->
-<!-- ``` -->
-
 
 Finally, we create a plot method for PK models with set infusions. 
 
 ```{r, plot-pk-method}
-plot <- function(pkmod, ...) {UseMethod("plot", pkmod)}
-
-# Note: ... arguments SHOULD be passed to plotting function instead of predict. Will fix later. 
-plot.pkmod <- function(pkmod, inf, npts = 1000, title = NULL, ...){
-  
-  # set dt based on range between points
-  dt <- diff(range(inf$begin, inf$end)) / npts
-  # predict concentrations
-  con <- data.frame(predict(pkmod, inf, dt = dt, return_init = T, ...))
-
-  ggplot(melt(con, id = "time"), aes(x = time, y = value, linetype = variable, color = variable)) + 
-    geom_line() + 
-    labs(y = "Concentration", x = "Time", color = "Compartment", linetype = "Compartment", title = title)
-}
-
 plot(pkmod = pkmod1cpt, inf = create_intvl(dose), pars = pars_1cpt, title = "Plasma concentrations for a 1 compartment model")
 plot(pkmod = pkmod3cptm, inf = create_intvl(dose), pars = pars_3cpt, title = "Concentrations for a 3 compartment model with an effect site")
 ```
@@ -304,27 +75,6 @@ All TCI algorithms are expected to take in a target concentration value, a PK mo
 The algorithm below makes use of the approximate linearity in plasma concentrations associated with a continuous infusion and returns the infusion required to reach the target if administered for a duration of `dt`.
 
 ```{r, plasma-tci}
-tci_plasma <- function(Cpt, pkmod, dt, maxrt = 10000, cmpt = 1, ...){
-
-  Cp1 <- pkmod(tm = dt, kR = 1, ...)
-  Cp2 <- pkmod(tm = dt, kR = 2, ...)
-  
-  # for multi-compartment models, use only concentration in compartment 'cmpt'
-  if(!is.null(dim(Cp1))){
-    Cp1 <- Cp1[cmpt,]
-    Cp2 <- Cp2[cmpt,]
-  }
-  
-  m <- Cp2 - Cp1
-  b <- Cp1 - m
-  infrt <- (Cpt - b) / m
-  if(infrt < 0)
-    infrt <- 0
-  if(infrt > maxrt)
-    infrt <- maxrt
-  return(c(kR = infrt, dt = dt))
-}
-
 # find infusion to increase plasma concentration to 2 within 2 minutes.
 inf_est <- tci_plasma(Cpt = 2, dt = 2, pkmod = pkmod1cpt, pars = pars_1cpt) 
 # verify that infusion will reach target at 2 minutes
@@ -344,57 +94,6 @@ Now, we also create an effect-site TCI algorithm. This algorithm returns the inf
 
 
 ```{r, effect-site-tci}
-tci_effect <- function(Cet, pkmod, dt = 1/6, max_kR = 10000, cmpt = 4, tmax_search = 20, maxrt = 200, grid_len = 1200, ...){
-  
-  list2env(list(...), envir = environment())
-  if(is.null(init)) init <- eval(formals(pkmod)$init)
-  if(is.null(pars)) pars <- try(eval(formals(pkmod)$pars), silent = T)
-  if(class(pars) == "try-error") stop("PK parameters must either be provided as arguments to the TCI algorithm or as defaults to the PK model.")
-  
-  cmpt_name <- paste0("c",cmpt)
-  
-  # infusions corresponding to unit infusion for duration and a null infusion
-  unit_inf <- create_intvl(data.frame(time = c(dt, tmax_search), infrt = c(1,0)))
-  null_inf <- create_intvl(data.frame(time = tmax_search, infrt = 0))
-  
-  # predict concentrations with no additional infusions
-  B <- function(tm)
-    predict(pkmod, inf = null_inf, pars = pars, init = init, tms = tm)[,cmpt_name]
-  
-  # predict concentrations with no additional infusions
-  E <- function(tm)
-    predict(pkmod, inf = unit_inf, pars = pars, init = rep(0,length(init)), tms = tm)[,cmpt_name]
-  
-  # predict to find the longest time of maximum concentration -- will always be shorter when any prior drug has been infused.
-  grid_tmax <- seq(0,tmax_search,length.out = grid_len)
-  con_proj <- E(grid_tmax)
-  peak_ix <- which.max(con_proj)
-  con_peak <- con_proj[peak_ix]
-  tpeak <- grid_tmax[peak_ix]
-  
-  if(all(init == 0)){
-    kR <- Cet / con_peak
-  } else{
-    tms <- seq(0, tpeak+0.5, length.out = grid_len)
-    jpeak0 = tpeak - 0.1 
-    jpeak1 = jpeak0 + 0.1
-    
-    while(jpeak0 != jpeak1){
-      jpeak0 = jpeak1
-      I0 = (Cet - B(jpeak0)) / E(jpeak0)
-      ceproj = B(tms) + E(tms)*I0
-      jpeak1 = tms[which.max(ceproj)]
-    }
-    
-    kR = unname((Cet-B(jpeak1)) / E(jpeak1))
-  }
-  
-  if(kR < 0) kR = 0
-  if(kR > max_kR) kR = max_kR
-  
-  return(c(kR = kR, dt = dt))
-}  
-
 # calculate the 10 second infusion rate required to reach a concentration of 1 ug/ml in the effect-site compartment with existing drug in the first compartment. 
 kR_Cet <- tci_effect(Cet = 1, pkmod = pkmod3cptm, pars = pars_3cpt, init = c(1,0,0,0), dt = 1/6)
 inf <- create_intvl(data.frame(time = c(1/6, 20), infrt = c(kR_Cet["kR"],0)))
@@ -422,91 +121,37 @@ The user passes the `iterate_tci` function a matrix of target concentrations and
 <!--   - May require function for finding and maintaining a constant infusion rate (numerically? Since it may not be possible for any arbitrary PK model) -->
 
 ```{r, iterate-tci}
-iterate_tci_grid <- function(Ct, tms, tci, pkmod, pars, init = NULL, inittm = 0, dt = 1/6, ...){
-  
-  # adjust times such that infusions start at tm = 0
-  tms <- tms - inittm
-  
-  # create step function to define targets at any point
-  sf <- stepfun(tms, Ct)
-  
-  # define sequence of update times
-  updatetms <- seq(0, max(tms)-dt, dt)
-  
-  ncpt <- length(eval(formals(pkmod)$init))
-  if(is.null(init)) init <- rep(0,ncpt)
-  inf <- matrix(NA, nrow = length(updatetms), ncol = 2)
-  ini <- matrix(NA, nrow = ncpt, ncol = length(updatetms)+1)
-  ini[,1] <- init
-  
-  # iterate through times
-  for(i in 1:length(updatetms)){
-    inf[i,] <- tci(sf(updatetms[i]), pkmod = pkmod, pars = pars, dt = dt, init = ini[,i], ...)
-    ini[,i+1] <- pkmod(tm = dt, kR = inf[i,1], pars = pars, init = ini[,i])
-  }
-  startcon <- data.frame(matrix(ini[,-ncol(ini)], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T))
-  endcon <- data.frame(matrix(ini[,-1], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T))
-  
-  out <- create_intvl(dose = data.frame(time = seq(dt, max(tms), dt), infrt = inf[,1]), inittm = inittm)
-  out <- cbind(out, inf[,2], sf(updatetms), startcon, endcon)
-  names(out) <- c("intvl","infrt","begin","end","dt","Ct",paste0("c",1:ncpt, "_start"), paste0("c",1:ncpt, "_end"))
-  
-  class(out) <- c(class(out),"tciinf")
-  return(out)
-}
-
-tms <- c(5,10,15)
+tms <- c(0,5,10,15)
 Cet <- c(2,1.5,1,1)
-plot(stepfun(tms, Cet), ylim = c(0,2), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
+plot(stepfun(tms[-1], Cet), ylim = c(0,2), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
 
 # one compartment model
-tci_1cpt <- iterate_tci_grid(Cet, tms, tci = tci_plasma, pkmod = pkmod1cpt, pars = pars_1cpt)
+tci_1cpt <- iterate_tci_grid(Cet, tms, pkmod = pkmod1cpt, pars = pars_1cpt, tci = "plasma")
 lines(tci_1cpt$begin, tci_1cpt$c1_start, col = 2)
 
 # three compartment model
-tci_3cpt <- iterate_tci_grid(Cet, tms, tci = tci_plasma, pkmod = pkmod3cptm, pars = pars_3cpt)
+tci_3cpt <- iterate_tci_grid(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt, tci = "plasma")
 lines(tci_3cpt$begin, tci_3cpt$c1_start, col = 3)
-legend("bottomright", c("One compartment", "Three compartments"), lty = c(1,1), col = c(2,3), cex = 0.8)
+legend("bottomright", c("One compartment", "Three compartments"), lty = c(1,1), col = c(2,3), cex = 0.8, bty = "n")
 
+par(mfrow = c(1,2))
 # effect-site targeting
-tci_3cpt_effect <- iterate_tci_grid(Cet, tms, tci = tci_effect, pkmod = pkmod3cptm, pars = pars_3cpt)
-plot(stepfun(tms, Cet), ylim = c(0,7), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
+tci_3cpt_effect <- iterate_tci_grid(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt)
+plot(stepfun(tms[-1], Cet), ylim = c(0,7), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
 lines(tci_3cpt_effect$begin, tci_3cpt_effect$c1_start, col = 2)
 lines(tci_3cpt_effect$begin, tci_3cpt_effect$c4_start, col = 3)
-legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex = 0.8)
+legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex = 0.8, bty = "n")
 
 # effect-site targeting with initial concentrations
-tci_3cpt_effect_init <- iterate_tci_grid(Cet, tms, tci = tci_effect, pkmod = pkmod3cptm, pars = pars_3cpt, init = c(2,0,0,2))
-plot(stepfun(tms, Cet), ylim = c(0,3), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
+tci_3cpt_effect_init <- iterate_tci_grid(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt, init = c(2,0,0,2))
+plot(stepfun(tms[-1], Cet), ylim = c(0,3), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
 lines(tci_3cpt_effect_init$begin, tci_3cpt_effect_init$c1_start, col = 2)
 lines(tci_3cpt_effect_init$begin, tci_3cpt_effect_init$c4_start, col = 3)
-legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex = 0.8)
-```
-
-
-As seen in the above plot, continuing to target the effect-site results in substantial oscillations within the plasma concentration. This can be avoided by allowing the algorithm to switch to plasma targeting when the plasma and effect site concentrations are within bounds of the targets. @Jacobs1993 suggest switching when the plasma concentration is within 10\% of the target and the effect-site concentration is within 0.5\% of the target.
-
-We introduce modification of the above TCI algorithms that implements this procedure.
-
-```{r, tci-combined}
-tci_comb <- function(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt = 4, ...){
-  list2env(list(...), envir = environment())
-  if(is.null(init)) init <- eval(formals(pkmod)$init)
-  
-  if(abs((Ct-init[cp_cmpt]) / Ct) <= cptol & abs((Ct-init[ce_cmpt]) / Ct) <= cetol){
-    tci_plasma(Cpt = Ct, pkmod = pkmod, ...)
-  } else{
-    tci_effect(Cet = Ct, pkmod = pkmod, ...)
-  }
-}
-
-tci_3cpt_comb <- iterate_tci_grid(Cet, tms, tci = tci_comb, pkmod = pkmod3cptm, pars = pars_3cpt)
-
-plot(stepfun(tms, Cet), ylim = c(0,7), xlim = c(0,15), main = "Combined plasma- effect-site-targeting TCI algorithm", xlab = "min", ylab = "concentration")
-lines(tci_3cpt_comb$begin, tci_3cpt_comb$c1_start, col = 2)
-lines(tci_3cpt_comb$begin, tci_3cpt_comb$c4_start, col = 3)
 legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex = 0.8, bty = "n")
+par(mfrow = c(1,1))
 ```
+
+
 
 
 ## Pharmacodynamic (PD) models
@@ -516,70 +161,19 @@ The user is also able to specify a PD model along with a PK model and pass on ta
 We illustrate the incorporation of a PD model using the four-parameter Emax model. 
 
 ```{r, emax}
-#' Emax function. c50 is the concentration eliciting a 50% effect, gamma is the hill parameter identifying the slope of the Emax curve at c50, E0 is the response value with no drug present, Emax is the maximum effect size.
-#' @param ce Vector of effect-site concentrations.
-#' @param pars Named vector of parameter values with names (c50,gamma,E0,Emx). 
-emax <- function(ce, pars) 
-  pars["E0"] - pars["Emx"]*(ce^pars["gamma"] / (ce^pars["gamma"] + pars["c50"]^pars["gamma"]))
-class(emax) <- "pdmod"
-
+# Emax model
 pars_emax <- c(c50 = 1.5, gamma = 4, E0 = 100, Emx = 100)
 ce_seq <- seq(0,4,0.1)
-plot(ce_seq, emax(ce_seq, pars_emax), type = "l", xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS")
-```
+plot(ce_seq, emax(ce_seq, pars_emax), type = "l", xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS", ylim = c(0,100))
 
-The inverse Emax function is also required. 
-
-```{r, emax-inv}
-#' Inverse Emax function that assumes Emx = E0
-#' @param pdresp PD response values
-#' @param pars Named vector of parameter values with names (c50,gamma,E0,Emx). 
-inv_emax <- function(pdresp, pars) 
-  pars["c50"] * ((pars["E0"] - pdresp) /pdresp)^(1/pars["gamma"])
-
+# inverse Emax model
 all.equal(inv_emax(emax(ce_seq, pars_emax), pars_emax), ce_seq)
 ```
+
 
 We create a plotting method for PD models that allows the user to pass in a PK-PD model and an infusion schedule and plots the corresponding PK and PD profiles. 
 
 ```{r, plot-pd}
-# Plot method for PD models. User can provide a series of effect-site concentrations and a PD model OR an infusion schedule with a PK-PD model
-plot <- function(pdmod, ...) {UseMethod("plot", pdmod)}
-
-plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000, plot_pk = TRUE, title = NULL, ecmpt = NULL, ...){
-  
-  # set dt based on range between points
-  dt <- diff(range(inf$begin, inf$end)) / npts
-  # predict concentrations
-  con <- data.frame(predict(pkmod, inf, dt = dt, return_init = T, pars = pars_pk, ...))
-  
-  # effect site comparment
-  if(is.null(ecmpt)) 
-    ecmpt <- length(eval(formals(pkmod)$init))
-  
-  # predict PD values
-  pd <- data.frame(time = con$time, pdresp = pdmod(con[,ecmpt], pars_pd))
-  
-  if(plot_pk){
-    p1 <- ggplot(melt(con, id = "time"), aes(x = time, y = value, linetype = variable, color = variable)) + 
-      geom_line() + 
-      labs(y = "Concentration", x = "Time", color = "Compartment", linetype = "Compartment") +
-      theme(legend.position="bottom")
-  } else{
-    p1 <- NULL
-  }
-  
-  p2 <- ggplot(pd, aes(x = time, y = pdresp)) +
-    geom_line() +
-    labs(y = "Response", x = "Time")
-    
-  if(!is.null(p1)){
-   grid.arrange(p2, p1, nrow = 2, top = title) 
-  } else{
-    grid.arrange(p2, top = title)
-  }
-}
-
 plot(pdmod = emax, 
      pkmod = pkmod3cptm, 
      pars_pd = pars_emax, 
@@ -590,76 +184,19 @@ plot(pdmod = emax,
 ```
 
 
-
 ```{r, tci-pd}
-# function to extend TCI grid to a set of PD targets
-tci_pd <- function(pdresp, tms, pkmod, pdmod, pars_pk, pars_pd, pdinv, tci, ecmpt = NULL, ...){
-  Ct <- pdinv(pdresp, pars_pd)
-  con <- iterate_tci_grid(Ct = Ct, tms = tms, tci = tci, pkmod = pkmod, pars = pars_pk, ...)
-  if(is.null(ecmpt))
-    ecmpt <- length(eval(formals(pkmod)$init))
-  con$pdt <- pdmod(con$Ct, pars_pd)
-  con$pdresp <- pdmod(con[,paste0("c",ecmpt,"_start")], pars_pd)
-  return(con)
-}
-
+tms <- seq(0,15,5)
 bist <- c(40,50,70,70)
 tci_bis_res <- tci_pd(pdresp = bist, 
                       tms = tms, 
                       pdinv = inv_emax, 
-                      tci = tci_comb, 
                       pdmod = emax,
                       pkmod = pkmod3cptm,
                       pars_pk = pars_3cpt,
                       pars_pd = pars_emax)
-head(tci_bis_res)
-class(tci_bis_res)
-```
 
-
-```{r, plot-tci-inf}
-# plotting method for tciinf objects. Will work for outputs from "iterate_tci_grid" or "tci_pd".
-plot <- function(tciinf, ...) {UseMethod("plot", tciinf)}
-
-plot.tciinf <- function(tciinf, title = NULL){
-  
-  # data frame for PK plot
-  tciinfm <- melt(tciinf[,c("infrt","dt","begin","Ct",grep("\\_start",names(tciinf), value = T))], id.vars = c("infrt","dt","begin","Ct"))
-  tciinfm$variable <- gsub("\\_start|c", "", tciinfm$variable)
-  names(tciinfm)[names(tciinfm) == "variable"] <- "Compartment"
-  
-  ppk <- ggplot(tciinf[,c("begin","Ct")], aes(x = begin, y = Ct, fill = "")) + 
-    geom_line(data = tciinf[,c("begin","Ct")], color = "black", size = 1.5) +
-    guides(fill=guide_legend(title="Target"))  + 
-    geom_line(data = tciinfm, mapping = aes(x = begin, y = value, color = Compartment), show.legend = TRUE) +
-    ylim(range(tciinfm$value)) +
-    labs(x = "Time", y = "Concentration") +
-    theme(legend.position="bottom")
-  
-  if("pdresp" %in% names(tciinf)){
-    ppd <- ggplot(tciinf, aes(x = begin, y = pdt)) + 
-      geom_line(data = tciinf, color = "black", size = 1) +
-      # guides(fill=guide_legend(title="Target effect", linetype = "dashed"))  +
-      geom_line(data = tciinf,linetype = "dashed", 
-                mapping = aes(x = begin, y = pdresp), show.legend = TRUE) +
-      ylim(c(0,100)) +
-      labs(x = "Time", y = "PD response") +
-      theme(legend.position="bottom")
-  }
-  
-  if("pdresp" %in% names(tciinf)){
-   grid.arrange(ppd, ppk, nrow = 2, top = title) 
-  } else{
-    grid.arrange(ppk, top = title)
-  }
-  
-}
-
-# plot TCI object
-plot(tci_3cpt_comb)
-
-# plot TCI object with PD response
-plot(tci_bis_res)
+# plot TCI object with/without pd response
+grid.arrange(plot(tci_3cpt_effect), plot(tci_bis_res), ncol = 2)
 ```
 
 
@@ -670,57 +207,6 @@ We need a function to generate data from a specified PK or PK-PD model given a s
 
 
 ```{r, gen-data}
-#' Function to simulate data from a specified PK or PK-PD model with a specified infusion schedule.
-#' @param inf An infusion rate object outputted from either the 'create_intvl' function or the 'iterate_tci_grid' function
-
-gen_data <- function(inf, pkmod, pars_pk0, sigma.add = 0, sigma.mult = 0, init = NULL, tms = NULL, pdmod = NULL, pars_pd0 = NULL, ecmpt = NULL, delay = 0, max_pdval = NULL, min_pdval = NULL){
-  
-  if(any(!(c("infrt","begin","end") %in% names(inf)))) stop('Names of argument "inf" must include ("infrt","begin","end").') 
-  
-  if(is.null(tms)){
-    tms <- inf[,"begin"]
-  }
-
-  if(is.null(init)) 
-    init <- eval(formals(pkmod)$init)
-  
-  con0 <- as.data.frame(predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init))
-  
-  # additive and multiplicative errors
-  eadd <- rnorm(nrow(con0),0,sigma.add)
-  emult <- rnorm(nrow(con0),0,sigma.mult)
-  if(is.null(pdmod)){
-    con0$cobs <- con0[,"c1"]*(1+emult) + eadd
-  } else{
-    # possible time delay
-    con0$timeobs <- con0$time + delay 
-    
-    if(is.null(ecmpt))
-      ecmpt <- length(eval(formals(pkmod)$init))
-    
-    # pd observations
-    con0$pd0 <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
-    con0$pdobs <- con0$pd0*(1+emult) + eadd
-    
-    # replace with max/min values if necessary
-    con0$pdobs[con0$pdobs > max_pdval] <- max_pdval
-    con0$pdobs[con0$pdobs < min_pdval] <- min_pdval
-  }
-  
-  out <- list(sim = con0,
-              inf = inf,
-              pkmod = pkmod, 
-              pdmod = pdmod, 
-              pars_pk = pars_pk0, 
-              pars_pd = pars_pd0,
-              sigma.add = sigma.add, 
-              sigma.mult = sigma.mult,
-              ecmpt = ecmpt, 
-              delay = delay)
-  class(out) <- c(class(out), "datasim")
-  return(out)
-}
-
 # new set of PK parameters for 3 compartment model
 pars_3cpt0 <- c(k10=1.7,k12=0.13,k21=0.1,k13=0.8,k31=0.8,v1=15,v2=16,v3=90,ke0=1.2)
 # generate PK data sampled each minute with multiplicative error
@@ -747,9 +233,8 @@ pars_emax0 <- c(c50 = 1.2, gamma = 3.5, E0 = 100, Emx = 100)
 # Simulate PK-PD data under model misspecification.
 # Predicted concentrations / responses under model with pars "pars_3cpt", "pars_emax"
 tci_bis_res <- tci_pd(pdresp = c(40,50,70,70), 
-                      tms = c(5,10,15), 
+                      tms = c(0,5,10,15), 
                       pdinv = inv_emax, 
-                      tci = tci_comb, 
                       pdmod = emax,
                       pkmod = pkmod3cptm,
                       pars_pk = pars_3cpt,
@@ -763,89 +248,35 @@ head(pkpddsim$sim)
 
 # Generate data at time t=15 with new targets and starting concentrations
 tci_bis_res_init <- tci_pd(pdresp = c(40,50,70,70), 
-                           tms = c(5,10,15)+15, 
+                           tms = c(0,5,10,15)+15, 
                            pdinv = inv_emax, 
-                           tci = tci_comb, 
                            pdmod = emax,
                            pkmod = pkmod3cptm,
                            pars_pk = pars_3cpt,
                            pars_pd = pars_emax, 
                            init = unlist(tail(
                              pkpddsim$inf[,c("c1_end","c2_end","c3_end","c4_end")]
-                             ,1)),
-                           inittm = 15
+                             ,1))
                            )
 
 # pass in true concentrations as starting concentrations
 pkpddsim_init <- gen_data(inf = tci_bis_res_init, 
-              pkmod = pkmod3cptm, pars_pk0 = pars_3cpt0, 
-              pdmod = emax, pars_pd0 = pars_emax0,
-              sigma.add = 7, delay = 15/60, max_pdval = 100,
-              init = unlist(tail(pkpddsim$sim[,c("c1","c2","c3","c4")], 1)))
+                          pkmod = pkmod3cptm, pars_pk0 = pars_3cpt0, 
+                          pdmod = emax, pars_pd0 = pars_emax0,
+                          sigma.add = 7, delay = 15/60, max_pdval = 100,
+                          init = unlist(tail(
+                            pkpddsim$sim[,c("c1","c2","c3","c4")]
+                            ,1)))
 head(pkpddsim_init$sim)
-
-
-# function to merge datasim objects from different infusion schedules
-combine_sim <- function(...){
-  simlist <- list(...)
-  
-  out <- vector("list", length(simlist[[1]]))
-  names(out) <- names(simlist[[1]])
-  
-  out$sim <- do.call("rbind", lapply(simlist, `[[`, "sim"))
-  out$inf <- do.call("rbind", lapply(simlist, `[[`, "inf"))
-  
-  lnames <- names(out[sapply(out, is.null)])
-  for(i in 1:length(lnames)){
-    if(length(unique(lapply(simlist, `[[`, lnames[i]))) == 1){
-      out[[lnames[i]]] <- simlist[[1]][[lnames[i]]]
-    } else{
-      lapply(simlist, `[[`, lnames[i])
-    }
-  }
-  class(out) <- c(class(out), "datasim")
-  return(out)
-}
 ```
 
 We also would like a plot method for simulated data. 
 
 ```{r}
-plot <- function(datasim, ...) {UseMethod("plot", datasim)}
-
-plot.datasim <- function(datasim){
-  
-  r <- range(datasim$sim$time)
-  tms <- seq(r[1], r[2], diff(r)/1000)
-  
-  cp <- data.frame(predict(pkmod = datasim$pkmod, 
-                           inf = datasim$inf, 
-                           tms = tms, 
-                           pars = datasim$pars_pk, 
-                           init = unlist(head(datasim$inf[,c("c1_start","c2_start","c3_start","c4_start")],1))))
-  
-  if(is.null(datasim$pdmod)){
-    
-    out <- ggplot(cp, aes(x = time, y = c1)) + 
-      geom_line() +
-      geom_point(data = datasim$sim, aes(x = time, y = cobs), shape = 1, col = "red") +
-      labs(x = "Time (min)", y = "Concentration")
-    
-  } else{
-    cp$pdp <- datasim$pdmod(ce = cp[,paste0("c",datasim$ecmpt)], pars = datasim$pars_pd)
-    
-    out <- ggplot(cp, aes(x = time, y = pdp)) + 
-      geom_line() +
-      geom_point(data = datasim$sim, aes(x = time, y = pdobs), shape = 1, col = "red") +
-      labs(x = "Time (min)", y = "Effect")
-  }
-  
-  out
-}
-
-plot(pkpddsim)
-plot(pkpddsim_init)
-plot(combine_sim(pkpddsim, pkpddsim_init))
+p1 <- plot(pkpddsim)
+p2 <- plot(pkpddsim_init)
+p12 <- plot(combine_sim(pkpddsim, pkpddsim_init))
+grid.arrange(p1,p2,p12, layout_matrix = matrix(c(1,3,2,3),2,2))
 ```
 
 
@@ -855,21 +286,36 @@ The `apply_poppk` function is a wrapper function for applying the stored populat
 
 
 ```{r, gen-patient-data}
-apply_poppk <- function(patient_df, mod = c("marsh","schnider","eleveld"), ...){
-  switch(match.arg(mod),
-         marsh = marsh_poppk(patient_df, ...),
-         schnider = schnider_poppk(patient_df, ...),
-         eleveld = eleveld_poppk(patient_df, ...))
-}
-
-source("./R/poppk_mods.R")
-dat <- data.frame(AGE  = c(20,40,65),
-                  TBM  = c(50,70,90),
-                  HGT  = c(150,170,200),
-                  MALE = c(TRUE,FALSE,TRUE))
-identical(schnider_poppk(dat, rand = F, rate = F), apply_poppk(dat, "schnider"))
-
+# Simulate PK-PD for patients based on eleveld data
+data(eleveld_pk)
+eleveld_poppk(eleveld_pk[1:5,], rate = T) # pk data only with rate parameters
+eleveld_poppk(eleveld_pk[1:5,], rate = F, PD = T, rand = T) # pk-pd data with clearance parameters and random error 
 ```
+
+
+
+We now illustrate how the functions written can be applied to generate infusion schedules designed to match values of a target sigmoid function.
+
+```{r, target-sigmoid}
+tms_sigmoid <- seq(0,10,1/60) # 10 minute induction with target sigmoid
+targets_sigmoid <- emax(tms_sigmoid, restrict_sigmoid(1)) # parameters restricted to reach mid point at t=1 minute
+
+# parameters of Emax model
+pars_emax <- c(c50 = 1.5, gamma = 4, E0 = 100, Emx = 100)
+
+# apply tci algorithm to sigmoid targets
+sig_tci_targets <- tci_pd(pdresp = targets_sigmoid, 
+                          tms = tms_sigmoid, 
+                          pdinv = inv_emax, 
+                          pdmod = emax,
+                          pkmod = pkmod3cptm,
+                          pars_pk = pars_3cpt,
+                          pars_pd = pars_emax)
+plot(sig_tci_targets)
+```
+
+
+
 
 
 

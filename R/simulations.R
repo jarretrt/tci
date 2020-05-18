@@ -1,4 +1,159 @@
-# Functions for simulations
+# --------------------------------------------------------------------------------------------------------------------------------
+# - Simulation functions ---------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------
+
+pal <- brewer.pal(5, "BrBG")
+
+#' Function to simulate data from a specified PK or PK-PD model with a specified infusion schedule.
+#' @param inf An infusion rate object outputted from either the 'create_intvl' function or the 'iterate_tci_grid' function
+gen_data <- function(inf, pkmod, pars_pk0, sigma.add = 0, sigma.mult = 0, init = NULL, tms = NULL, pdmod = NULL, pars_pd0 = NULL, ecmpt = NULL, delay = 0, max_pdval = NULL, min_pdval = NULL){
+
+  if(any(!(c("infrt","begin","end") %in% names(inf)))) stop('Names of argument "inf" must include ("infrt","begin","end").')
+
+  if(is.null(tms)){
+    tms <- inf[,"begin"]
+  }
+
+  if(is.null(init))
+    init <- eval(formals(pkmod)$init)
+
+  con0 <- as.data.frame(predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init))
+
+  # additive and multiplicative errors
+  eadd <- rnorm(nrow(con0),0,sigma.add)
+  emult <- rnorm(nrow(con0),0,sigma.mult)
+  if(is.null(pdmod)){
+    con0$cobs <- con0[,"c1"]*(1+emult) + eadd
+  } else{
+    # possible time delay
+    con0$timeobs <- con0$time + delay
+
+    if(is.null(ecmpt))
+      ecmpt <- length(eval(formals(pkmod)$init))
+
+    # pd observations
+    con0$pd0 <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
+    con0$pdobs <- con0$pd0*(1+emult) + eadd
+
+    # replace with max/min values if necessary
+    con0$pdobs[con0$pdobs > max_pdval] <- max_pdval
+    con0$pdobs[con0$pdobs < min_pdval] <- min_pdval
+  }
+
+  out <- list(sim = con0,
+              inf = inf,
+              pkmod = pkmod,
+              pdmod = pdmod,
+              pars_pk = pars_pk0,
+              pars_pd = pars_pd0,
+              sigma.add = sigma.add,
+              sigma.mult = sigma.mult,
+              ecmpt = ecmpt,
+              delay = delay)
+  class(out) <- c(class(out), "datasim")
+  return(out)
+}
+
+
+# function to merge datasim objects from different infusion schedules
+# infusion schedules can be passed directly in or as a list.
+combine_sim <- function(...){
+  simlist <- list(...)
+  if(length(simlist) == 1) simlist <- simlist[[1]]
+
+  out <- vector("list", length(simlist[[1]]))
+  names(out) <- names(simlist[[1]])
+
+  out$sim <- do.call("rbind", lapply(simlist, `[[`, "sim"))
+  out$inf <- do.call("rbind", lapply(simlist, `[[`, "inf"))
+
+  lnames <- names(out[sapply(out, is.null)])
+  for(i in 1:length(lnames)){
+    if(length(unique(lapply(simlist, `[[`, lnames[i]))) == 1){
+      out[[lnames[i]]] <- simlist[[1]][[lnames[i]]]
+    } else{
+      lapply(simlist, `[[`, lnames[i])
+    }
+  }
+  class(out) <- c(class(out), "datasim")
+  return(out)
+}
+
+
+plot.datasim <- function(datasim){
+
+  r <- range(datasim$sim$time)
+  tms <- seq(r[1], r[2], diff(r)/1000)
+
+  cp <- data.frame(predict(pkmod = datasim$pkmod,
+                           inf = datasim$inf,
+                           tms = tms,
+                           pars = datasim$pars_pk,
+                           init = unlist(head(datasim$inf[,c("c1_start","c2_start","c3_start","c4_start")],1))))
+
+  if(is.null(datasim$pdmod)){
+
+    out <- ggplot(cp, aes(x = time, y = c1)) +
+      geom_line() +
+      geom_point(data = datasim$sim, aes(x = time, y = cobs), shape = 1, col = "blue") +
+      labs(x = "Time (min)", y = "Concentration")
+
+  } else{
+    cp$pdp <- datasim$pdmod(ce = cp[,paste0("c",datasim$ecmpt)], pars = datasim$pars_pd)
+
+    out <- ggplot(cp, aes(x = time, y = pdp)) +
+      geom_line() +
+      geom_point(data = datasim$sim, aes(x = time, y = pdobs), shape = 1, col = "blue") +
+      labs(x = "Time (min)", y = "Effect")
+
+    # if("pdt" %in% names(datasim$inf)) out <- out + geom_line(data = datasim$inf, aes(x = begin, y = pdt), linetype = "dashed", color = "red")
+  }
+
+  out
+}
+.S3method("plot","datasim",plot.datasim)
+
+
+#' Function to apply saved population PK or PK-PD models to a dataframe of patient values.
+apply_poppk <- function(patient_df, mod = c("marsh","schnider","eleveld"), ...){
+  switch(match.arg(mod),
+         marsh = marsh_poppk(patient_df, ...),
+         schnider = schnider_poppk(patient_df, ...),
+         eleveld = eleveld_poppk(patient_df, ...))
+}
+
+
+
+
+#' Return an infusion schedule defined by an Emax sigmoid curve.
+#' @param beta Parameters (c50, gamma) for Emax target function
+#' @param theta Vector of PK-PD parameters (theta_PK, theta_PD)
+#' @param ini Initial concentration values
+#' @param t0 Starting time
+#' @param E0 Effect at ce = 0. Used as starting point for sigmoid curve.
+#' @param gamma Slope at c50
+#' @param tmx Final time to evaluate infusion schedule to.
+#' @param bist Target BIS, used to set the maximum effect value of the target sigmoid curve.
+#' @param delta Time interval between TCI updates. Defaults to 1/6 minutes = 10 seconds.
+sig_inf <- function(beta, theta, ini, t0, E0, gamma, tmx = 10, bist = 50, delta = 1/6, ...){
+  if(t0+delta <= tmx) tm_eval <- seq(t0+delta,tmx,delta)
+  else tm_eval <- tmx
+  bis_targets <- E0-(E0-bist)*(tm_eval^beta[2] / (tm_eval^beta[2] + beta[1]^beta[2]))
+  ce_targets <- Hinv(pars = theta[10], bis = bis_targets, E0 = E0, gamma = gamma)
+  kR_future <- TCI_EffectSite(Cet = ce_targets, pars = theta[1:9], init = ini, delta = delta, ...)
+  if(t0 != 0){
+    kR_vec <- unlist(kR_future)
+    kR_vec[names(kR_vec) == "begin"] <- kR_vec[names(kR_vec) == "begin"] + t0
+    kR_vec[names(kR_vec) == "end"] <- kR_vec[names(kR_vec) == "end"] + t0
+    kR_future <- relist(kR_vec, kR_future)
+  }
+  return(kR_future)
+}
+
+
+# --------------------------------------------------------------------------------------------------------------------------------
+# - Old functions ----------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------
 
 #' Return an infusion schedule defined by an Emax sigmoid curve.
 #' @param beta Parameters (c50, gamma) for Emax target function
