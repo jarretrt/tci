@@ -22,6 +22,7 @@ source("./R/pkpd_assist.R") # functions related to pkpd modeling
 source("./R/tci_algorithms.R") # functions implementing TCI algorithms
 source("./R/simulations.R") # functions implementing TCI simulations
 source("./R/poppk_mods.R") # pre-saved population PK and PK-PD models
+source("./R/methods.R") # methods for objects developed in package tci
 knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.align="center")
 ```
 
@@ -78,13 +79,11 @@ The algorithm below makes use of the approximate linearity in plasma concentrati
 # find infusion to increase plasma concentration to 2 within 2 minutes.
 inf_est <- tci_plasma(Cpt = 2, dt = 2, pkmod = pkmod1cpt, pars = pars_1cpt) 
 # verify that infusion will reach target at 2 minutes
-pkmod1cpt(tm = 2, pars = pars_1cpt, kR = inf_est[1])
 plot(pkmod1cpt, pars = pars_1cpt, inf =  create_intvl(data.frame(time = c(2, 20), infrt = c(inf_est[1],0))), 
      title = "Infusion required to reach a plasma concentration of 2")
 
-# test for 3 compartment model with initial concentrations
+# test for 3 compartment model with initial concentration in central compartment
 inf_est <- tci_plasma(Cpt = 2, dt = 2, pkmod = pkmod3cptm, pars = pars_3cpt, init = c(1,0,0,0)) 
-pkmod3cptm(tm = 2, pars = pars_3cpt, kR = inf_est[1], init = c(1,0,0,0))
 plot(pkmod3cptm, pars = pars_3cpt, inf =  create_intvl(data.frame(time = c(2, 20), infrt = c(inf_est[1],0))), 
      init = c(1,0,0,0), title = "Infusion required to reach a plasma concentration of 2 in a 3cmpt model")
 ```
@@ -113,41 +112,41 @@ plot(pkmod3cptm, inf_cmpt2, pars = pars_3cpt, init = c(0,0,0,0),
 
 We now need a function to iterate any arbitrary TCI algorithm across a series of targets. By default, the function will update infusion rates at fixed intervals (e.g. every 10 seconds); however, users will have the option of waiting only calculating infusions after the prior target has been obtained. 
 
-The user passes the `iterate_tci` function a matrix of target concentrations and times at which the target is set. This is translated into a step function that defines the concentration target at all times. 
+The user passes the `tci` function a matrix of target concentrations and times at which the target is set. This is translated into a step function that defines the concentration target at all times. 
 
-<!-- 1. Set up target concentration function. -->
-<!--   - The function should be left-continuous, such that each (time, Cet) combination defines the target at that time. The function will calculate infusions until the end of the time period defined. -->
-<!-- 2. Define update schedule (to extent possible). Define vector of tci evaluation times (if possible), infusion durations -->
-<!--   - May require function for finding and maintaining a constant infusion rate (numerically? Since it may not be possible for any arbitrary PK model) -->
 
 ```{r, iterate-tci}
 tms <- c(0,5,10,15)
 Cet <- c(2,1.5,1,1)
-plot(stepfun(tms[-1], Cet), ylim = c(0,2), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
+plot(stepfun(tms[-1], Cet), ylim = c(0,2), xlim = c(0,15), 
+     main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration", 
+     col = pal[1])
 
 # one compartment model
-tci_1cpt <- iterate_tci_grid(Cet, tms, pkmod = pkmod1cpt, pars = pars_1cpt, tci = "plasma")
-lines(tci_1cpt$begin, tci_1cpt$c1_start, col = 2)
+tci_1cpt <- tci(Cet, tms, pkmod = pkmod1cpt, pars = pars_1cpt, tci_alg = "plasma")
+lines(tci_1cpt$begin, tci_1cpt$c1_start, col = pal[2])
 
 # three compartment model
-tci_3cpt <- iterate_tci_grid(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt, tci = "plasma")
-lines(tci_3cpt$begin, tci_3cpt$c1_start, col = 3)
-legend("bottomright", c("One compartment", "Three compartments"), lty = c(1,1), col = c(2,3), cex = 0.8, bty = "n")
+tci_3cpt <- tci(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt, tci_alg = "plasma")
+lines(tci_3cpt$begin, tci_3cpt$c1_start, col = pal[3])
+legend("bottomright", c("One compartment", "Three compartments"), lty = c(1,1), col = pal[c(2,3)], cex = 0.8, bty = "n")
 
 par(mfrow = c(1,2))
 # effect-site targeting
-tci_3cpt_effect <- iterate_tci_grid(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt)
-plot(stepfun(tms[-1], Cet), ylim = c(0,7), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
-lines(tci_3cpt_effect$begin, tci_3cpt_effect$c1_start, col = 2)
-lines(tci_3cpt_effect$begin, tci_3cpt_effect$c4_start, col = 3)
-legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex = 0.8, bty = "n")
+tci_3cpt_effect <- tci(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt)
+plot(stepfun(tms[-1], Cet), ylim = c(0,7), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", 
+     xlab = "min", ylab = "concentration")
+lines(tci_3cpt_effect$begin, tci_3cpt_effect$c1_start, col = pal[2])
+lines(tci_3cpt_effect$begin, tci_3cpt_effect$c4_start, col = pal[3])
+legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = pal[c(2,3)], cex = 0.8, bty = "n")
 
 # effect-site targeting with initial concentrations
-tci_3cpt_effect_init <- iterate_tci_grid(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt, init = c(2,0,0,2))
-plot(stepfun(tms[-1], Cet), ylim = c(0,3), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
-lines(tci_3cpt_effect_init$begin, tci_3cpt_effect_init$c1_start, col = 2)
-lines(tci_3cpt_effect_init$begin, tci_3cpt_effect_init$c4_start, col = 3)
-legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = c(2,3), cex = 0.8, bty = "n")
+tci_3cpt_effect_init <- tci(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt, init = c(2,0,0,2))
+plot(stepfun(tms[-1], Cet), ylim = c(0,3), xlim = c(0,15), 
+     main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
+lines(tci_3cpt_effect_init$begin, tci_3cpt_effect_init$c1_start, col = pal[2])
+lines(tci_3cpt_effect_init$begin, tci_3cpt_effect_init$c4_start, col = pal[3])
+legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = pal[c(2,3)], cex = 0.8, bty = "n")
 par(mfrow = c(1,1))
 ```
 
@@ -162,9 +161,10 @@ We illustrate the incorporation of a PD model using the four-parameter Emax mode
 
 ```{r, emax}
 # Emax model
-pars_emax <- c(c50 = 1.5, gamma = 4, E0 = 100, Emx = 100)
+pars_emax <- c(c50 = 1.5, gamma = 4, e0 = 100, emx = 100)
 ce_seq <- seq(0,4,0.1)
-plot(ce_seq, emax(ce_seq, pars_emax), type = "l", xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS", ylim = c(0,100))
+plot(ce_seq, emax(ce_seq, pars_emax), type = "l", 
+     xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS", ylim = c(0,100))
 
 # inverse Emax model
 all.equal(inv_emax(emax(ce_seq, pars_emax), pars_emax), ce_seq)
@@ -203,7 +203,7 @@ grid.arrange(plot(tci_3cpt_effect), plot(tci_bis_res), ncol = 2)
 
 ## Simulation functions
 
-We need a function to generate data from a specified PK or PK-PD model given a set of infusions. The infusions are passed in the form of a matrix with columns specifying the infusion rate, the infusion duration, and the starting time of the infusion with the column headers ("infrt","begin","end"). All of these are provided as outputs from both the `create_intvl` and the `iterate_tci_grid` functions, so that the outputs can be passed directly to the `gen_data` function. Data can be generated at alternate times by specifying a set of times through the `tms` argument. 
+We need a function to generate data from a specified PK or PK-PD model given a set of infusions. The infusions are passed in the form of a matrix with columns specifying the infusion rate, the infusion duration, and the starting time of the infusion with the column headers ("infrt","begin","end"). All of these are provided as outputs from both the `create_intvl` and the `tci` functions, so that the outputs can be passed directly to the `gen_data` function. Data can be generated at alternate times by specifying a set of times through the `tms` argument. 
 
 
 ```{r, gen-data}
@@ -211,7 +211,7 @@ We need a function to generate data from a specified PK or PK-PD model given a s
 pars_3cpt0 <- c(k10=1.7,k12=0.13,k21=0.1,k13=0.8,k31=0.8,v1=15,v2=16,v3=90,ke0=1.2)
 # generate PK data sampled each minute with multiplicative error
 pkdsim <- gen_data(inf = create_intvl(dose), pkmod = pkmod3cptm, pars_pk0 = pars_3cpt0, 
-         tms = seq(0,10,1), sigma.mult = 0.5)
+         tms = seq(0,10,1), sigma_mult = 0.5)
 head(pkdsim$sim)
 
 # generate PK data for infusions starting at time t=10 using 
@@ -223,12 +223,12 @@ pkdsimtm10 <- gen_data(inf = create_intvl(dosetm10, inittm = 10),
                        pkmod = pkmod3cptm, 
                        pars_pk0 = pars_3cpt0, 
                        tms = seq(10,20,1), 
-                       sigma.mult = 0.5, 
+                       sigma_mult = 0.5, 
                        init = inittm10)
 head(pkdsimtm10$sim)
 
 # new set of PD parameters for Emax model
-pars_emax0 <- c(c50 = 1.2, gamma = 3.5, E0 = 100, Emx = 100)
+pars_emax0 <- c(c50 = 1.2, gamma = 3.5, e0 = 100, emx = 100)
 
 # Simulate PK-PD data under model misspecification.
 # Predicted concentrations / responses under model with pars "pars_3cpt", "pars_emax"
@@ -243,8 +243,7 @@ tci_bis_res <- tci_pd(pdresp = c(40,50,70,70),
 pkpddsim <- gen_data(inf = tci_bis_res, 
                      pkmod = pkmod3cptm, pars_pk0 = pars_3cpt0, 
                      pdmod = emax, pars_pd0 = pars_emax0,
-                     sigma.add = 7, delay = 15/60, max_pdval = 100)
-head(pkpddsim$sim)
+                     sigma_add = 7, delay = 15/60, max_pdval = 100)
 
 # Generate data at time t=15 with new targets and starting concentrations
 tci_bis_res_init <- tci_pd(pdresp = c(40,50,70,70), 
@@ -263,14 +262,13 @@ tci_bis_res_init <- tci_pd(pdresp = c(40,50,70,70),
 pkpddsim_init <- gen_data(inf = tci_bis_res_init, 
                           pkmod = pkmod3cptm, pars_pk0 = pars_3cpt0, 
                           pdmod = emax, pars_pd0 = pars_emax0,
-                          sigma.add = 7, delay = 15/60, max_pdval = 100,
+                          sigma_add = 7, delay = 15/60, max_pdval = 100,
                           init = unlist(tail(
                             pkpddsim$sim[,c("c1","c2","c3","c4")]
                             ,1)))
-head(pkpddsim_init$sim)
 ```
 
-We also would like a plot method for simulated data. 
+We also create a plot method for simulated data. 
 
 ```{r}
 p1 <- plot(pkpddsim)
@@ -282,8 +280,6 @@ grid.arrange(p1,p2,p12, layout_matrix = matrix(c(1,3,2,3),2,2))
 
 We now define functions to generate hypothetical patient PK-PD data according to specified population PK or PK-PD models. While a number of commonly used models are provided in the file `poppk_mods.R`, such as the Marsh and Schnider PK models or the Eleveld PK-PD model, it is also possible for the user to define custom PK models. Each model should take in a dataframe of patient covariates and perform the relevant computation to calculate the patient's corresponding PK or PK-PD parameters. If random sampling from the population model is desired, it should be performed within the population PK or PK-PD function using the argument `rand`.
 
-The `apply_poppk` function is a wrapper function for applying the stored population models. 
-
 
 ```{r, gen-patient-data}
 # Simulate PK-PD for patients based on eleveld data
@@ -294,6 +290,7 @@ eleveld_poppk(eleveld_pk[1:5,], rate = F, PD = T, rand = T) # pk-pd data with cl
 
 
 
+
 We now illustrate how the functions written can be applied to generate infusion schedules designed to match values of a target sigmoid function.
 
 ```{r, target-sigmoid}
@@ -301,7 +298,7 @@ tms_sigmoid <- seq(0,10,1/60) # 10 minute induction with target sigmoid
 targets_sigmoid <- emax(tms_sigmoid, restrict_sigmoid(1)) # parameters restricted to reach mid point at t=1 minute
 
 # parameters of Emax model
-pars_emax <- c(c50 = 1.5, gamma = 4, E0 = 100, Emx = 100)
+pars_emax <- c(c50 = 1.5, gamma = 4, e0 = 100, emx = 100)
 
 # apply tci algorithm to sigmoid targets
 sig_tci_targets <- tci_pd(pdresp = targets_sigmoid, 
@@ -315,118 +312,240 @@ plot(sig_tci_targets)
 ```
 
 
+We now can illustrate what open-loop TCI control would look like for a population of patients. For this we use a sample of 10 patients from the population of 122 patients with PK-PD observations included in the Eleveld et al. (2018) dataset. We first simulate the expected time-BIS course for each patient when the correct patient models are passed on to the TCI algorithm. We later illustrate the same situation in which patient parameters are simulated with random error to reflect a more accurate clinical scenario. 
+
+It is worth noting that the hill parameter ("gamma") in the Eleveld PD model is fixed across the population, but varies between two values depending on if the effect-site concentration is greater than the concentration required for 50% effect. To implement this, a modification of the Emax function and its inverse is required. 
+
+```{r, open-loop-eleveld}
+## Simulation without error
+# Note: the parameter estimates in the Eleveld dataset are the EB estimates rather than the prior estimates
+
+# predicted model parameters for each patient - simulate without random error
+ix <- ceiling(seq(1,122,length.out = 10))
+eleveld_pop_prior <- eleveld_poppk(eleveld_pk[ix,], rate = T, PD = T, rand = F)
+# simulate true patient parameters
+set.seed(1)
+eleveld_pop <- eleveld_poppk(eleveld_pk[ix,], rate = T, PD = T, rand = T)
+
+# sigmoid targets
+tms_sigmoid <- seq(0,10,1/60) # 10 minute induction with target sigmoid
+targets_sigmoid <- emax(tms_sigmoid, restrict_sigmoid(1, BIS0 = eleveld_pop$BIS0[1]))
+
+# apply tci algorithm to sigmoid targets
+sig_tci_pop <- lapply(1:nrow(eleveld_pop), function(i){
+        
+        # base tci infusions on prior parameter estimates
+        pars_pki <- unlist(eleveld_pop_prior[i,c("K10","K12","K21","K13","K31","V1","V2","V3","KE0")])
+        pars_pdi <- unlist(eleveld_pop_prior[i,c("CE50","GAMMA","GAMMA2","BIS0","BIS0")])
+        names(pars_pdi) <- c("c50","gamma","gamma2","e0","emx")
+        out <- tci_pd(pdresp = targets_sigmoid, 
+                        tms = tms_sigmoid, 
+                        pdinv = inv_emax_eleveld, 
+                        pdmod = emax_eleveld,
+                        pkmod = pkmod3cptm,
+                        pars_pk = pars_pki,
+                        pars_pd = pars_pdi)
+        out$id <- i
+        out
+})
+
+sig_pop_df <- do.call("rbind", lapply(sig_tci_pop, `[`, c("id","begin","pdt","pdresp")))
+ggplot(sig_pop_df, aes(x = begin, y = pdresp, group = id)) + 
+        geom_line(alpha = 0.6, color = pal[5]) +
+        geom_line(aes(x = begin, y = pdt), color = pal[1], size = 1.2) + 
+        lims(y = c(0,100))
+```
+
+
+
+
+```{r, sim-pop-error}
+# apply tci algorithm to sigmoid targets
+sig_tci_datasim <- lapply(1:nrow(eleveld_pop), function(i){
+        
+        # generate data based on "true" parameter values
+        pars_pki0 <- unlist(eleveld_pop[i,c("K10","K12","K21","K13","K31","V1","V2","V3","KE0")])
+        pars_pdi0 <- unlist(eleveld_pop[i,c("CE50","GAMMA","GAMMA2","BIS0","BIS0")])
+        names(pars_pdi0) <- c("c50","gamma","gamma2","e0","emx")
+        
+        # simulate data based on 
+        out <- gen_data(inf = sig_tci_pop[[i]], 
+                        pkmod = pkmod3cptm, 
+                        pdmod = emax_eleveld, 
+                        pars_pk0 = pars_pki0, # true pk parameters
+                        pars_pd0 = pars_pdi0, # true pd parameters
+                        sigma_add = eleveld_pop[i,"SIGMA"], # random error
+                        delay = eleveld_pop[i,"BIS_DELAY"], # bis delay
+                        max_pdval = 100,
+                        init = c(0,0,0,0))
+        out$sim$id <- i
+        out
+})
+
+sig_tci_datasim_df <- subset(
+        do.call("rbind", lapply(sig_tci_datasim, `[[`, "sim")), 
+        select = c(id,time,pd0,pdobs)
+        )
+        
+ggplot(sig_pop_df, aes(x = begin, y = pdresp, group = id)) + 
+        geom_line(aes(x = begin, y = pdt, group = id, color = "Target"), 
+                  size = 1.2) + 
+        geom_line(alpha = 0.6, aes(color = "Predicted")) +
+        geom_line(data = sig_tci_datasim_df, 
+                  aes(x = time, y = pd0, group = id, color = "Observed"), 
+                  alpha = 0.6) +
+        lims(y = c(0,100)) +
+        scale_color_manual(name = "", 
+                     values = c("Target"    = unname(pal[1]), 
+                                "Predicted" = unname(pal[2]),
+                                "Observed"  = unname(pal[5])))
+```
+
+
+With the functions created, we now have the capability of simulating TCI systems under open-loop control. We have not yet, however, incorporated population-level uncertainty within the simulations or created functions to provide closed-loop control.
+
+First, we address the incorporation of closed-loop control. Due to the computation demands of simulating under closed-loop control, we only allow for simulation of one patient at a time. Within this package, closed-loop control is provided via Bayesian updates to model parameters. 
+
+In order to perform these updates, the user must define a prior distribution. The function `log_prior` calculates the logged value of prior distribution at a set of logged parameter values given a specific
+
+
+```{r, pd-update-example}
+# update after 2 minutes of following sigmoid targets with observations collected every second
+starttm = 0; endtm = 2; dt = 1/60
+tms_sigmoid <- seq(starttm,endtm,dt) # 10 minute induction with target sigmoid
+targets_sigmoid <- emax(tms_sigmoid, restrict_sigmoid(1, BIS0 = 93)) # parameters restricted to reach mid point at t=1 minute
+
+# prior pk-pd parameters for 1st patient in Eleveld dataset
+pars_pk_prior <- unlist(eleveld_pop_prior[1,c("K10","K12","K21","K13","K31","V1","V2","V3","KE0")])
+pars_pd_prior <- unlist(eleveld_pop_prior[1,c("CE50","GAMMA","GAMMA2","BIS0","BIS0")])
+names(pars_pd_prior) <- c("c50","gamma","gamma2","e0","emx")
+
+# evaluate prior distribution 
+# the 'elvdlpars' function extracts the pk-pd parameters from the Eleveld dataset
+lpr_eval <- elvdlpars(eleveld_pop_prior[1,])
+mu0 <- elvdlpars(eleveld_pop[1,])
+sig0 <- poppk_cov("Eleveld")
+
+log_prior(lpr = lpr_eval, mu = mu0, sig = sig0)
+
+# Calculate tci infusions at prior parameter estimates
+inf <- tci_pd(pdresp  = targets_sigmoid, 
+              tms     = tms_sigmoid, 
+              pdinv   = inv_emax_eleveld, 
+              pdmod   = emax_eleveld,
+              pkmod   = pkmod3cptm,
+              pars_pk = pars_pk_prior,
+              pars_pd = pars_pd_prior)
+
+# expected time course under correct model specification
+plot(inf)
+
+# true pk-pd parameters for patient
+pars_pk_true <- unlist(eleveld_pop[1,c("K10","K12","K21","K13","K31","V1","V2","V3","KE0")])
+pars_pd_true <- unlist(eleveld_pop[1,c("CE50","GAMMA","GAMMA2","BIS0","BIS0")])
+
+# simulate data based on true pk-pd parameters
+# generate observations every second
+tms <- seq(dt,endtm,dt)
+dat <- gen_data(inf = inf, 
+                tms = tms,
+                pkmod = pkmod3cptm, 
+                pdmod = emax_eleveld, 
+                pars_pk0 = pars_pk_true, # true pk parameters
+                pars_pd0 = pars_pd_true, # true pd parameters
+                sigma_add = eleveld_pop[1,"SIGMA"], # random error
+                delay = eleveld_pop[1,"BIS_DELAY"]/60, # bis delay in minutes
+                max_pdval = 100,
+                init = c(0,0,0,0))
+
+# fixed parameters that need to be used, but aren't evaluated in likelihood
+# ordering of parameters is important to correct use of PD function
+fixed_lpr <- log(as.numeric(eleveld_pop_prior[1,c("GAMMA","GAMMA2","BIS0","BIS0")]))
+
+# update parameter estimates with data
+post_est <- nlm(f = log_posterior_neg, 
+                p = unname(elvdlpars(eleveld_pop_prior[1,])),
+                dat = dat, 
+                mu = unname(elvdlpars(eleveld_pop[1,])),
+                sig = poppk_cov("Eleveld"),
+                fixed_lpr = fixed_lpr, 
+                hessian = T)
+
+plot(dat, 
+     lpars_prior = elvdlpars(eleveld_pop_prior[1,]),
+     lpars_update = post_est$estimate, 
+     lpars_fixed = fixed_lpr,
+     pd_ix = 10)
+```
+
+
+Though it is less common to have closed-loop control via Bayesian updates applied at the PK level (due to the time requirement of processing samples), it nonetheless is also possible.
+
+
+```{r, pk-update-example}
+# update after 10 minutes of targeting 2 ug/ml for the first 5 minutes and 3 ug/ml for the second 5 minutes, with samples drawn each minute
+
+# prior pk parameters for 1st patient in Eleveld dataset
+pars_pk_prior <- unlist(eleveld_pop_prior[1,c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","LN_SIGMA")])
+
+# true pk-pd parameters for patient
+pars_pk_true <- unlist(eleveld_pop[1,c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","LN_SIGMA")])
+
+# pass in values to be targeted at each time
+inf <- tci(Ct    = c(2,3,3),
+           tms   = c(0,5,10), 
+           pkmod = pkmod3cptm,
+           pars  = pars_pk_prior)
+
+# plot infusion schedule with predicted concentrations
+plot(inf)
+
+# parameter estimates and prior mean/covariance
+lpr_eval <- elvdlpars(eleveld_pop_prior[1,], pd = F)
+mu0 <- elvdlpars(eleveld_pop[1,], pd = F)
+sig0 <- poppk_cov("Eleveld", pd = F)
+
+# simulate data based on true pk parameters
+# generate observations every minute
+dat <- gen_data(inf = inf, 
+                tms = 1:10,
+                pkmod = pkmod3cptm, 
+                pars_pk0 = pars_pk_true, # true pk parameters
+                sigma_add = eleveld_pop[1,"LN_SIGMA"], # random error
+                log_err = TRUE,
+                init = c(0,0,0,0))
+
+post_est <- nlm(f = log_posterior_neg, 
+                p = lpr_eval,
+                dat = dat, 
+                mu = mu0,
+                sig = sig0,
+                pd_ix = NULL, 
+                err_ix = 10,
+                hessian = T)
+
+plot(dat, lpars_prior = lpr_eval, lpars_update = post_est$estimate)
+```
+
+
+
+<!-- NOTE: Do we want to incorporate controllers that directly effect the dose? How? No need to do this yet. Existing programs like stanpump only provide one mechanism for closed-loop control.-->
+
+
+We now write a function to simulate the course of an infusion schedule with closed-loop control. The user needs to specify:
+
+1) A PK or PK-PD model
+2) A set of targets
 
 
 
 
 
-<!-- We now need a function to perform Bayesian updates to a PK-PD model parameters with simulated data. To do this, we first define functions for the log prior, log likelihood, and log posterior.  -->
-
-<!-- ```{r, update-pkpd} -->
-<!-- #' Parameter estimates from Eleveld et al. (2018) -->
-<!-- eleveld_eta_pk_var <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463) -->
-<!-- eleveld_eta_pd_var <- c(0.242,0.702,0.230) -->
-<!-- lvars <- c(eleveld_eta_pk_var, eleveld_eta_pd_var) -->
-<!-- names(lvars) <- c("V1","V2","V3","CL","Q2","Q3","RESID_PK","Ce50","ke0","RESID_PD") -->
-<!-- lvars <- c(lvars, c(k10 = unname(lvars["CL"] + lvars["V1"]), -->
-<!--                     k12 = unname(lvars["Q2"] + lvars["V1"]), -->
-<!--                     k21 = unname(lvars["Q2"] + lvars["V2"]), -->
-<!--                     k13 = unname(lvars["Q3"] + lvars["V1"]), -->
-<!--                     k31 = unname(lvars["Q3"] + lvars["V3"]))) -->
-<!-- lhyper0 <- diag(lvars[c("k10","k12","k21","k13","k31","V1","V2","V3","ke0","Ce50","RESID_PD")]) -->
 
 
 
-<!-- #' Function to return the prior probability for a set of parameters assuming they are log-normally distributed. -->
-<!-- #' It is assumed that the last value of of lpr is the prior mean for the variance parameter. -->
-<!-- #' @param lpr log parameter values to evaluate -->
-<!-- #' @param lhyper hyperparameters for mean and error distributions. List with values "mu", "sig" described below. -->
-<!-- #' mu: mean for model parameters and mean of the error distribution -->
-<!-- #' sig: variance covariance matrix for model parameters and standard deviation of error distribution -->
-<!-- log_prior <- function(lpr, lhyper){ -->
-<!--   dmvnorm(lpr, lhyper$mu, lhyper$sig, log = TRUE) -->
-<!-- } -->
-
-<!-- lpr <- log(c(pars_3cpt0, pars_emax0)) -->
-<!-- lhyper -->
-<!-- log_prior(lpr, ) -->
-
-<!-- #' @param lpr log parameter values to evaluate -->
-<!-- #' @param datasim object of class "datasim"  -->
-<!-- log_likelihood <- function(lpr, datasim, ...){ -->
-
-<!--   epr <- exp(lpr) -->
-<!--   pklen <- length(datasim$pars_pk) -->
-<!--   cp <- data.frame(predict(pkmod = datasim$pkmod,  -->
-<!--                          inf = datasim$inf,  -->
-<!--                          tms = datasim$sim$time, -->
-<!--                          pars = head(epr,pklen), ...)) -->
-
-<!--   pdp <- datasim$pdmod(ce = cp[,paste0("c",datasim$ecmpt)], pars = tail(epr,length(epr)-pklen)) -->
-
-<!--   sum(truncnorm::dtruncnorm(x = datasim$sim$pdobs,  -->
-<!--                             mean = pdp,  -->
-<!--                             sd = datasim$sigma.add,  -->
-<!--                             a = 0, b = 100)) -->
-<!-- } -->
 
 
-<!-- #' Function to evaluate the log likelihood given a set of logged parameter values and a set of observed BIS values. -->
-<!-- #' @param lpr logged PK-PD-error parameter values -->
-<!-- #' @param ivt infusion schedule -->
-<!-- #' @param dat data frame with columns c("time","bis") corresponding to observed time and bis values -->
-<!-- #' @param ini initial concentrations -->
-
-<!-- log_likelihood <- function(lpr, ivt, dat, gamma, E0, ini = c(0,0,0,0), sum_vals = T){ -->
-<!--   epr <- exp(lpr) -->
-<!--   pars_pk <- epr[1:9]; pars_pd <- epr[10]; sig = epr[11] -->
-<!--   sol <- pk_solution_3cpt_metab(pars_pk, ivt = ivt, init = ini) -->
-<!--   con_est <- sol(dat$time) -->
-<!--   con_est[con_est<0] <- 0 -->
-<!--   bis_p <- Emax1(pars = pars_pd, ce = con_est[4,], gamma = gamma, E0 = E0) -->
-<!--   # truncated normal distribution -->
-<!--   if(sum_vals) {return(with(dat, sum(log(truncnorm::dtruncnorm(x = bis, mean = bis_p, sd = sig, a = 0, b = 100)))))} -->
-<!--   else{return(with(dat, truncnorm::dtruncnorm(x = bis, mean = bis_p, sd = sig, a = 0, b = 100)))} -->
-<!-- } -->
-
-
-<!-- #' Function to evaluate the negative log posterior given a set of logged parameter values and observed BIS values. -->
-<!-- #' @param lpr logged PK-PD-error parameter values -->
-<!-- #' @param ivt infusion schedule -->
-<!-- #' @param dat data frame with columns corresponding to  observed time and bis values -->
-<!-- #' @param lhyper hyperparameter values to be passed to log_prior() -->
-<!-- #' @param gamma gamma parameter of PD model (fixed in Eleveld model) -->
-<!-- #' @param E0 E0 parameter of PD model (fixed in Eleveld model) -->
-<!-- log_posterior_neg <- function(lpr, ivt, dat, lhyper, gamma, E0) { -->
-<!--   dat <- na.omit(dat) -->
-<!--   if(nrow(dat) < 1) { -->
-<!--     -1*log_prior(lpr,lhyper) -->
-<!--   } else { -->
-<!--     -1*(log_prior(lpr,lhyper) + log_likelihood(lpr, ivt, dat, gamma = gamma, E0 = E0)) -->
-<!--   } -->
-<!-- } -->
-
-
-
-<!-- update_mod <- function(mod, dat){ -->
-
-
-
-<!-- } -->
-
-<!-- update_pars <- function(lp, dat, ivt, lpr, gamma, E0){ -->
-<!--   post_est <- nlm(f = log_posterior_neg, p = lp, ivt=ivt, dat=dat,  lhyper = lpr, gamma = gamma, E0 = E0, -->
-<!--                   hessian = T, -->
-<!--                   steptol=1e-6, gradtol=1e-6, stepmax = 5, -->
-<!--                   iterlim = 2000) -->
-<!--   post_est_pars <- post_est$estimate -->
-<!--   post_hes <- post_est$hessian -->
-<!--   lpost <- list(mu = post_est_pars, sig = solve(post_hes)) -->
-<!--   return(lpost) -->
-<!-- } -->
-
-
-<!-- ``` -->
 
 
 

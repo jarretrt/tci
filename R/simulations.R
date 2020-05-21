@@ -2,11 +2,17 @@
 # - Simulation functions ---------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
 
-pal <- brewer.pal(5, "BrBG")
-
 #' Function to simulate data from a specified PK or PK-PD model with a specified infusion schedule.
 #' @param inf An infusion rate object outputted from either the 'create_intvl' function or the 'iterate_tci_grid' function
-gen_data <- function(inf, pkmod, pars_pk0, sigma.add = 0, sigma.mult = 0, init = NULL, tms = NULL, pdmod = NULL, pars_pd0 = NULL, ecmpt = NULL, delay = 0, max_pdval = NULL, min_pdval = NULL){
+#' @param pars_pk0 "True" parameter estimates used to simulate data observations.
+#' @param pars_pk Alternate parameter estimates that can
+gen_data <- function(inf, pkmod, pars_pk0,
+                     sigma_add = 0, sigma_mult = 0,
+                     log_err = FALSE,
+                     init = NULL, tms = NULL,
+                     pdmod = NULL, pars_pd0 = NULL,
+                     ecmpt = NULL, delay = 0,
+                     max_pdval = NULL, min_pdval = NULL){
 
   if(any(!(c("infrt","begin","end") %in% names(inf)))) stop('Names of argument "inf" must include ("infrt","begin","end").')
 
@@ -20,10 +26,14 @@ gen_data <- function(inf, pkmod, pars_pk0, sigma.add = 0, sigma.mult = 0, init =
   con0 <- as.data.frame(predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init))
 
   # additive and multiplicative errors
-  eadd <- rnorm(nrow(con0),0,sigma.add)
-  emult <- rnorm(nrow(con0),0,sigma.mult)
+  eadd  <- rnorm(nrow(con0),0,sigma_add)
+  emult <- rnorm(nrow(con0),0,sigma_mult)
   if(is.null(pdmod)){
-    con0$cobs <- con0[,"c1"]*(1+emult) + eadd
+
+    if(log_err)
+      con0$cobs <- exp(log(con0[,"c1"])*(1+emult) + eadd)
+    else con0$cobs <- con0[,"c1"]*(1+emult) + eadd
+
   } else{
     # possible time delay
     con0$timeobs <- con0$time + delay
@@ -33,7 +43,10 @@ gen_data <- function(inf, pkmod, pars_pk0, sigma.add = 0, sigma.mult = 0, init =
 
     # pd observations
     con0$pd0 <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
-    con0$pdobs <- con0$pd0*(1+emult) + eadd
+
+    if(log_err)
+      con0$pdobs <- exp(log(con0$pd0)*(1+emult) + eadd)
+    else con0$pdobs <- con0$pd0*(1+emult) + eadd
 
     # replace with max/min values if necessary
     con0$pdobs[con0$pdobs > max_pdval] <- max_pdval
@@ -46,8 +59,8 @@ gen_data <- function(inf, pkmod, pars_pk0, sigma.add = 0, sigma.mult = 0, init =
               pdmod = pdmod,
               pars_pk = pars_pk0,
               pars_pd = pars_pd0,
-              sigma.add = sigma.add,
-              sigma.mult = sigma.mult,
+              sigma_add = sigma_add,
+              sigma_mult = sigma_mult,
               ecmpt = ecmpt,
               delay = delay)
   class(out) <- c(class(out), "datasim")
@@ -80,40 +93,6 @@ combine_sim <- function(...){
 }
 
 
-plot.datasim <- function(datasim){
-
-  r <- range(datasim$sim$time)
-  tms <- seq(r[1], r[2], diff(r)/1000)
-
-  cp <- data.frame(predict(pkmod = datasim$pkmod,
-                           inf = datasim$inf,
-                           tms = tms,
-                           pars = datasim$pars_pk,
-                           init = unlist(head(datasim$inf[,c("c1_start","c2_start","c3_start","c4_start")],1))))
-
-  if(is.null(datasim$pdmod)){
-
-    out <- ggplot(cp, aes(x = time, y = c1)) +
-      geom_line() +
-      geom_point(data = datasim$sim, aes(x = time, y = cobs), shape = 1, col = "blue") +
-      labs(x = "Time (min)", y = "Concentration")
-
-  } else{
-    cp$pdp <- datasim$pdmod(ce = cp[,paste0("c",datasim$ecmpt)], pars = datasim$pars_pd)
-
-    out <- ggplot(cp, aes(x = time, y = pdp)) +
-      geom_line() +
-      geom_point(data = datasim$sim, aes(x = time, y = pdobs), shape = 1, col = "blue") +
-      labs(x = "Time (min)", y = "Effect")
-
-    # if("pdt" %in% names(datasim$inf)) out <- out + geom_line(data = datasim$inf, aes(x = begin, y = pdt), linetype = "dashed", color = "red")
-  }
-
-  out
-}
-.S3method("plot","datasim",plot.datasim)
-
-
 #' Function to apply saved population PK or PK-PD models to a dataframe of patient values.
 apply_poppk <- function(patient_df, mod = c("marsh","schnider","eleveld"), ...){
   switch(match.arg(mod),
@@ -123,32 +102,78 @@ apply_poppk <- function(patient_df, mod = c("marsh","schnider","eleveld"), ...){
 }
 
 
+# Functions to estimate prior, likelihood, and non-nomalized posterior
 
-
-#' Return an infusion schedule defined by an Emax sigmoid curve.
-#' @param beta Parameters (c50, gamma) for Emax target function
-#' @param theta Vector of PK-PD parameters (theta_PK, theta_PD)
-#' @param ini Initial concentration values
-#' @param t0 Starting time
-#' @param E0 Effect at ce = 0. Used as starting point for sigmoid curve.
-#' @param gamma Slope at c50
-#' @param tmx Final time to evaluate infusion schedule to.
-#' @param bist Target BIS, used to set the maximum effect value of the target sigmoid curve.
-#' @param delta Time interval between TCI updates. Defaults to 1/6 minutes = 10 seconds.
-sig_inf <- function(beta, theta, ini, t0, E0, gamma, tmx = 10, bist = 50, delta = 1/6, ...){
-  if(t0+delta <= tmx) tm_eval <- seq(t0+delta,tmx,delta)
-  else tm_eval <- tmx
-  bis_targets <- E0-(E0-bist)*(tm_eval^beta[2] / (tm_eval^beta[2] + beta[1]^beta[2]))
-  ce_targets <- Hinv(pars = theta[10], bis = bis_targets, E0 = E0, gamma = gamma)
-  kR_future <- TCI_EffectSite(Cet = ce_targets, pars = theta[1:9], init = ini, delta = delta, ...)
-  if(t0 != 0){
-    kR_vec <- unlist(kR_future)
-    kR_vec[names(kR_vec) == "begin"] <- kR_vec[names(kR_vec) == "begin"] + t0
-    kR_vec[names(kR_vec) == "end"] <- kR_vec[names(kR_vec) == "end"] + t0
-    kR_future <- relist(kR_vec, kR_future)
-  }
-  return(kR_future)
+#' Function to return the prior probability for a set of parameters assuming they are log-normally distributed.
+#' It is assumed that the last value of of lpr is the prior mean for the variance parameter.
+#' @param lpr log parameter values to evaluate
+#' @param mu mean for model parameters and mean of the error distribution
+#' @param sig variance covariance matrix for model parameters and standard deviation of error distribution
+#' Calculate logged prior value
+#' @param lpr Logged parameter values to evaluate prior distribution at.
+#' @param mu Mean of multivariate normal prior distribution.
+#' @param sig Variance-covariance matrix of multivariate normal prior distribution.
+log_prior <- function(lpr, mu, sig){
+  mvtnorm::dmvnorm(lpr, mu, sig, log = TRUE)
 }
+
+
+#' Function to evaluate the log likelihood given a set of logged parameter values and a set of observed BIS values.
+#' @param lpr logged PK-PD-error parameter values
+#' @param ivt infusion schedule
+#' @param dat data frame with columns c("time","bis") corresponding to observed time and bis values
+#' @param fixed_lpr values used by PD function that are not updated.
+#' These are concatenated to lpr[pd_ix] and the ordering may be important for use of the PD function.
+#' @param pdix indices for PD function values to be updated.
+#' @param err_ix index for standard deviation of residual error term
+log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
+
+  if(all(class(dat) != "datasim")) stop("dat must have class 'datasim'")
+
+  # restrict times to allow for time lag
+
+  if("timeobs" %in% names(dat$sim))
+    tms <- dat$sim$time[dat$sim$timeobs <= max(dat$sim$time)]
+  else tms <- dat$sim$time
+
+  # predicted initial concentrations from data
+  ini <- as.numeric(head(dat$inf[,grep("start",names(dat$inf))],1))
+
+  # predict concentrations at lpr
+  cp <- predict(pkmod = dat$pkmod,
+                inf = dat$inf,
+                tms = tms,
+                pars = exp(lpr),
+                init = ini)
+
+  # if pd model isn't given, evaluate likelihood at pk observations
+  if(is.null(dat$pdmod)){
+    return(sum(log(truncnorm::dtruncnorm(x = dat$sim$cobs, mean = cp[,"c1"], sd = exp(lpr[err_ix]), a = 0))))
+  } else{
+    # apply function to lpr if applicable - e.g. have parameters change based on predicted concentration
+    econ <- cp[,paste0("c",dat$ecmpt)]
+    bisp <- dat$pdmod(ce = econ, pars = exp(c(lpr[pd_ix],fixed_lpr)))
+    return(sum(log(truncnorm::dtruncnorm(x = dat$sim$pdobs, mean = bisp, sd = exp(lpr[err_ix]), a = 0, b = 100))))
+  }
+}
+
+
+#' Function to evaluate the negative log posterior given a set of logged parameter values and observed BIS values.
+#' @param lpr logged PK-PD-error parameter values
+#' @param ivt infusion schedule
+#' @param dat data frame with columns corresponding to  observed time and bis values
+#' @param lhyper hyperparameter values to be passed to log_prior()
+#' @param gamma gamma parameter of PD model (fixed in Eleveld model)
+#' @param E0 E0 parameter of PD model (fixed in Eleveld model)
+log_posterior_neg <- function(lpr, dat, mu, sig, ...) {
+    -1*(log_prior(lpr,mu,sig) + log_likelihood(lpr, dat, sig, ...))
+}
+
+
+
+
+
+
 
 
 # --------------------------------------------------------------------------------------------------------------------------------

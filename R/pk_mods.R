@@ -5,11 +5,12 @@
 #' 1 compartment IV infusion with first-order elimination.
 #' @param tm Vector of times to evaluate the PK function at
 #' @param kR Infusion rate (e.g. ml/min).
-#' @param pars Named vector of parameters with names ('ke','v') or ('CL)
+#' @param pars Named vector of parameters with names ('ke','v') or ('cl')
 #' @param init Initial concentration
 #' @param inittm Time of initiation of infusion
 pkmod1cpt <- function(tm, kR, pars, init = 0, inittm = 0){
 
+  names(pars) <- tolower(names(pars))
   if(!all(hasName(pars, c("ke","v"))) & !all(hasName(pars, c("cl","v")))) stop('pars must have names "ke","v" or "cl","v"')
   tm <- tm - inittm
 
@@ -34,11 +35,16 @@ class(pkmod1cpt) <- "pkmod"
 #' time.
 #' @param tm Vector of times to evaluate the PK function at
 #' @param kR Infusion rate (e.g. ml/min).
-#' @param pars Named vector of parameters with names (k10,k12,k21,k13,k31,ke0,v1,v2,v3)
+#' @param pars Named vector of parameters with names (k10,k12,k21,k13,k31,v1,v2,v3,ke0)
 #' @param init Initial concentration
 #' @param inittm Time of initiation of infusion
 pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0, returncpt = c("all","cpt1","cpt2","cpt3","cpt4")) {
 
+  if(is.null(names(pars))){
+    warning("Parameter vector is not named. Assuming ordering (k10,k12,k21,k13,k31,v1,v2,v3,ke0) for first 9 values.")
+    names(pars)[1:9] <- c("k10","k12","k21","k13","k31","v1","v2","v3","ke0")
+  }
+  names(pars) <- tolower(names(pars))
   list2env(as.list(pars), envir = environment())
   returncpt <- match.arg(returncpt)
   tm <- tm - inittm
@@ -53,8 +59,6 @@ pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0, returncpt = 
   kme <- ke0 # k41
   km  <- kme / 1e5 # k14 Absorption into the effect site is much slower than elimination --> as soon as any drug enters, it is eliminated
   v4  <- v1 / 1e5
-  # km = 0
-  # v4 = 0
   E1 <- k10+k12+k13+km
   E2 <- k21+k20
   E3 <- k31+k30

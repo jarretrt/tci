@@ -8,27 +8,67 @@
 #' Emx is the maximum effect size.
 #'
 #' @param ce Vector of effect-site concentrations.
-#' @param pars Named vector of parameter values with names (c50,gamma,E0,Emx).
+#' @param pars Named vector of parameter values with names (c50,gamma,e0,emx).
 emax <- function(ce, pars)
-  pars["E0"] - pars["Emx"]*(ce^pars["gamma"] / (ce^pars["gamma"] + pars["c50"]^pars["gamma"]))
+  pars["e0"] - pars["emx"]*(ce^pars["gamma"] / (ce^pars["gamma"] + pars["c50"]^pars["gamma"]))
 class(emax) <- "pdmod"
-
 #' @examples
-#' pars_emax <- c(c50 = 1.5, gamma = 4, E0 = 100, Emx = 100)
+#' pars_emax <- c(c50 = 1.5, gamma = 1.47, e0 = 100, emx = 100)
 #' ce_seq <- seq(0,4,0.1)
 #' plot(ce_seq, emax(ce_seq, pars_emax), type = "l", xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS")
 
-
-#' Inverse Emax function that assumes Emx = E0
+#' Inverse Emax function
 #' @param pdresp PD response values
 #' @param pars Named vector of parameter values with names (c50,gamma,E0,Emx).
 inv_emax <- function(pdresp, pars){
-  eff <- abs(pdresp - pars["E0"])
-  (eff*(pars["c50"]^pars["gamma"])/(pars["Emx"]*(1-eff/pars["Emx"])))^(1/pars["gamma"])
+  eff <- abs(pdresp - pars["e0"])
+  (eff*(pars["c50"]^pars["gamma"])/(pars["emx"]*(1-eff/pars["emx"])))^(1/pars["gamma"])
 }
-#' pars_emax <- c(c50 = 1.5, gamma = 4, E0 = 100, Emx = 100)
+#' pars_emax <- c(c50 = 1.5, gamma = 4, e0 = 100, emx = 100)
 #' ce_seq <- seq(0,4,0.1)
 #' all.equal(inv_emax(emax(ce_seq, pars_emax), pars_emax), ce_seq)
+
+
+#' Emax function for Eleveld (2018) model. The parameter gamma depends on whether ce <= c50.
+#' @param ce Vector of effect-site concentrations.
+#' @param pars Vector of parameter values in order (c50,gamma,gamma2,e0,emx).
+emax_eleveld <- function(ce, pars){
+  c50    <- pars[1]
+  gamma  <- pars[2]
+  gamma2 <- pars[3]
+  e0     <- pars[4]
+  emx    <- pars[5]
+  gam <- ifelse(ce <= c50, gamma, gamma2)
+
+  e0 - emx*(ce^gam / (ce^gam + c50^gam))
+}
+class(emax_eleveld) <- "pdmod"
+
+#' @examples
+#' pars_emax_eleveld <- c(c50 = 1.5, gamma = 1.47, gamma2 = 1.89, e0 = 100, emx = 100)
+#' ce_seq <- seq(0,4,0.1)
+#' plot(ce_seq, emax_eleveld(ce_seq, pars_emax_eleveld), type = "l", xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS")
+
+#' Inverse Emax function
+#' @param pdresp PD response values
+#' @param pars Named vector of parameter values with names (c50,gamma,E0,Emx).
+inv_emax_eleveld <- function(pdresp, pars){
+
+  c50    <- pars[1]
+  gamma  <- pars[2]
+  gamma2 <- pars[3]
+  e0     <- pars[4]
+  emx    <- pars[5]
+
+  mideff <- e0 - emx/2 # effect at c50
+  eff <- abs(pdresp - e0)
+  gam <- ifelse(pdresp >= mideff, gamma, gamma2)
+
+  (eff*(c50^gam)/(emx*(1-eff/emx)))^(1/gam)
+}
+#' pars_emax_eleveld <- c(c50 = 1.5, gamma = 1.47, gamma2 = 1.89, e0 = 100, emx = 100)
+#' ce_seq <- seq(0,4,0.1)
+#' all.equal(inv_emax_eleveld(emax_eleveld(ce_seq, pars_emax_eleveld), pars_emax_eleveld), ce_seq)
 
 
 

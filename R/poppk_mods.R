@@ -38,6 +38,7 @@ marsh_poppk <- function(df, rate = T){
 
   df$KE0 = 1.2
 
+  class(df) <- c(class(df),"poppk")
   return(df)
 }
 #' @examples
@@ -45,72 +46,6 @@ marsh_poppk <- function(df, rate = T){
 
 
 #' Schnider population PK model
-#' @param AGE Patient age in years
-#' @param TBM Patient total body mass (kg)
-#' @param HGT Patient height (cm)
-#' @param MALE Indicator if patient is male
-#' @param KE0 Elimination rate constant from effect site if effect-site targeting is used.
-schnider_poppk <- function(df, rate = F, rand = F){
-
-  covar_names <- c("AGE","TBM","HGT","MALE")
-  if(!all(covar_names %in% names(df))) stop(
-    paste('The data frame must have a columns named',
-          paste(covar_names, collapse = ", ")))
-
-  theta0 <- c(4.27,18.9,238,1.89,1.29,0.836,-0.391,0.0456,-0.0681,0.0264,0.024)
-  se <- c(0.278,2.330,34.900,0.059,0.112,0.044,0.070,0.009,0.017,0.009,0.005)
-
-  if(rand){
-    eta <- mvtnorm::rmvnorm(nrow(df), rep(0,length(se)), sigma = diag(se^2))
-    theta <- t(theta0 * t(exp(eta)))
-  } else{
-    theta <- matrix(theta0, nrow = 1)
-  }
-
-  # caclulate lean body mass
-  df$LBM <- ifelse(df$MALE, 1.1*df$TBM - 128*(df$TBM/df$HGT)^2, 1.07*df$TBM - 148*(df$TBM/df$HGT)^2)
-
-  df$V1  = theta[,1]
-  df$V2  = theta[,2] + theta[,7]*(df$AGE-53)
-  df$V3  = theta[,3]
-  CL <- theta[,4] + (df$TBM-77)*theta[,8] + (df$LBM-59)*(theta[,9]) + (df$HGT-177)*theta[,10]
-  Q2 <- theta[,5] + (theta[,11])*(df$AGE-53)
-  Q3 <- 0.836
-
-  if(rate){
-    df$K10 <- CL / df$V1
-    df$K12 <- Q2 / df$V1
-    df$K21 <- Q2 / df$V2
-    df$K13 <- Q3 / df$V1
-    df$K31 <- Q3 / df$V3
-  } else{
-    df$CL <- CL
-    df$Q2 <- Q2
-    df$Q3 <- Q3
-  }
-
-  df$KE0 <- 0.456
-
-  return(df)
-}
-#' @examples
-#' dat <- data.frame(AGE  = c(20,40,65),
-#'                   TBM  = c(50,70,90),
-#'                   HGT  = c(150,170,200),
-#'                   MALE = c(TRUE,FALSE,TRUE))
-#'
-#' schnider_poppk(dat, rand = F, rate = F)
-#' schnider_poppk(dat, rand = T, rate = T)
-
-
-
-
-#' Eleveld population PK-PD model
-#' @param AGE Patient age in years
-#' @param TBM Patient total body mass (kg)
-#' @param HGT Patient height (cm)
-#' @param MALE Indicator if patient is male
-#' @param KE0 Elimination rate constant from effect site if effect-site targeting is used.
 schnider_poppk <- function(df, rate = F, rand = F){
 
   covar_names <- c("AGE","TBM","HGT","MALE")
@@ -155,6 +90,7 @@ schnider_poppk <- function(df, rate = F, rand = F){
 
   df$KE0 <- 0.456
 
+  class(df) <- c(class(df),"poppk")
   return(df)
 }
 #' @examples
@@ -249,7 +185,7 @@ eleveld_poppk <- function(df, PD = TRUE, rate = FALSE, rand = FALSE){
     df$V3  <- V3
   }
 
-  if(!PD) df$LN_SIGMA <- theta[7]*exp(eta[,7])
+  df$LN_SIGMA <- theta[7]*exp(eta[,7])
 
   if(PD){
     theta_pd <- c(3.08,0.146,93.0,1.47,8.03,0.0517,-0.00635,1.24,1.89)
@@ -270,6 +206,7 @@ eleveld_poppk <- function(df, PD = TRUE, rate = FALSE, rand = FALSE){
     df$BIS_DELAY = 15 + exp(theta_pd[6]*AGE)
   }
 
+  class(df) <- c(class(df),"poppk")
   return(df)
 }
 
@@ -294,4 +231,10 @@ eleveld_poppk <- function(df, PD = TRUE, rate = FALSE, rand = FALSE){
 # pk$k31 = pk$Q3 / pk$V3
 # pkpd <- merge(pk,pd,by = intersect(names(pk), names(pd)))
 # gen_eleveld_pk_pars(theta = eleveld_theta_pk_est, eta = eleveld_eta_pk_var, patient_vars = pkpd[i,], returnQ = F)
+
+
+
+
+
+
 
