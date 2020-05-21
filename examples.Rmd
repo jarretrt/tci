@@ -32,24 +32,8 @@ knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.align="center")
 
 For illustration, we consider two PK models with IV infusions: a one-compartment model, and a three-compartment model with an effect-site compartment. 
 
-The functions below gives the predicted concentrations in each compartment for both models associated with a continuous infusion of 1 mg/m over five minutes.
 
-```{r, pk-1cpt}
-tms <- seq(0,5,0.1)
-pars_1cpt <- c(ke = 0.1, v = 10)
-plot(tms, pkmod1cpt(tm = tms, kR = 1, pars = pars_1cpt, init = 0), type = "l", xlab = "min", ylab = "Cp")
-```
-
-```{r, pk-3cpt}
-pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,k31=0.8,v1=10,v2=15,v3=100,ke0=1)
-con <- pkmod3cptm(tm = tms, kR = 1, pars = pars_3cpt, init = c(0,0,0,0))
-plot(tms, tms, type = "n", ylim = range(con), ylab = "concentration (mg/mL)", xlab = "min")
-sapply(1:nrow(con), function(i) lines(tms, con[i,], col = i)); legend("topleft", paste("compartment",1:4), col = 1:4, lty = 1, cex = 0.8, bty = "n")
-```
-
-
-
-We now need to be able to extend each PK function to any arbitrary infusion schedule. We do this by  writing predict method for PK models that takes in a dosing schedule and returns predicted concentrations either for a grid of points across the duration of the dosing interval, or at specified time points. 
+We need to be able to extend each PK function to any arbitrary infusion schedule. We do this by  writing predict method for PK models that takes in a dosing schedule and returns predicted concentrations either for a grid of points across the duration of the dosing interval, or at specified time points. 
 ```{r, predict-pkmod}
 # predict for 1cpt model
 head(predict(pkmod = pkmod1cpt, inf = create_intvl(dose), pars = pars_1cpt, init = 2, return_init = T))
@@ -58,8 +42,6 @@ head(predict(pkmod = pkmod3cptm, inf = create_intvl(dose), pars = pars_3cpt, ret
 # predict for 3cpt model at specific values
 head(predict(pkmod = pkmod3cptm, inf = create_intvl(dose), pars = pars_3cpt, tms = c(1,2,3)))
 ```
-
-
 
 Finally, we create a plot method for PK models with set infusions. 
 
@@ -134,7 +116,7 @@ legend("bottomright", c("One compartment", "Three compartments"), lty = c(1,1), 
 par(mfrow = c(1,2))
 # effect-site targeting
 tci_3cpt_effect <- tci(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt)
-plot(stepfun(tms[-1], Cet), ylim = c(0,7), xlim = c(0,15), main = "Plasma-targeting TCI algorithm", 
+plot(stepfun(tms[-1], Cet), ylim = c(0,7), xlim = c(0,15), main = "Effect-site TCI algorithm", 
      xlab = "min", ylab = "concentration")
 lines(tci_3cpt_effect$begin, tci_3cpt_effect$c1_start, col = pal[2])
 lines(tci_3cpt_effect$begin, tci_3cpt_effect$c4_start, col = pal[3])
@@ -143,7 +125,7 @@ legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = pal[c(2,3)], 
 # effect-site targeting with initial concentrations
 tci_3cpt_effect_init <- tci(Cet, tms, pkmod = pkmod3cptm, pars = pars_3cpt, init = c(2,0,0,2))
 plot(stepfun(tms[-1], Cet), ylim = c(0,3), xlim = c(0,15), 
-     main = "Plasma-targeting TCI algorithm", xlab = "min", ylab = "concentration")
+     main = "Effect-site with initial concentrations", xlab = "min", ylab = "concentration")
 lines(tci_3cpt_effect_init$begin, tci_3cpt_effect_init$c1_start, col = pal[2])
 lines(tci_3cpt_effect_init$begin, tci_3cpt_effect_init$c4_start, col = pal[3])
 legend("topright", c("Plasma", "Effect site"), lty = c(1,1), col = pal[c(2,3)], cex = 0.8, bty = "n")
