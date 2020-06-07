@@ -5,7 +5,8 @@
 #' @param Cpt Target plasma concentration
 #' @param pkmod PK model
 #' @param dt Duration of the infusion
-#' @param maxrt Maximum infusion rate. Defaults to 1,200 in reference to the maximum infusion rate in ml/h permitted by
+#' @param maxrt Maximum infusion rate. Defaults to 200 ml/min in reference to the
+#' maximum infusion rate of 1200 ml/h permitted by
 #' existing TCI pumps (e.g. Anestfusor TCI program).
 #' @param cmpt Compartment into which infusions are administered. Defaults to the first compartment.
 tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
@@ -26,7 +27,8 @@ tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
     infrt <- 0
   if(infrt > maxrt)
     infrt <- maxrt
-  return(c(kR = infrt, dt = dt))
+  return(c(kR = infrt))
+  # return(c(kR = infrt, dt = dt))
 }
 
 
@@ -47,15 +49,15 @@ tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
 #' when the effect-site concentration is sufficiently stable and close to the target concentration.
 #' @param effect_tol Maximum percent difference between predicted effect-site concentration and target concentration
 #' permitted in order to switch to plasma-targeting mode.
-tci_effect <- function(Cet, pkmod, dt = 1/6, max_kR = 1200, cmpt = NULL, tmax_search = 20, maxrt = 200, grid_len = 1200, ...){
+tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20, maxrt = 1200, grid_len = 1200, ...){
 
   list2env(list(...), envir = environment())
   if(is.null(init)) init <- eval(formals(pkmod)$init)
   if(is.null(pars)) pars <- try(eval(formals(pkmod)$pars), silent = T)
-  if(is.null(cmpt)) cmpt <- length(init)
+  if(is.null(ecmpt)) ecmpt <- length(init)
   if(class(pars) == "try-error") stop("PK parameters must either be provided as arguments to the TCI algorithm or as defaults to the PK model.")
 
-  cmpt_name <- paste0("c",cmpt)
+  ecmpt_name <- paste0("c",ecmpt)
 
   # infusions corresponding to unit infusion for duration and a null infusion
   unit_inf <- create_intvl(data.frame(time = c(dt, tmax_search), infrt = c(1,0)))
@@ -63,11 +65,11 @@ tci_effect <- function(Cet, pkmod, dt = 1/6, max_kR = 1200, cmpt = NULL, tmax_se
 
   # predict concentrations with no additional infusions
   B <- function(tm)
-    predict(pkmod, inf = null_inf, pars = pars, init = init, tms = tm)[,cmpt_name]
+    predict(pkmod, inf = null_inf, pars = pars, init = init, tms = tm)[,ecmpt_name]
 
   # predict concentrations with no additional infusions
   E <- function(tm)
-    predict(pkmod, inf = unit_inf, pars = pars, init = rep(0,length(init)), tms = tm)[,cmpt_name]
+    predict(pkmod, inf = unit_inf, pars = pars, init = rep(0,length(init)), tms = tm)[,ecmpt_name]
 
   # predict to find the longest time of maximum concentration -- will always be shorter when any prior drug has been infused.
   grid_tmax <- seq(0,tmax_search,length.out = grid_len)
@@ -82,21 +84,24 @@ tci_effect <- function(Cet, pkmod, dt = 1/6, max_kR = 1200, cmpt = NULL, tmax_se
     tms <- seq(0, tpeak+0.5, length.out = grid_len)
     jpeak0 = tpeak - 0.1
     jpeak1 = jpeak0 + 0.1
+    iter = 0
 
     while(jpeak0 != jpeak1){
+      if(iter > 100) stop("Effect-site TCI algorithm did not converge.")
       jpeak0 = jpeak1
       I0 = (Cet - B(jpeak0)) / E(jpeak0)
       ceproj = B(tms) + E(tms)*I0
       jpeak1 = tms[which.max(ceproj)]
+      iter = iter + 1
     }
 
     kR = unname((Cet-B(jpeak1)) / E(jpeak1))
   }
 
   if(kR < 0) kR = 0
-  if(kR > max_kR) kR = max_kR
+  if(kR > maxrt) kR = maxrt
 
-  return(c(kR = kR, dt = dt))
+  return(c(kR = kR))
 }
 
 
@@ -111,6 +116,9 @@ tci_comb <- function(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt 
   list2env(list(...), envir = environment())
 
   if(is.null(init)) init <- eval(formals(pkmod)$init)
+
+  if(Ct <= init[ce_cmpt])
+    return(0)
 
   if(Ct>0){
     if(abs((Ct-init[cp_cmpt]) / Ct) <= cptol & abs((Ct-init[ce_cmpt]) / Ct) <= cetol){
@@ -162,41 +170,57 @@ tci <- function(Ct, tms, pkmod, pars, init = NULL,
   sf <- stepfun(tms, Ct)
 
   # define sequence of update times
-  # updatetms <- seq(dt, max(tms)-dt, dt)
   updatetms <- seq(dt, max(tms), dt)
+  # add epsilon so that sf evaluates the final step
+  updatetms[length(updatetms)] <- updatetms[length(updatetms)] + 1e-5
 
   ncpt <- length(eval(formals(pkmod)$init))
   if(is.null(init)) init <- rep(0,ncpt)
-  inf <- matrix(NA, nrow = length(updatetms), ncol = 2)
+  # inf <- matrix(NA, nrow = length(updatetms), ncol = 2)
+  inf <- rep(NA, length(updatetms))
   ini <- matrix(NA, nrow = ncpt, ncol = length(updatetms)+1)
   ini[,1] <- init
 
   # iterate through times
   for(i in 1:length(updatetms)){
-    inf[i,] <- tci_alg(sf(updatetms[i]), pkmod = pkmod, pars = pars, dt = dt, init = ini[,i], ...)
-    ini[,i+1] <- pkmod(tm = dt, kR = inf[i,1], pars = pars, init = ini[,i])
+    # inf[i,] <- tci_alg(sf(updatetms[i]), pkmod = pkmod, pars = pars, dt = dt, init = ini[,i], ...)
+    # ini[,i+1] <- pkmod(tm = dt, kR = inf[i,1], pars = pars, init = ini[,i])
+    inf[i] <- tci_alg(sf(updatetms[i]), pkmod = pkmod, pars = pars, dt = dt, init = ini[,i], ...)
+    ini[,i+1] <- pkmod(tm = dt, kR = inf[i], pars = pars, init = ini[,i])
   }
-  startcon <- data.frame(matrix(ini[,-ncol(ini)], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T))
-  endcon <- data.frame(matrix(ini[,-1], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T))
 
-  out <- create_intvl(dose = data.frame(time = seq(dt, max(tms), dt), infrt = inf[,1]), inittm = inittm)
-  out <- cbind(out, inf[,2], sf(updatetms), startcon, endcon)
-  names(out) <- c("intvl","infrt","begin","end","dt","Ct",paste0("c",1:ncpt, "_start"), paste0("c",1:ncpt, "_end"))
-
+  startcon <- matrix(ini[,-ncol(ini)], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T)
+  endcon <- matrix(ini[,-1], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T)
+  # dose <- create_intvl(cbind(time = seq(dt+inittm, max(tms)+inittm, dt), infrt = inf[,1]), inittm = inittm)
+  dose <- create_intvl(cbind(time = seq(dt+inittm, max(tms)+inittm, dt), infrt = inf), inittm = inittm)
+  out <- cbind(dose, dose[,"end"] - dose[,"begin"], sf(updatetms), startcon, endcon)
+  colnames(out) <- c("infrt","begin","end","dt","Ct",paste0("c",1:ncpt, "_start"), paste0("c",1:ncpt, "_end"))
   class(out) <- c("tciinf",class(out))
+
   return(out)
 }
 
 
 
 #' Function to extend TCI grid to a set of PD targets
+#' @param ... Arguments to be passed on to 'tci'. These can include alternate TCI algorithms if desired.
 tci_pd <- function(pdresp, tms, pkmod, pdmod, pars_pk, pars_pd, pdinv, ecmpt = NULL, ...){
   Ct <- pdinv(pdresp, pars_pd)
   con <- tci(Ct = Ct, tms = tms, pkmod = pkmod, pars = pars_pk, ...)
+  con_class <- class(con)
+
   if(is.null(ecmpt))
     ecmpt <- length(eval(formals(pkmod)$init))
-  con$pdt <- pdmod(con$Ct, pars_pd)
-  con$pdresp <- pdmod(con[,paste0("c",ecmpt,"_start")], pars_pd)
+
+  pdt <- pdmod(con[,"Ct"], pars_pd)
+  pdresp_start <- pdmod(con[,paste0("c",ecmpt,"_start")], pars_pd)
+  pdresp_end <- pdmod(con[,paste0("c",ecmpt,"_end")], pars_pd)
+
+  con <- cbind(con,
+               pdt = pdt,
+               pdresp_start = pdresp_start,
+               pdresp_end = pdresp_end)
+  class(con) <- con_class
   return(con)
 }
 

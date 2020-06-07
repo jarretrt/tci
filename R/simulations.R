@@ -12,9 +12,7 @@ gen_data <- function(inf, pkmod, pars_pk0,
                      init = NULL, tms = NULL,
                      pdmod = NULL, pars_pd0 = NULL,
                      ecmpt = NULL, delay = 0,
-                     max_pdval = NULL, min_pdval = NULL){
-
-  if(any(!(c("infrt","begin","end") %in% names(inf)))) stop('Names of argument "inf" must include ("infrt","begin","end").')
+                     max_pdval = 100, min_pdval = 0){
 
   if(is.null(tms)){
     tms <- inf[,"begin"]
@@ -23,7 +21,8 @@ gen_data <- function(inf, pkmod, pars_pk0,
   if(is.null(init))
     init <- eval(formals(pkmod)$init)
 
-  con0 <- as.data.frame(predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init))
+  # con0 <- as.data.frame(predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init))
+  con0 <- predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
 
   # additive and multiplicative errors
   eadd  <- rnorm(nrow(con0),0,sigma_add)
@@ -31,34 +30,42 @@ gen_data <- function(inf, pkmod, pars_pk0,
   if(is.null(pdmod)){
 
     if(log_err)
-      con0$cobs <- exp(log(con0[,"c1"])*(1+emult) + eadd)
-    else con0$cobs <- con0[,"c1"]*(1+emult) + eadd
+      con0 <- cbind(con0, cobs = exp(log(con0[,"c1"])*(1+emult) + eadd))
+    else con0 <- cbind(con0, cobs = con0[,"c1"]*(1+emult) + eadd)
 
   } else{
     # possible time delay
-    con0$timeobs <- con0$time + delay
+    # con0$timeobs <- con0$time + delay
+    timeobs <- con0[,"time"] + delay
 
     if(is.null(ecmpt))
       ecmpt <- length(eval(formals(pkmod)$init))
 
     # pd observations
-    con0$pd0 <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
+    # con0$pd0 <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
+    pd0 <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
 
     if(log_err)
-      con0$pdobs <- exp(log(con0$pd0)*(1+emult) + eadd)
-    else con0$pdobs <- con0$pd0*(1+emult) + eadd
+      pdobs <- exp(log(pd0)*(1+emult) + eadd)
+    else pdobs <- pd0*(1+emult) + eadd
+
+    con0 <- cbind(con0,
+                  timeobs = timeobs,
+                  pd0 = pd0,
+                  pdobs = pdobs)
 
     # replace with max/min values if necessary
-    con0$pdobs[con0$pdobs > max_pdval] <- max_pdval
-    con0$pdobs[con0$pdobs < min_pdval] <- min_pdval
+    con0[con0[,"pdobs"] > max_pdval,"pdobs"] <- max_pdval
+    con0[con0[,"pdobs"] < min_pdval,"pdobs"] <- min_pdval
   }
 
   out <- list(sim = con0,
               inf = inf,
+              init = init,
               pkmod = pkmod,
               pdmod = pdmod,
-              pars_pk = pars_pk0,
-              pars_pd = pars_pd0,
+              pars_pk0 = pars_pk0,
+              pars_pd0 = pars_pd0,
               sigma_add = sigma_add,
               sigma_mult = sigma_mult,
               ecmpt = ecmpt,
@@ -72,7 +79,11 @@ gen_data <- function(inf, pkmod, pars_pk0,
 # infusion schedules can be passed directly in or as a list.
 combine_sim <- function(...){
   simlist <- list(...)
-  if(length(simlist) == 1) simlist <- simlist[[1]]
+
+  # allow for the possibility of passing in null simulations
+  simlist[sapply(simlist,is.null)] <- NULL
+  if(length(simlist) == 1)
+    return(simlist[[1]])
 
   out <- vector("list", length(simlist[[1]]))
   names(out) <- names(simlist[[1]])
@@ -88,6 +99,8 @@ combine_sim <- function(...){
       lapply(simlist, `[[`, lnames[i])
     }
   }
+
+  out$init <- simlist[[1]]$init
   class(out) <- c(class(out), "datasim")
   return(out)
 }
@@ -128,16 +141,23 @@ log_prior <- function(lpr, mu, sig){
 #' @param err_ix index for standard deviation of residual error term
 log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
 
-  if(all(class(dat) != "datasim")) stop("dat must have class 'datasim'")
+  # if(all(class(dat) != "datasim")) stop("dat must have class 'datasim'")
 
   # restrict times to allow for time lag
-
-  if("timeobs" %in% names(dat$sim))
-    tms <- dat$sim$time[dat$sim$timeobs <= max(dat$sim$time)]
-  else tms <- dat$sim$time
+  if("timeobs" %in% colnames(dat$sim)){
+    tm_all <- dat$sim[,"time"]
+    tm_obs <- dat$sim[,"timeobs"]
+    tms <- tm_all[tm_obs <= max(tm_all)]
+    val_obs <- dat$sim[tm_obs <= max(tm_all),"pdobs"]
+  } else{
+    tms <- dat$sim[,"time"]
+    if("pdobs" %in% colnames(dat$sim))
+      val_obs <- dat$sim[,"pdobs"]
+    else val_obs <- dat$sim[,"cobs"]
+  }
 
   # predicted initial concentrations from data
-  ini <- as.numeric(head(dat$inf[,grep("start",names(dat$inf))],1))
+  ini <- dat$inf[1,grep("c[0-9]_start",colnames(dat$inf))]
 
   # predict concentrations at lpr
   cp <- predict(pkmod = dat$pkmod,
@@ -148,12 +168,12 @@ log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
 
   # if pd model isn't given, evaluate likelihood at pk observations
   if(is.null(dat$pdmod)){
-    return(sum(log(truncnorm::dtruncnorm(x = dat$sim$cobs, mean = cp[,"c1"], sd = exp(lpr[err_ix]), a = 0))))
+    return(sum(log(truncnorm::dtruncnorm(x = val_obs, mean = cp[,"c1"], sd = exp(lpr[err_ix]), a = 0))))
   } else{
     # apply function to lpr if applicable - e.g. have parameters change based on predicted concentration
     econ <- cp[,paste0("c",dat$ecmpt)]
     bisp <- dat$pdmod(ce = econ, pars = exp(c(lpr[pd_ix],fixed_lpr)))
-    return(sum(log(truncnorm::dtruncnorm(x = dat$sim$pdobs, mean = bisp, sd = exp(lpr[err_ix]), a = 0, b = 100))))
+    return(sum(log(truncnorm::dtruncnorm(x = val_obs, mean = bisp, sd = exp(lpr[err_ix]), a = 0, b = 100))))
   }
 }
 
@@ -166,14 +186,255 @@ log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
 #' @param gamma gamma parameter of PD model (fixed in Eleveld model)
 #' @param E0 E0 parameter of PD model (fixed in Eleveld model)
 log_posterior_neg <- function(lpr, dat, mu, sig, ...) {
-    -1*(log_prior(lpr,mu,sig) + log_likelihood(lpr, dat, sig, ...))
+    -1*(log_prior(lpr,mu,sig) + log_likelihood(lpr, dat, ...))
+}
+
+
+
+
+#' Function to provide Bayesian closed-loop control to
+#' @param targets Dataframe with columns ("time","target")
+#' @param updates Dataframe of times at which closed-loop updates should be conducted and
+#' optional variable with logical values named 'full_data' indicating if full updates should
+#' be used. Defaults to partial.
+#' @param prior List with elements "mu" and "sig" specifying the prior mean and covariance
+#' matrices for the logged parameter values.
+#' @param obs_tms Times at which observations are collected. If null, observations will be
+#' made at fixed intervals specified by 'dt'.
+#' @param dt Interval between measurements.
+bayes_control <- function(targets, updates, prior, true_pars,
+                          pkmod = pkmod3cptm, pdmod = emax_eleveld, pdinv = inv_emax_eleveld,
+                          init0 = NULL, init_p = NULL, obs_tms = NULL, dt = 1/60, sim_starttm = 0,
+                          tci_alg = "effect"){
+
+  # set observation/measurement times
+  if(is.null(obs_tms)) obs_tms <- seq(dt, max(targets$time), dt)
+
+  # set true and predicted initial concentrations if not specified
+  ncpt <- length(eval(formals(pkmod)$init))
+  if(is.null(init0)) init0 <- rep(0,ncpt)
+  if(is.null(init_p)) init_p <- rep(0,ncpt)
+
+  if(is.vector(updates)) updates <- data.frame(time = updates)
+  if("time" %nin% names(updates)) stop("dataframe updates must have column named 'time'")
+  if("full_data" %nin% names(updates)) updates$full_data <- FALSE
+  if("plot_progress" %nin% names(updates)) updates$plot_progress <- FALSE
+
+  # add simulation start time to list of update times
+  update_tms <- c(sim_starttm, updates$time)
+  update_full <- c(NA, updates$full_data)
+  plot_progress <- c(NA, updates$plot_progress)
+
+  true_pk <- true_pars$pars_pkpd[true_pars$pk_ix]
+  true_pd <- true_pars$pars_pkpd[-true_pars$pk_ix]
+
+  prior0 <- prior
+  dat0 <- NULL
+  lpr_all <- NULL
+
+  for(i in 2:length(update_tms)){
+
+    print(paste("Updating at time t =", update_tms[i]))
+
+    prior_pk <- prior$pars_pkpd[prior$pk_ix]
+    prior_pd <- prior$pars_pkpd[-prior$pk_ix]
+
+    # subset targets and observation times to period being updated
+    targets_sub <- targets[targets$time <= update_tms[i] & targets$time >= update_tms[i-1],]
+    obs_tms_sub <- obs_tms[obs_tms <= update_tms[i] & obs_tms > update_tms[i-1]]
+
+    # calculate tci infusions at prior parameter estimates for update period
+    inf <- tci_pd(pdresp  = targets_sub$target,
+                  tms     = targets_sub$time,
+                  pdinv   = pdinv,
+                  pdmod   = pdmod,
+                  pkmod   = pkmod,
+                  pars_pk = prior_pk,
+                  pars_pd = prior_pd,
+                  init = init_p,
+                  tci_alg = tci_alg)
+
+    # generate data under true model
+    dat <- gen_data(inf = inf,
+                    tms = obs_tms_sub,
+                    pkmod = pkmod,
+                    pdmod = pdmod,
+                    pars_pk0 = true_pk, # true pk parameters
+                    pars_pd0 = true_pd, # true pd parameters
+                    sigma_add = true_pars$err, # random error
+                    delay = true_pars$delay, # bis delay in minutes
+                    max_pdval = 100,
+                    init = init0)
+
+    # merge sampled dataset with prior observations
+    dat0 <- combine_sim(dat0,dat)
+
+    # indicate if full dataset should be used for updates
+    if(update_full[i]){
+      dat_eval <- dat0
+    } else dat_eval <- dat
+
+
+    # update parameters based on generated data
+    # use prior parameter values as starting point - separate fixed parameters
+    if(any(!is.null(prior$fixed_ix))){
+      lpr <- log(c(prior$pars_pkpd[-prior$fixed_ix], err = prior$err))
+      lpr_fixed <- log(prior$pars_pkpd[prior$fixed_ix])
+    } else{
+      lpr <- log(c(prior$pars_pkpd, err = prior$err))
+      lpk_fixed <- NULL
+    }
+
+    lpr_all <- rbind(lpr_all, lpr)
+
+    # update parameter estimates with data
+    post_est <- nlm(f = log_posterior_neg,
+                    p = lpr,
+                    dat = dat_eval,
+                    mu = lpr,
+                    sig = prior$sig,
+                    fixed_lpr = lpr_fixed,
+                    hessian = T)
+
+    if(plot_progress[i]){
+      print(plot(dat0, lpars_update = post_est$estimate))
+    }
+
+    # update prior values
+    if(any(!is.null(prior$fixed_ix))){
+      prior$pars_pkpd[-prior$fixed_ix] <- exp(head(post_est$estimate,-1))
+      prior$err <- exp(tail(post_est$estimate,1))
+    } else{
+      prior$pars_pkpd <- exp(head(post_est$estimate,-1))
+      prior$err <- exp(tail(post_est$estimate,1))
+    }
+
+    prior$sig <- solve(post_est$hessian)
+
+    # update true and predicted initial values
+    init0 <- dat0$sim[nrow(dat0$sim),grep("c[0-9]",colnames(dat0$sim))]
+    init_p <- as.numeric(predict(pkmod,
+                                 inf = dat$inf,
+                                 tms = update_tms[i],
+                                 pars = prior$pars_pkpd[prior$pk_ix],
+                                 init = init_p)[-1])
+
+  }
+
+  return(list(dat = dat0,
+              lpr = lpr_all,
+              posterior = prior,
+              prior = prior0,
+              true_pars = true_pars))
+}
+
+
+
+
+#' Sigmoid target function starting at 93 and passing
+sigmoid_targetfn <- function(lpars, tms, bis0 = 93, ...)
+  emax(tms, restrict_sigmoid(t50 = exp(lpars), BIS0 = bis0, ...))
+
+#' cubic target function restricted to pass through BIS = 93 at t=0 and BIS = 50 at t=5
+cubic_targetfn <- function(pars, tms, bis0 = 93, tfinal = 10, bisfinal = 50){
+  b1 = pars[1]
+  b2 = pars[2]
+  b3 = 1/tfinal^3 * (bisfinal - bis0 - tfinal*b1 - tfinal^2*b2)
+  return(bis0 + b1*tms + b2*tms^2 + b3*tms^3)
 }
 
 
 
 
 
+#' Function to apply any specified target function to a PK-PD model and TCI algorithm
+apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
+                           pkmod = pkmod3cptm,
+                           pdmod = emax_eleveld,
+                           pdinv = inv_emax_eleveld, ...){
 
+  return(tci_pd(pdresp  = targetfn(lp, tm, ...),
+                tms     = tm,
+                pdinv   = pdinv,
+                pdmod   = pdmod,
+                pkmod   = pkmod,
+                pars_pk = prior_pk,
+                pars_pd = prior_pd,
+                init = c(0,0,0,0)))
+}
+
+
+
+
+# objective function minimizing weighted combination of target over- and under-shoot
+Phi_WgtOvershoot <- function(inf,
+                             pars_pk0,
+                             pars_pd0,
+                             alpha = 0.2,
+                             target = 50,
+                             dt = 1/20,
+                             init = NULL,
+                             pkmod = pkmod3cptm,
+                             pdmod = emax_eleveld,
+                             pdinv = inv_emax_eleveld,
+                             ecmpt = NULL){
+
+  if(is.null(init))
+    init <- eval(formals(pkmod)$init)
+
+  if(is.null(ecmpt))
+    ecmpt <- length(eval(formals(pkmod)$init))
+
+  # inf <- as.data.frame(inf)
+
+  rng <- range(inf[,c("begin","end")])
+  tms <- seq(dt,rng[2],dt)
+
+  # predict concentrations and responses
+  con0 <- predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
+  pd_pred <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
+
+  phi1 <- sum((pd_pred[pd_pred>target] - target))*dt # integral above target
+  phi2 <- sum((target - pd_pred[pd_pred<target]))*dt # integral below target
+
+  return(alpha*phi1 + (1-alpha)*phi2)
+}
+
+
+# Function to evaluate an objective function phi over a population with infusions defined
+# by a target function.
+# This should have an option to sample a set of parameters from a covariance matrix if
+# specific parameters are not provided.
+
+Phi_ED <- function(lp, targetfn, tms, Phi, pars_pk_all, pars_pd_all,
+                   targetfn_args = list(), phi_args = list()){
+
+  library(parallel)
+
+  if(nrow(pars_pk_all) != nrow(pars_pd_all)) stop("PK and PD parameters must have the same number of rows.")
+  npars <- nrow(pars_pk_all)
+
+  # evaluate the infusion schedule at each
+  inf_prior <- mclapply(1:npars, function(i){
+    targetfn_args$lp <- lp
+    targetfn_args$tm <- tms
+    targetfn_args$targetfn <- targetfn
+    targetfn_args$prior_pk <- pars_pk_all[i,]
+    targetfn_args$prior_pd <- pars_pd_all[i,]
+    infi <- do.call(apply_targetfn, targetfn_args)
+    return(do.call(apply_targetfn, targetfn_args))
+  })
+
+  phi_all <- sum(unlist(mclapply(1:npars, function(i){
+    sum(sapply(1:npars, function(j){
+      Phi(inf = inf_prior[[i]],
+          pars_pk0 = pars_pk_all[j,],
+          pars_pd0 = pars_pd_all[j,])
+    }))
+  })))
+
+  return(phi_all)
+}
 
 
 # --------------------------------------------------------------------------------------------------------------------------------

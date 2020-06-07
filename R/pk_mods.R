@@ -11,7 +11,7 @@
 pkmod1cpt <- function(tm, kR, pars, init = 0, inittm = 0){
 
   names(pars) <- tolower(names(pars))
-  if(!all(hasName(pars, c("ke","v"))) & !all(hasName(pars, c("cl","v")))) stop('pars must have names "ke","v" or "cl","v"')
+  # if(!all(hasName(pars, c("ke","v"))) & !all(hasName(pars, c("cl","v")))) stop('pars must have names "ke","v" or "cl","v"')
   tm <- tm - inittm
 
   list2env(as.list(pars), envir = environment())
@@ -41,7 +41,7 @@ class(pkmod1cpt) <- "pkmod"
 pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0, returncpt = c("all","cpt1","cpt2","cpt3","cpt4")) {
 
   if(is.null(names(pars))){
-    warning("Parameter vector is not named. Assuming ordering (k10,k12,k21,k13,k31,v1,v2,v3,ke0) for first 9 values.")
+    # warning("Parameter vector is not named. Assuming ordering (k10,k12,k21,k13,k31,v1,v2,v3,ke0) for first 9 values.")
     names(pars)[1:9] <- c("k10","k12","k21","k13","k31","v1","v2","v3","ke0")
   }
   names(pars) <- tolower(names(pars))

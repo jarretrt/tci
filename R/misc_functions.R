@@ -8,8 +8,8 @@
 tail_vec <- function(x){
   args <- list(x)[[1]]
   if(is.null(dim(args)))
-    return(tail(args,1))
-  c(tail(t(args),1))
+    return(args[length(args)])
+  args[,ncol(args)]
 }
 #' @examples
 #' tail_vec(1:8)

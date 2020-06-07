@@ -2,15 +2,28 @@
 # - PK-PD model helper functions and methods -------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
 
-# dosing schedule
+#' dosing schedule
+# create_intvl <- function(dose, inittm = 0){
+#   b <- cut2(dose$time +inittm, breaks = c(inittm,dose$time+inittm), include.lowest = TRUE, right = FALSE)
+#   ss <- t(sapply(stringr::str_extract_all(levels(b),"-?[0-9.]+"), as.numeric))
+#   setNames(data.frame(levels(b), dose$infrt, ss), c("intvl","infrt","begin","end"))
+#   # infm <- cbind(dose$infrt, ss)
+#   # dimnames(infm) = list(rep(NULL,nrow(ss)), c("infrt","begin","end"))
+#   # infm
+# }
+
+#' Create dosing schedule
 create_intvl <- function(dose, inittm = 0){
-  # b <- cut2(dose$time, breaks = c(inittm,dose$time), include.lowest = TRUE, right = FALSE)
-  b <- cut2(dose$time +inittm, breaks = c(inittm,dose$time+inittm), include.lowest = TRUE, right = FALSE)
-  ss <- t(sapply(stringr::str_extract_all(levels(b),"-?[0-9.]+"), as.numeric))
-  setNames(data.frame(levels(b), dose$infrt, ss), c("intvl","infrt","begin","end"))
+  # tms <- c(inittm,dose[,"time"]+inittm)
+  tms <- c(inittm,dose[,"time"])
+  as.matrix(cbind(infrt = dose[,"infrt"],
+                  begin = tms[-length(tms)],
+                  end = tms[-1]))
 }
-dose <- data.frame(time = c(0.5,4,4.5,10), infrt = c(100,0,100,0))
-create_intvl(dose)
+#' @examples
+#' dose <- data.frame(time = c(0.5,4,4.5,10), infrt = c(100,0,100,0))
+#' create_intvl(dose)
+
 
 
 #' Function to place restriction on gamma and E50 parameters of target sigmoid
