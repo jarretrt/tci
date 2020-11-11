@@ -2,19 +2,32 @@
 # - PK-PD model methods ----------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
 
-pal  <- c(black = "#020201",
-          navy  = "#6f859b",
-          brown = "#7c4c4d",
-          teal  = "#60ccd9",
-          pink  = "#e3bab3",
-          darkgrey = "#97898a",
-          grey  = "#c2c5cb")
-
-#' Doing this masks the existing predict method from the stats package
-
+#' Predict concentrations from a pkmod object
+#'
 #' predict method to apply pk model piecewise to infusion schedule
+#' @param pkmod An object with class pkmod.
+#' @param inf An infusion schedule object with columns "begin","end","infrt".
+#' @param tms Times to evaluate predictions at. Will default to a sequence
+#' spanning the infusions at intervals of dt.
+#' @param dt Interval used for prediction if argument tms is unspecified.
+#' @param return_init Logical indicating if concentrations at time 0 should
+#' be returned. Defaults to FALSE.
+#' @param remove_bounds Logical, indicating if concentrations calculated at
+#' changes in infusion rates should be returned if not included in prediction
+#' times. Defaults to TRUE, so that only concentrations at specified times
+#' are returned.
+#' @param tm_digits Number of digits used to identify unique times. Only
+#' modify if the same time point receives multiple concentration records.
+#' @param ... Arguments passed on to pkmod
+#'
 #' @export
 predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, return_init = FALSE, remove_bounds = TRUE, tm_digits = 7, ...){
+
+  if(!all(c("infrt","begin","end") %in% colnames(inf)))
+    stop("inf must include 'infrt','begin','end' as column names")
+
+  if(!is.null(tms) & any(tms > max(inf[,"end"])))
+    stop("Prediction time points are outside range of dosing interval")
 
   # Times to evaluate concentrations at. Defaults to a sequence of values at intervals of dt.
   if(!is.null(tms)){
@@ -27,12 +40,13 @@ predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, return_init = FALSE,
     tms_all <- sort(unique(
       round(c(b,tms),tm_digits)
       ))
-    # tms_all <- bazar::almost.unique(sort(c(b,tms)))
-    tms_eval <- split(tms_all, findInterval(tms_all, b, rightmost.closed = T, left.open = T))
-    # tms_eval <- split(tms_all, findInterval(tms_all, b, rightmost.closed = F, left.open = F))
+    tms_eval <- split(tms_all, findInterval(tms_all, b,
+                                            rightmost.closed = TRUE,
+                                            left.open = TRUE))
   } else{
     # if times are not provided, predict across a grid of points
-    tms_eval <- mapply(seq, inf[,"begin"]+dt, inf[,"end"], by = dt, SIMPLIFY = F)
+    tms_eval <- mapply(seq, inf[,"begin"]+dt, inf[,"end"], by = dt,
+                       SIMPLIFY = FALSE)
     tms_all <- unlist(tms_eval)
   }
 
@@ -57,7 +71,8 @@ predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, return_init = FALSE,
     pred[,tm_ix[[i]]] <- do.call("pkmod", c(list(tm = tms_eval[[i]],
                                                  kR = inf[i,"infrt"],
                                                  init = init[[i]],
-                                                 inittm = inf[i,"begin"]), dot.args))
+                                                 inittm = inf[i,"begin"]),
+                                            dot.args))
     init[[i+1]] <- pred[,length(unlist(tm_ix[1:i]))]
   }
 
@@ -66,7 +81,7 @@ predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, return_init = FALSE,
 
   # Return predicted concentrations
   if(dim(pred)[1] == 1) {
-    predtms <- cbind(unique(unlist(tms_eval)),  c(pred))
+    predtms <- cbind(unique(unlist(tms_eval)), c(pred))
   } else{
     predtms <- cbind(unique(unlist(tms_eval)), t.default(pred))
   }
@@ -75,45 +90,68 @@ predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, return_init = FALSE,
   if(return_init) predtms <- rbind(c(inf[1,"begin"], init[[1]]), predtms)
 
   # # remove transition concentrations
-  if(!is.null(tms) & remove_bounds) predtms <- matrix(predtms[which(predtms[,1] %in% tms),], nrow = length(tms), byrow = F)
+  if(!is.null(tms) & remove_bounds){
+    predtms <- matrix(predtms[which(predtms[,1] %in% tms),],
+                      nrow = length(tms), byrow = FALSE)
+  }
 
   colnames(predtms) <- c("time",paste0("c",1:length(init[[1]])))
   return(predtms)
 }
-.S3method(generic = "predict", class = "pkmod", method = predict.pkmod)
 
 
-
-# Note: ... arguments SHOULD be passed to plotting function instead of predict. Will fix later.
-
-# plot <- function(pkmod, ...) UseMethod("plot")
-
+#' Plot pkmod object. Will show predicted concentrations in
+#' compartments associated with an infusion schedule.
+#' @param x An object with class pkmod.
+#' @param inf An infusion schedule object with columns "begin","end","infrt".
+#' @param npts Number of points used to evaluate predicted concentrations.
+#' @param ... Arguments passed on to predict.pkmod
+#'
+#' @rdname plot
 #' @export
 plot.pkmod <- function(pkmod, inf, npts = 1000, title = NULL, ...){
   # set dt based on range between points
   dt <- diff(range(inf[,"begin"], inf[,"end"])) / npts
   # predict concentrations
-  con <- data.frame(predict(pkmod, inf, dt = dt, return_init = T, ...))
+  con <- data.frame(predict(pkmod, inf, dt = dt, return_init = TRUE, ...))
 
-  ggplot(melt(con, id = "time"), aes(x = time, y = value, linetype = variable, color = variable)) +
+  ggplot2::ggplot(reshape::melt(con, id = "time"), aes(x = time,
+                                     y = value,
+                                     linetype = variable,
+                                     color = variable)) +
     geom_line() +
-    labs(y = "Concentration", x = "Time", color = "Compartment", linetype = "Compartment", title = title) +
+    labs(y = "Concentration", x = "Time", color = "Compartment",
+         linetype = "Compartment", title = title) +
     scale_color_manual(values = unname(pal))
 }
-.S3method(generic = "plot", class = "pkmod", method = plot.pkmod)
 
 
+#' Plot method for PD models. User can provide a series of effect-site
+#' concentrations and a PD model OR an infusion schedule with a PK-PD model
 
-# Plot method for PD models. User can provide a series of effect-site concentrations and a PD model OR an infusion schedule with a PK-PD model
-
-# plot <- function(pdmod, ...) UseMethod("plot")
+#' @param x An object with class pdmod.
+#' @param pkmod An object with class pkmod.
+#' @param inf An infusion schedule object with columns "begin","end","infrt".
+#' @param pars_pd Parameters used by pdmod.
+#' @param pars_pk Parameters used by pkmod.
+#' @param npts Number of points used to evaluate predicted concentrations.
+#' @param plot_pk Logical. Should PK concentrations be plotted alongside
+#' the PD response. Defaults to TRUE.
+#' @param title Title of plot
+#' @param ecmpt Effect-site compartment number. Defaults to the last
+#' compartment concentration returned by pkmod.
+#' @param ... Arguments passed on to method predict.pkmod.
+#'
+#' @rdname plot
 #' @export
-plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000, plot_pk = TRUE, title = NULL, ecmpt = NULL, ...){
+plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000,
+                       plot_pk = TRUE, title = NULL, ecmpt = NULL, ...){
+
 
   # set dt based on range between points
   dt <- diff(range(inf[,"begin"], inf[,"end"])) / npts
   # predict concentrations
-  con <- data.frame(predict(pkmod, inf, dt = dt, return_init = T, pars = pars_pk, ...))
+  con <- data.frame(predict(pkmod, inf, dt = dt, return_init = TRUE, pars = pars_pk, ...))
 
   # effect site comparment
   if(is.null(ecmpt))
@@ -123,7 +161,7 @@ plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000, plot_pk
   pd <- data.frame(time = con$time, pdresp = pdmod(con[,ecmpt], pars_pd))
 
   if(plot_pk){
-    p1 <- ggplot(melt(con, id = "time"), aes(x = time, y = value, linetype = variable, color = variable)) +
+    p1 <- ggplot2::ggplot(reshape::melt(con, id = "time"), aes(x = time, y = value, linetype = variable, color = variable)) +
       geom_line() +
       labs(y = "Concentration", x = "Time", color = "Compartment", linetype = "Compartment") +
       theme(legend.position="bottom") +
@@ -132,20 +170,17 @@ plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000, plot_pk
     p1 <- NULL
   }
 
-  p2 <- ggplot(pd, aes(x = time, y = pdresp)) +
+  p2 <- ggplot2::ggplot(pd, aes(x = time, y = pdresp)) +
     geom_line(color = unname(pal[5])) +
     labs(y = "Response", x = "Time") +
     lims(y = c(0,100))
 
   if(!is.null(p1)){
-    grid.arrange(p2, p1, nrow = 2, top = title)
+    gridExtra::grid.arrange(p2, p1, nrow = 2, top = title)
   } else{
-    grid.arrange(p2, top = title)
+    gridExtra::grid.arrange(p2, top = title)
   }
 }
-.S3method("plot","pdmod",plot.pdmod)
-
-
 
 
 #' Plotting method for tciinf objects. Will work for outputs from "iterate_tci_grid" or "tci_pd".
@@ -153,24 +188,33 @@ plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000, plot_pk
 #' final target value plotted will be a repetition of the preceeding value
 
 # plot <- function(tciinf, ...) UseMethod("plot")
+#' @param x Object with class "tciinf" created by functions
+#' `iterate_tci_grid` or `tci_pd`
+#' @param title Title of plot.
+#' @param ... \dots
+#'
+#' @rdname plot
 #' @export
-plot.tciinf <- function(tciinf, title = NULL){
+plot.tciinf <- function(tciinf, title = NULL, ...){
 
   tciinf <- as.data.frame(tciinf)
   # move end of last row to start column for plotting
   tciinf <- rbind(tciinf, NA)
   ncpt <- length(grep("c[0-9]_start",names(tciinf)))
-  tciinf[nrow(tciinf),grep("start|begin|Ct|pdt", names(tciinf))] <- tciinf[nrow(tciinf)-1,grep("end|Ct|pdt", names(tciinf))]
+  tciinf[nrow(tciinf),grep("start|begin|Ct|pdt", names(tciinf))] <-
+    tciinf[nrow(tciinf)-1,grep("end|Ct|pdt", names(tciinf))]
 
   # data frame for PK plot
-  tciinfm <- melt(tciinf[,c("begin","Ct", paste0("c",1:ncpt,"_start"))], id.vars = "begin")
+  tciinfm <- reshape::melt(tciinf[,c("begin","Ct", paste0("c",1:ncpt,"_start"))],
+                           id.vars = "begin")
   tciinfm$variable <- gsub("_start","",tciinfm$variable)
   tciinfm$variable <- gsub("c","Cmpt",tciinfm$variable)
   tciinfm$variable <- gsub("Ct","Target",tciinfm$variable)
   tciinfm$variable <- factor(tciinfm$variable,
-                             levels = c("Target",grep("Cmpt",unique(tciinfm$variable), value = T)))
+                             levels = c("Target",grep("Cmpt",unique(tciinfm$variable),
+                                                      value = TRUE)))
 
-  ppk <- ggplot(tciinfm) +
+  ppk <- ggplot2::ggplot(tciinfm) +
     geom_step(data = tciinfm[tciinfm$variable == "Target",],
               aes(x = begin, y = value, color = variable, linetype = variable),
               size = 1) +
@@ -186,9 +230,9 @@ plot.tciinf <- function(tciinf, title = NULL){
 
 
   if("pdresp_start" %in% names(tciinf)){
-    tciinfm2 <- melt(tciinf[,c("begin","pdt","pdresp_start")],id.vars = "begin")
+    tciinfm2 <- reshape::melt(tciinf[,c("begin","pdt","pdresp_start")],id.vars = "begin")
 
-    ppd <- ggplot(tciinfm2, aes(x = begin, y = value)) +
+    ppd <- ggplot2::ggplot(tciinfm2, aes(x = begin, y = value)) +
       geom_step(data = tciinfm2[tciinfm2$variable == "pdt",], aes(color = "col1", linetype = "solid"), size = 1) +
       geom_line(data = tciinfm2[tciinfm2$variable != "pdt",], aes(color = "col2", linetype = "solid"), size = 1)+
       scale_linetype_manual("", values = c("solid","solid"), labels = c("PD Target","PD Response")) +
@@ -199,18 +243,32 @@ plot.tciinf <- function(tciinf, title = NULL){
   }
 
   if("pdresp_start" %in% names(tciinf)){
-    grid.arrange(ppd, ppk, nrow = 2, top = title)
+    gridExtra::grid.arrange(ppd, ppk, nrow = 2, top = title)
   } else{
-    grid.arrange(ppk, top = title)
+    gridExtra::grid.arrange(ppk, top = title)
   }
 
 }
-.S3method("plot","tciinf",plot.tciinf)
 
 
-# plot <- function(datasim, ...) UseMethod("plot")
+#' Plot method for PD models. User can provide a series of effect-site
+#' concentrations and a PD model OR an infusion schedule with a PK-PD model
+
+#' @param x An object with class datasim, created by function `gen_data`.
+#' @param lpars_prior Logged prior parameters for plotting predicted concentrations
+#' alongside observed data.
+#' @param lpars_update Logged posterior parameters for plotting predicted concentrations
+#' alongside observed data.
+#' @param lpars_fixed Logged parameters that are used by PK-PD model but not updated.
+#' @param pd_ix Parameter vector of indices for PD parameters in arguments lpars_prior,
+#' lpars_update.
+#' @param dt Time interval used to predict PK-PD values.
+#' @param ... \dots
+#'
+#' @rdname plot
 #' @export
-plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10, dt = 1/60){
+plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL,
+                         lpars_fixed = NULL, pd_ix = 10, dt = 1/60, ...){
 
   datasim$sim <- as.data.frame(datasim$sim)
   datasim$inf <- as.data.frame(datasim$inf)
@@ -235,20 +293,20 @@ plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL, lpars
 
   # get predicted concentrations based on prior parameter estimates
   tciinf <- rbind(datasim$inf, NA)
-  tciinf[nrow(tciinf),grep("start|begin|Ct|pdt", names(tciinf))] <- tciinf[nrow(tciinf)-1,grep("end|Ct|pdt", names(tciinf))]
+  tciinf[nrow(tciinf),grep("start|begin|Ct|pdt", names(tciinf))] <-
+    tciinf[nrow(tciinf)-1,grep("end|Ct|pdt", names(tciinf))]
   tciinf <- as.data.frame(tciinf)
 
   if(is.null(datasim$pdmod)){
 
     # plot for pk model
-
     tciinf$variable <- as.factor("Prior")
     tciinf <- tciinf[,c("begin","variable","c1_start")]
     names(tciinf) <- c("time","variable","c1")
     df <- rbind(df, tciinf)
     df$variable <- factor(df$variable, levels = c("Truth","Prior"))
 
-    out <- ggplot(df, aes(x = time, y = c1, color = variable, linetype = variable)) +
+    out <- ggplot2::ggplot(df, aes(x = time, y = c1, color = variable, linetype = variable)) +
       geom_line() +
       geom_point(data = datasim$sim, aes(x = time, y = cobs), shape = 16, col = pal["navy"],
                  inherit.aes = FALSE, alpha = 1) +
@@ -265,23 +323,21 @@ plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL, lpars
       cp_update$variable <- "Posterior"
       df <- rbind(df, cp_update[,c("time","variable","c1")])
 
-      out <- ggplot(df, aes(x = time, y = c1, color = variable, linetype = variable)) +
+      out <- ggplot2::ggplot(df, aes(x = time, y = c1, color = variable, linetype = variable)) +
         geom_line() +
         geom_point(data = datasim$sim, aes(x = time, y = cobs), shape = 16, col = pal["navy"],
                    inherit.aes = FALSE, alpha = 1) +
         scale_color_manual(values = unname(pal[c(1,4,5)])) +
         labs(x = "Time (min)", y = "Concentration", color = "", linetype = "")
-
     }
 
   } else{
 
     # plot for pd model
-
     cp$pdp <- datasim$pdmod(ce = cp[,paste0("c",datasim$ecmpt)], pars = datasim$pars_pd)
 
     # prior
-    tciinfm <- melt(as.data.frame(tciinf[,c("begin","pdt","pdresp_start")]),id.vars = "begin")
+    tciinfm <- reshape::melt(as.data.frame(tciinf[,c("begin","pdt","pdresp_start")]),id.vars = "begin")
     names(tciinfm) <- c("time","variable","pdp")
     cp$variable <- as.factor("True response")
     df <- rbind(cp[,c("time","variable","pdp")], tciinfm)
@@ -289,7 +345,7 @@ plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL, lpars
     df$variable <- factor(df$variable, levels = c("Target","Truth","Prior"))
     vord <- order(levels(df$variable))
 
-    out <- ggplot(df, aes(x = time, y = pdp, color = variable, linetype = variable)) +
+    out <- ggplot2::ggplot(df, aes(x = time, y = pdp, color = variable, linetype = variable)) +
       geom_point(data = as.data.frame(datasim$sim),
                  aes(x = time, y = pdobs), color = unname(pal["darkgrey"]),
                  inherit.aes = FALSE, alpha = 0.5) +
@@ -322,7 +378,7 @@ plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL, lpars
       df <- rbind(df, cp_update[,c("time","variable","pdp")])
       vord <- order(levels(df$variable))
 
-      out <- ggplot(df, aes(x = time, y = pdp, color = variable, linetype = variable)) +
+      out <- ggplot2::ggplot(df, aes(x = time, y = pdp, color = variable, linetype = variable)) +
         geom_point(data = datasim$sim, aes(x = time, y = pdobs), color = unname(pal["darkgrey"]),
                    inherit.aes = FALSE, alpha = 0.5) +
         geom_step(data = df[df$variable == "Target",],
@@ -339,9 +395,7 @@ plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL, lpars
         labs(x = "Time", y = "PD response") +
         theme(legend.position="bottom")
     }
-
   }
 
   out
 }
-.S3method("plot","datasim",plot.datasim)

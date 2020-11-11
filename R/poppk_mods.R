@@ -2,14 +2,19 @@
 #' Population PK and PK-PD functions --------------------------------------------------
 #' ------------------------------------------------------------------------------------
 
-#' Marsh population PK model. Takes in a vector of patient weights and returns
-#' a data frame of patient PK-PD parameters.
+#' Marsh population PK model.
+#'
+#' Takes in a vector of patient weights and returns a data frame of patient PK-PD parameters.
 #' KE0 parameter set to 1.2 in accordance with Base Primea system and recommendations
 #' from Absalom et al. (2009) "Pharmacokinetic models for propofol- Defining and
 #' illuminating the devil in the detail"
 #'
-#' @param TBM Vector of patient total body mass in kg
-marsh_poppk <- function(df, rate = T){
+#' @name marsh_poppk
+#'
+#' @param df data frame with column titled "TBM" giving patient total body mass in kg
+#'
+#' @export
+marsh_poppk <- function(df, rate = TRUE){
   if(!("TBM" %in% names(df))) stop('The data frame must have a column named "TBM"')
 
   df$V1  = 0.228 * df$TBM
@@ -46,7 +51,16 @@ marsh_poppk <- function(df, rate = T){
 
 
 #' Schnider population PK model
-schnider_poppk <- function(df, rate = F, rand = F){
+#'
+#' @name schnider_poppk
+#' @param df data frame with variable names "AGE","TBM","HGT","MALE"
+#' @rate Logical. Should rate parameters be returned rather than clearance.
+#' Defaults to FALSE
+#' @rand Logical. Should a vector of Monte Carlo samples be returned instead
+#' of point estimates at patient covariate values. Defaults to FALSE.
+#' @export
+#'
+schnider_poppk <- function(df, rate = FALSE, rand = FALSE){
 
   covar_names <- c("AGE","TBM","HGT","MALE")
   if(!all(covar_names %in% names(df))) stop(
@@ -101,6 +115,22 @@ schnider_poppk <- function(df, rate = F, rand = F){
 #' schnider_poppk(dat, rand = F, rate = F)
 #' schnider_poppk(dat, rand = T, rate = T)
 
+
+#' Eleveld et al. population PK model.
+#'
+#' Function takes a data frame of patient covariate values with variable names
+#' "AGE","TBM","HGT","MALE" and returns PK parameter values.
+#'
+#' @name eleveld_poppk
+#' @param df Data frame with variable names "AGE","TBM","HGT","MALE"
+#' @param PD Logical. Should PD parameters be returned in addition to PK parameters.
+#' Defaults to TRUE.
+#' @rate Logical. Should rate parameters be returned rather than clearance.
+#' Defaults to FALSE
+#' @rand Logical. Should a vector of Monte Carlo samples be returned instead
+#' of point estimates at patient covariate values. Defaults to FALSE.
+#' @export
+#'
 eleveld_poppk <- function(df, PD = TRUE, rate = FALSE, rand = FALSE){
 
   # fixed effect estimates
@@ -209,30 +239,11 @@ eleveld_poppk <- function(df, PD = TRUE, rate = FALSE, rand = FALSE){
   class(df) <- c(class(df),"poppk")
   return(df)
 }
-
 #' @examples
-#' pk <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pk_model.posthoc.txt",
-#' header = T, sep = "", skip = 1)
-#' df <- pk[1:20,c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
-#' eleveld_poppk(df, rate = T)
-#' eleveld_poppk(df, rate = F, PD = T, rand = T)
-#
-#
-# pd <- read.table(file = "../Dropbox/Documents/Dissertation/paper1/Robust Closed-Loop Induction of General Anesthesia with Propofol/data/final_pd_model.posthoc.txt",
-#                  header = T, sep = "", skip = 1)
-#                    # "../data/final_pd_model.posthoc.txt", header = T, sep = "", skip = 1)
-#
-#
-#
-# pk$k10 = pk$CL / pk$V1
-# pk$k12 = pk$Q2 / pk$V1
-# pk$k21 = pk$Q2 / pk$V2
-# pk$k13 = pk$Q3 / pk$V1
-# pk$k31 = pk$Q3 / pk$V3
-# pkpd <- merge(pk,pd,by = intersect(names(pk), names(pd)))
-# gen_eleveld_pk_pars(theta = eleveld_theta_pk_est, eta = eleveld_eta_pk_var, patient_vars = pkpd[i,], returnQ = F)
-
-
+#' data(eleveld_pk)
+#' df <- eleveld_pk[1:10,c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
+#' eleveld_poppk(df, rate = TRUE)
+#' eleveld_poppk(df, rate = FALSE, PD = TRUE, rand = TRUE)
 
 
 

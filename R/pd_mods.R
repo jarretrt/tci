@@ -29,7 +29,10 @@ inv_emax <- function(pdresp, pars){
 #' all.equal(inv_emax(emax(ce_seq, pars_emax), pars_emax), ce_seq)
 
 
-#' Emax function for Eleveld (2018) model. The parameter gamma depends on whether ce <= c50.
+#' Emax function for Eleveld (2018) model.
+#'
+#' The parameter gamma takes one of two values depending on whether ce <= c50.
+#'
 #' @param ce Vector of effect-site concentrations.
 #' @param pars Vector of parameter values in order (c50,gamma,gamma2,e0,emx).
 emax_eleveld <- function(ce, pars){
@@ -43,13 +46,13 @@ emax_eleveld <- function(ce, pars){
   e0 - emx*(ce^gam / (ce^gam + c50^gam))
 }
 class(emax_eleveld) <- "pdmod"
-
 #' @examples
 #' pars_emax_eleveld <- c(c50 = 1.5, gamma = 1.47, gamma2 = 1.89, e0 = 100, emx = 100)
 #' ce_seq <- seq(0,4,0.1)
 #' plot(ce_seq, emax_eleveld(ce_seq, pars_emax_eleveld), type = "l", xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS")
 
 #' Inverse Emax function
+#'
 #' @param pdresp PD response values
 #' @param pars Named vector of parameter values with names (c50,gamma,E0,Emx).
 inv_emax_eleveld <- function(pdresp, pars){

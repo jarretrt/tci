@@ -3,20 +3,53 @@
 # - Helper functions that aren't central to use in the package -------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
 
+
+#' Color palate for tci plotting functions
+#'
+#' @examples pal["navy"]
+#'
+#' @export
+pal  <- c(black = "#020201",
+          navy  = "#6f859b",
+          brown = "#7c4c4d",
+          teal  = "#60ccd9",
+          pink  = "#e3bab3",
+          darkgrey = "#97898a",
+          grey  = "#c2c5cb")
+
+
+#' Extract last element or column
+#'
 #' Function to extract the last element from a vector or the last column from a matrix
+#'
 #' @param x Vector or matrix
+#'
+#' @export
 tail_vec <- function(x){
+
   args <- list(x)[[1]]
-  if(is.null(dim(args)))
+
+  if(is.null(dim(args))){
     return(args[length(args)])
-  args[,ncol(args)]
+  } else{
+    return(args[,ncol(args)])
+  }
 }
 #' @examples
 #' tail_vec(1:8)
 #' tail_vec(matrix(1:8,2,4))
 
-#' Modified 'cut' function that creates consistent intervals (original one doesn't always)
-cut2 <- function (x, breaks, labels = NULL, include.lowest = FALSE, right = TRUE,
+
+
+#' Modified 'cut' function
+#'
+#' @name cut2
+#'
+#' Modified cut function to create equal-length intervals. See documentation
+#' for base::cut for description of function arguments. Not currently used.
+#'
+#' @export
+cut2 <- function(x, breaks, labels = NULL, include.lowest = FALSE, right = TRUE,
                   dig.lab = 3L, ordered_result = FALSE, ...)
 {
   if (!is.numeric(x))
@@ -75,7 +108,15 @@ cut2 <- function (x, breaks, labels = NULL, include.lowest = FALSE, right = TRUE
 }
 
 
-#' Sequence function that includes bounds and optional extra points
+
+
+#' Modified seq function to include bounds
+#'
+#' @param from sequence starting value
+#' @param to sequence end value
+#' @param by increment of the sequence
+#'
+#' @export
 seqby <- function(from, to, by)
   sort(union(seq(from, to, by), c(from, to)))
 #' @examples

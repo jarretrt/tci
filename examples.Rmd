@@ -15,9 +15,8 @@ library(reshape)
 library(gridExtra)
 library(RColorBrewer)
 library(devtools)
-# library(tci)
+library(tci)
 setwd("~/tci")
-devtools::load_all(".")
 knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.align="center")
 ```
 

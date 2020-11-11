@@ -1,6 +1,8 @@
 # TCI algorithms
 
-#' TCI algorithm for plasma targeting, based on the algorithm described by Jacobs (1990)
+#' TCI algorithm for plasma targeting
+#'
+#' TCI algorithim based on the algorithm described by Jacobs (1990).
 #'
 #' @param Cpt Target plasma concentration
 #' @param pkmod PK model
@@ -33,6 +35,8 @@ tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
 
 
 
+#' TCI algorithm for effect-site targeting
+#'
 #' Function for calculating a TCI infusion schedule corresponding to a set of target concentrations.
 #' This function makes use of formulas described by Shafer and Gregg (1992) in "Algorithms to rapidly achieve
 #' and maintain stable drug concentrations at the site of drug effect with a computer-controlled infusion pump"
@@ -41,9 +45,7 @@ tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
 #' @param pkmod PK model
 #' @param dt Frequency of TCI updates. Default is 10 seconds expressed in terms of minutes = 1/6.
 #' @param max_kR Maximum infusion rate of TCI pump. Defaults to 1200.
-#' @param cmpt Effect
-#'
-#'
+#' @param ecmpt Effect site compartment number
 #' @param plasma_tol Maximum percent difference between predicted plasma concentration and target concentration permitted
 #' in order to switch to plasma-targeting mode. Plasma-targeting mode is used primarily to increase computational efficiency
 #' when the effect-site concentration is sufficiently stable and close to the target concentration.
@@ -132,7 +134,8 @@ tci_comb <- function(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt 
 
 
 
-
+#' Apply TCI algorithm
+#'
 #' Function to iterate any arbitrary TCI algorithm to a series of points. By default,
 #' the function will update infusion rates at fixed intervals (e.g. every 10 seconds);
 #' however, users will have the option of waiting only calculating infusions after
@@ -176,15 +179,12 @@ tci <- function(Ct, tms, pkmod, pars, init = NULL,
 
   ncpt <- length(eval(formals(pkmod)$init))
   if(is.null(init)) init <- rep(0,ncpt)
-  # inf <- matrix(NA, nrow = length(updatetms), ncol = 2)
   inf <- rep(NA, length(updatetms))
   ini <- matrix(NA, nrow = ncpt, ncol = length(updatetms)+1)
   ini[,1] <- init
 
   # iterate through times
   for(i in 1:length(updatetms)){
-    # inf[i,] <- tci_alg(sf(updatetms[i]), pkmod = pkmod, pars = pars, dt = dt, init = ini[,i], ...)
-    # ini[,i+1] <- pkmod(tm = dt, kR = inf[i,1], pars = pars, init = ini[,i])
     inf[i] <- tci_alg(sf(updatetms[i]), pkmod = pkmod, pars = pars, dt = dt, init = ini[,i], ...)
     ini[,i+1] <- pkmod(tm = dt, kR = inf[i], pars = pars, init = ini[,i])
   }

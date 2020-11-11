@@ -6,6 +6,7 @@
 #' @param inf An infusion rate object outputted from either the 'create_intvl' function or the 'iterate_tci_grid' function
 #' @param pars_pk0 "True" parameter estimates used to simulate data observations.
 #' @param pars_pk Alternate parameter estimates that can
+#' @export
 gen_data <- function(inf, pkmod, pars_pk0,
                      sigma_add = 0, sigma_mult = 0,
                      log_err = FALSE,
@@ -35,14 +36,12 @@ gen_data <- function(inf, pkmod, pars_pk0,
 
   } else{
     # possible time delay
-    # con0$timeobs <- con0$time + delay
     timeobs <- con0[,"time"] + delay
 
     if(is.null(ecmpt))
       ecmpt <- length(eval(formals(pkmod)$init))
 
     # pd observations
-    # con0$pd0 <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
     pd0 <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
 
     if(log_err)
@@ -75,8 +74,13 @@ gen_data <- function(inf, pkmod, pars_pk0,
 }
 
 
-# function to merge datasim objects from different infusion schedules
-# infusion schedules can be passed directly in or as a list.
+#' Combine simulation outputs
+#'
+#' Function to merge objects with class datasim from different infusion schedules
+#' infusion schedules can be passed directly in or as a list.
+#' @param ... Set of datasim objects created from `gen_data` function.
+#'
+#' @export
 combine_sim <- function(...){
   simlist <- list(...)
 
@@ -105,8 +109,10 @@ combine_sim <- function(...){
   return(out)
 }
 
-
-#' Function to apply saved population PK or PK-PD models to a dataframe of patient values.
+#' Apply a population PK model to a data frame
+#'
+#' Function to apply saved population PK or PK-PD models to a
+#' data frame of patient values.
 apply_poppk <- function(patient_df, mod = c("marsh","schnider","eleveld"), ...){
   switch(match.arg(mod),
          marsh = marsh_poppk(patient_df, ...),
@@ -115,17 +121,15 @@ apply_poppk <- function(patient_df, mod = c("marsh","schnider","eleveld"), ...){
 }
 
 
-# Functions to estimate prior, likelihood, and non-nomalized posterior
 
-#' Function to return the prior probability for a set of parameters assuming they are log-normally distributed.
-#' It is assumed that the last value of of lpr is the prior mean for the variance parameter.
-#' @param lpr log parameter values to evaluate
-#' @param mu mean for model parameters and mean of the error distribution
-#' @param sig variance covariance matrix for model parameters and standard deviation of error distribution
 #' Calculate logged prior value
-#' @param lpr Logged parameter values to evaluate prior distribution at.
-#' @param mu Mean of multivariate normal prior distribution.
-#' @param sig Variance-covariance matrix of multivariate normal prior distribution.
+#'
+#' Function to return the prior probability for a set of parameters
+#' assuming a log-normal distribution.
+#'
+#' @param lpr log parameter values to evaluate
+#' @param mu mean for model parameters and mean residual error
+#' @param sig variance covariance matrix for model parameters
 log_prior <- function(lpr, mu, sig){
   mvtnorm::dmvnorm(lpr, mu, sig, log = TRUE)
 }
@@ -140,8 +144,6 @@ log_prior <- function(lpr, mu, sig){
 #' @param pdix indices for PD function values to be updated.
 #' @param err_ix index for standard deviation of residual error term
 log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
-
-  # if(all(class(dat) != "datasim")) stop("dat must have class 'datasim'")
 
   # restrict times to allow for time lag
   if("timeobs" %in% colnames(dat$sim)){
@@ -367,6 +369,8 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 
 
 # objective function minimizing weighted combination of target over- and under-shoot
+# over- and under-shoot is relative to the target BIS = 50, NOT an indifference region
+# (e.g. 40 to 60).
 Phi_WgtOvershoot <- function(inf,
                              pars_pk0,
                              pars_pd0,
@@ -401,39 +405,87 @@ Phi_WgtOvershoot <- function(inf,
 }
 
 
+Phi_WgtOvershoot_region <- function(inf,
+                             pars_pk0,
+                             pars_pd0,
+                             alpha = 0.2,
+                             ub = 60,
+                             lb = 40,
+                             dt = 1/20,
+                             init = NULL,
+                             pkmod = pkmod3cptm,
+                             pdmod = emax_eleveld,
+                             pdinv = inv_emax_eleveld,
+                             ecmpt = NULL){
+
+  if(is.null(init))
+    init <- eval(formals(pkmod)$init)
+
+  if(is.null(ecmpt))
+    ecmpt <- length(eval(formals(pkmod)$init))
+
+  # inf <- as.data.frame(inf)
+
+  rng <- range(inf[,c("begin","end")])
+  tms <- seq(dt,rng[2],dt)
+
+  # predict concentrations and responses
+  con0 <- predict(pkmod = pkmod, inf = inf, tms = tms,
+                  pars = pars_pk0, init = init)[,paste0("c",ecmpt)]
+  pd_pred <- pdmod(con0, pars_pd0)
+
+  phi1 <- sum((pd_pred[pd_pred>ub] - ub))*dt # integral above target
+  phi2 <- sum((lb - pd_pred[pd_pred<lb]))*dt # integral below target
+
+  return(alpha*phi1 + (1-alpha)*phi2)
+}
+
+
 # Function to evaluate an objective function phi over a population with infusions defined
 # by a target function.
 # This should have an option to sample a set of parameters from a covariance matrix if
 # specific parameters are not provided.
 
-Phi_ED <- function(lp, targetfn, tms, Phi, pars_pk_all, pars_pd_all,
+Phi_ED <- function(lp, targetfn, tms, Phi, alpha,
+                   prior_pars_pk, prior_pars_pd,
+                   eb_pars_pk, eb_pars_pd,
                    targetfn_args = list(), phi_args = list()){
 
   library(parallel)
 
-  if(nrow(pars_pk_all) != nrow(pars_pd_all)) stop("PK and PD parameters must have the same number of rows.")
-  npars <- nrow(pars_pk_all)
+  if(nrow(prior_pars_pk) != nrow(prior_pars_pd)) stop("PK and PD parameters must have the same number of rows.")
+  npars <- nrow(prior_pars_pk)
 
   # evaluate the infusion schedule at each
-  inf_prior <- mclapply(1:npars, function(i){
+  # phi_i <- mclapply(1:npars, function(i){
+  phi_i <- lapply(1:npars, function(i){
     targetfn_args$lp <- lp
     targetfn_args$tm <- tms
     targetfn_args$targetfn <- targetfn
-    targetfn_args$prior_pk <- pars_pk_all[i,]
-    targetfn_args$prior_pd <- pars_pd_all[i,]
+    targetfn_args$prior_pk <- unlist(prior_pars_pk[i,])
+    targetfn_args$prior_pd <- unlist(prior_pars_pd[i,])
+
+    # infusion schdule
     infi <- do.call(apply_targetfn, targetfn_args)
-    return(do.call(apply_targetfn, targetfn_args))
+
+    # calculate objective function
+    Phi(inf = infi,
+        alpha = alpha,
+        pars_pk0 = unlist(eb_pars_pk[i,]),
+        pars_pd0 = unlist(eb_pars_pd[i,]),
+        dt = 1/200)
   })
 
-  phi_all <- sum(unlist(mclapply(1:npars, function(i){
-    sum(sapply(1:npars, function(j){
-      Phi(inf = inf_prior[[i]],
-          pars_pk0 = pars_pk_all[j,],
-          pars_pd0 = pars_pd_all[j,])
-    }))
-  })))
-
-  return(phi_all)
+  return(mean(unlist(phi_i)))
+  # phi_all <- sum(unlist(mclapply(1:npars, function(i){
+  #   sum(sapply(1:npars, function(j){
+  #     Phi(inf = inf_prior[[i]],
+  #         pars_pk0 = unlistpars_pk_all[j,],
+  #         pars_pd0 = unlistpars_pd_all[j,])
+  #   }))
+  # })))
+  #
+  # return(phi_all)
 }
 
 
