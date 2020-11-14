@@ -1,8 +1,10 @@
-# TCI algorithms
+# --------------------------------------------------------------------------------------------------------------------------------
+# - TCI algorithms ---------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------
 
 #' TCI algorithm for plasma targeting
 #'
-#' TCI algorithim based on the algorithm described by Jacobs (1990).
+#' TCI algorithm based on the algorithm described by Jacobs (1990).
 #'
 #' @param Cpt Target plasma concentration
 #' @param pkmod PK model
@@ -11,6 +13,8 @@
 #' maximum infusion rate of 1200 ml/h permitted by
 #' existing TCI pumps (e.g. Anestfusor TCI program).
 #' @param cmpt Compartment into which infusions are administered. Defaults to the first compartment.
+#'
+#' @export
 tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
 
   Cp1 <- pkmod(tm = dt, kR = 1, ...)
@@ -30,7 +34,6 @@ tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
   if(infrt > maxrt)
     infrt <- maxrt
   return(c(kR = infrt))
-  # return(c(kR = infrt, dt = dt))
 }
 
 
@@ -51,6 +54,8 @@ tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
 #' when the effect-site concentration is sufficiently stable and close to the target concentration.
 #' @param effect_tol Maximum percent difference between predicted effect-site concentration and target concentration
 #' permitted in order to switch to plasma-targeting mode.
+#'
+#' @export
 tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20, maxrt = 1200, grid_len = 1200, ...){
 
   list2env(list(...), envir = environment())
@@ -108,11 +113,22 @@ tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20, max
 
 
 
+#' Effect-site TCI algorithm with plasma targeting within small range of target
+#'
 #' Modified effect-site TCI algorithm that follows Jacobs (1993) suggestion of
 #' switching to plasma-targeting when the plasma concentration is within 10\%
 #' of the target and the effect-site concentration is within 0.5\% of the target.
-#' The modification decreases computation time and prevents oscilatory behavior
+#' The modification decreases computation time and prevents oscillatory behavior
 #' in the effect-site concentrations.
+#'
+#' @param Ct Numeric vector of target effect-site concentrations.
+#' @param pkmod PK model
+#' @param cptol Percentage of plasma concentration required to be within to switch
+#' to plasma targeting.
+#' @param cptol Percentage of effect-site concentration required to be within to switch
+#' to plasma targeting.
+#'
+#' @export
 tci_comb <- function(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt = 4, ...){
 
   list2env(list(...), envir = environment())
@@ -132,8 +148,6 @@ tci_comb <- function(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt 
 
 }
 
-
-
 #' Apply TCI algorithm
 #'
 #' Function to iterate any arbitrary TCI algorithm to a series of points. By default,
@@ -149,8 +163,7 @@ tci_comb <- function(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt 
 #' @param tms Times at which the TCI algorithm should try to achieve the target concentrations
 #' @param tci_alg TCI algorithm. Options are provided for effect-site (default) or plasma targeting.
 #' Alternate algorithms can be specified through the 'tci_custom' argument.
-#' @param
-#'
+#' @export
 tci <- function(Ct, tms, pkmod, pars, init = NULL,
                              tci_alg = c("effect","plasma"),
                              dt = 1/6, tci_custom = NULL, ...){
@@ -203,8 +216,22 @@ tci <- function(Ct, tms, pkmod, pars, init = NULL,
 
 
 #' Function to extend TCI grid to a set of PD targets
-#' @param ... Arguments to be passed on to 'tci'. These can include alternate TCI algorithms if desired.
-tci_pd <- function(pdresp, tms, pkmod, pdmod, pars_pk, pars_pd, pdinv, ecmpt = NULL, ...){
+#'
+#' @param pdresp PD targets to be passed on to the TCI algorithm.
+#' @param tms Times corresponding to each PD target
+#' @param pkmod PK model function
+#' @param pdmod PD model function
+#' @param pars_pk PK model parameters
+#' @param pars_pd PD model parameters
+#' @param pdinv PD inverse function
+#' @param ecmpt Number corresponding to effect-site compartment. Defaults
+#' to the last compartment.
+#' @param ... Arguments to be passed on to 'tci'. These can include alternate
+#' TCI algorithms if desired.
+#'
+#' @export
+tci_pd <- function(pdresp, tms, pkmod, pdmod, pars_pk, pars_pd, pdinv,
+                   ecmpt = NULL, ...){
   Ct <- pdinv(pdresp, pars_pd)
   con <- tci(Ct = Ct, tms = tms, pkmod = pkmod, pars = pars_pk, ...)
   con_class <- class(con)

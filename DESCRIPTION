@@ -10,7 +10,10 @@ LazyData: true
 URL: http://github.com/jarretrt/tci
 BugReports: http://github.com/jarretrt/tci/issues
 Imports:
-    ggplot2
+	ggplot2,
+	stats,
+	utils,
+	graphics
 Suggests: 
     testthat (>= 2.1.0)
 RoxygenNote: 7.1.0

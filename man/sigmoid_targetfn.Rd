@@ -2,10 +2,17 @@
 % Please edit documentation in R/simulations.R
 \name{sigmoid_targetfn}
 \alias{sigmoid_targetfn}
-\title{Sigmoid target function starting at 93 and passing}
+\title{Sigmoid target function}
 \usage{
 sigmoid_targetfn(lpars, tms, bis0 = 93, ...)
 }
+\arguments{
+\item{lpars}{Logged parameter values}
+
+\item{tms}{Times to evaluate sigmoid function}
+
+\item{bis0}{BIS value with no drug administered}
+}
 \description{
-Sigmoid target function starting at 93 and passing
+Sigmoid target function
 }

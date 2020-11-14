@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulations.R
 \name{apply_targetfn}
 \alias{apply_targetfn}
-\title{Function to apply any specified target function to a PK-PD model and TCI algorithm}
+\title{Apply target function to a PK-PD model}
 \usage{
 apply_targetfn(
   lp,
@@ -16,6 +16,14 @@ apply_targetfn(
   ...
 )
 }
+\arguments{
+\item{lp}{Logged parameter values}
+
+\item{tm}{Time values to evaluate}
+
+\item{targetfn}{Target function}
+}
 \description{
-Function to apply any specified target function to a PK-PD model and TCI algorithm
+Function to apply any specified target function to a PK-PD model
+and TCI algorithm.
 }

@@ -7,7 +7,25 @@
 tci_pd(pdresp, tms, pkmod, pdmod, pars_pk, pars_pd, pdinv, ecmpt = NULL, ...)
 }
 \arguments{
-\item{...}{Arguments to be passed on to 'tci'. These can include alternate TCI algorithms if desired.}
+\item{pdresp}{PD targets to be passed on to the TCI algorithm.}
+
+\item{tms}{Times corresponding to each PD target}
+
+\item{pkmod}{PK model function}
+
+\item{pdmod}{PD model function}
+
+\item{pars_pk}{PK model parameters}
+
+\item{pars_pd}{PD model parameters}
+
+\item{pdinv}{PD inverse function}
+
+\item{ecmpt}{Number corresponding to effect-site compartment. Defaults
+to the last compartment.}
+
+\item{...}{Arguments to be passed on to 'tci'. These can include alternate
+TCI algorithms if desired.}
 }
 \description{
 Function to extend TCI grid to a set of PD targets

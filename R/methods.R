@@ -2,6 +2,10 @@
 # - PK-PD model methods ----------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
 
+
+pkmod <- function(x, ...) UseMethod("linmod")
+
+
 #' Predict concentrations from a pkmod object
 #'
 #' predict method to apply pk model piecewise to infusion schedule
@@ -115,14 +119,18 @@ plot.pkmod <- function(pkmod, inf, npts = 1000, title = NULL, ...){
   # predict concentrations
   con <- data.frame(predict(pkmod, inf, dt = dt, return_init = TRUE, ...))
 
-  ggplot2::ggplot(reshape::melt(con, id = "time"), aes(x = time,
-                                     y = value,
-                                     linetype = variable,
-                                     color = variable)) +
-    geom_line() +
-    labs(y = "Concentration", x = "Time", color = "Compartment",
-         linetype = "Compartment", title = title) +
-    scale_color_manual(values = unname(pal))
+  ggplot2::ggplot(reshape::melt(con, id = "time"),
+                  ggplot2::aes(x = time,
+                               y = value,
+                               linetype = variable,
+                               color = variable)) +
+    ggplot2::geom_line() +
+    ggplot2::labs(y = "Concentration",
+                  x = "Time",
+                  color = "Compartment",
+                  linetype = "Compartment",
+                  title = title) +
+    ggplot2::scale_color_manual(values = unname(pal))
 }
 
 
@@ -161,19 +169,26 @@ plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000,
   pd <- data.frame(time = con$time, pdresp = pdmod(con[,ecmpt], pars_pd))
 
   if(plot_pk){
-    p1 <- ggplot2::ggplot(reshape::melt(con, id = "time"), aes(x = time, y = value, linetype = variable, color = variable)) +
-      geom_line() +
-      labs(y = "Concentration", x = "Time", color = "Compartment", linetype = "Compartment") +
-      theme(legend.position="bottom") +
-      scale_color_manual(values = unname(pal))
+    p1 <- ggplot2::ggplot(reshape::melt(con, id = "time"),
+                          ggplot2::aes(x = time,
+                                       y = value,
+                                       linetype = variable,
+                                       color = variable)) +
+      ggplot2::geom_line() +
+      ggplot2::labs(y = "Concentration",
+                    x = "Time",
+                    color = "Compartment",
+                    linetype = "Compartment") +
+      ggplot2::theme(legend.position="bottom") +
+      ggplot2::scale_color_manual(values = unname(pal))
   } else{
     p1 <- NULL
   }
 
-  p2 <- ggplot2::ggplot(pd, aes(x = time, y = pdresp)) +
-    geom_line(color = unname(pal[5])) +
-    labs(y = "Response", x = "Time") +
-    lims(y = c(0,100))
+  p2 <- ggplot2::ggplot(pd, ggplot2::aes(x = time, y = pdresp)) +
+    ggplot2::geom_line(color = unname(pal[5])) +
+    ggplot2::labs(y = "Response", x = "Time") +
+    ggplot2::lims(y = c(0,100))
 
   if(!is.null(p1)){
     gridExtra::grid.arrange(p2, p1, nrow = 2, top = title)
@@ -215,31 +230,34 @@ plot.tciinf <- function(tciinf, title = NULL, ...){
                                                       value = TRUE)))
 
   ppk <- ggplot2::ggplot(tciinfm) +
-    geom_step(data = tciinfm[tciinfm$variable == "Target",],
-              aes(x = begin, y = value, color = variable, linetype = variable),
+    ggplot2::geom_step(data = tciinfm[tciinfm$variable == "Target",],
+                       ggplot2::aes(x = begin, y = value, color = variable, linetype = variable),
               size = 1) +
-    geom_line(data = tciinfm[tciinfm$variable != "Target",],
-              aes(x = begin, y = value, color = variable, linetype = variable),
+    ggplot2::geom_line(data = tciinfm[tciinfm$variable != "Target",],
+                       ggplot2::aes(x = begin, y = value, color = variable, linetype = variable),
               size = 1) +
-    scale_linetype_manual("", values = c(1:ncpt,1),
+    ggplot2::scale_linetype_manual("", values = c(1:ncpt,1),
                           labels = c(paste0("Cmpt",1:ncpt),"Target")) +
-    scale_color_manual("", values = c(unname(pal[2:(ncpt+1)]),"black"),
+    ggplot2::scale_color_manual("", values = c(unname(pal[2:(ncpt+1)]),"black"),
                        labels = c(paste0("Cmpt",1:ncpt),"Target")) +
-    labs(x = "Time", y = "Concentration", color = "", linetype = "") +
-    theme(legend.position="bottom")
+    ggplot2::labs(x = "Time", y = "Concentration", color = "", linetype = "") +
+    ggplot2::theme(legend.position="bottom")
 
 
   if("pdresp_start" %in% names(tciinf)){
     tciinfm2 <- reshape::melt(tciinf[,c("begin","pdt","pdresp_start")],id.vars = "begin")
 
-    ppd <- ggplot2::ggplot(tciinfm2, aes(x = begin, y = value)) +
-      geom_step(data = tciinfm2[tciinfm2$variable == "pdt",], aes(color = "col1", linetype = "solid"), size = 1) +
-      geom_line(data = tciinfm2[tciinfm2$variable != "pdt",], aes(color = "col2", linetype = "solid"), size = 1)+
-      scale_linetype_manual("", values = c("solid","solid"), labels = c("PD Target","PD Response")) +
-      scale_color_manual("", values = unname(pal[c(1,5)]), labels = c("PD Target","PD Response")) +
-      ylim(c(0,100)) +
-      labs(x = "Time", y = "PD response") +
-      theme(legend.position="bottom")
+    ppd <- ggplot2::ggplot(tciinfm2,
+                           ggplot2::aes(x = begin, y = value)) +
+      ggplot2::geom_step(data = tciinfm2[tciinfm2$variable == "pdt",],
+                ggplot2::aes(color = "col1", linetype = "solid"), size = 1) +
+      ggplot2::geom_line(data = tciinfm2[tciinfm2$variable != "pdt",],
+                         ggplot2::aes(color = "col2", linetype = "solid"), size = 1)+
+      ggplot2::scale_linetype_manual("", values = c("solid","solid"), labels = c("PD Target","PD Response")) +
+      ggplot2::scale_color_manual("", values = unname(pal[c(1,5)]), labels = c("PD Target","PD Response")) +
+      ggplot2::ylim(c(0,100)) +
+      ggplot2::labs(x = "Time", y = "PD response") +
+      ggplot2::theme(legend.position="bottom")
   }
 
   if("pdresp_start" %in% names(tciinf)){
@@ -306,12 +324,18 @@ plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL,
     df <- rbind(df, tciinf)
     df$variable <- factor(df$variable, levels = c("Truth","Prior"))
 
-    out <- ggplot2::ggplot(df, aes(x = time, y = c1, color = variable, linetype = variable)) +
-      geom_line() +
-      geom_point(data = datasim$sim, aes(x = time, y = cobs), shape = 16, col = pal["navy"],
+    out <- ggplot2::ggplot(df,
+                           ggplot2::aes(x = time,
+                                        y = c1,
+                                        color = variable,
+                                        linetype = variable)) +
+      ggplot2::geom_line() +
+      ggplot2::geom_point(data = datasim$sim,
+                          ggplot2::aes(x = time, y = cobs),
+                          shape = 16, col = pal["navy"],
                  inherit.aes = FALSE, alpha = 1) +
-      scale_color_manual(values = unname(pal[c(1,4)])) +
-      labs(x = "Time (min)", y = "Concentration", color = "", linetype = "")
+      ggplot2::scale_color_manual(values = unname(pal[c(1,4)])) +
+      ggplot2::labs(x = "Time (min)", y = "Concentration", color = "", linetype = "")
 
     if(!is.null(lpars_update)){
       cp_update <- data.frame(predict(pkmod = datasim$pkmod,
@@ -323,12 +347,16 @@ plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL,
       cp_update$variable <- "Posterior"
       df <- rbind(df, cp_update[,c("time","variable","c1")])
 
-      out <- ggplot2::ggplot(df, aes(x = time, y = c1, color = variable, linetype = variable)) +
-        geom_line() +
-        geom_point(data = datasim$sim, aes(x = time, y = cobs), shape = 16, col = pal["navy"],
+      out <- ggplot2::ggplot(df,
+                             ggplot2::aes(x = time,
+                                          y = c1,
+                                          color = variable,
+                                          linetype = variable)) +
+        ggplot2::geom_line() +
+        ggplot2::geom_point(data = datasim$sim, aes(x = time, y = cobs), shape = 16, col = pal["navy"],
                    inherit.aes = FALSE, alpha = 1) +
-        scale_color_manual(values = unname(pal[c(1,4,5)])) +
-        labs(x = "Time (min)", y = "Concentration", color = "", linetype = "")
+        ggplot2::scale_color_manual(values = unname(pal[c(1,4,5)])) +
+        ggplot2::labs(x = "Time (min)", y = "Concentration", color = "", linetype = "")
     }
 
   } else{
@@ -345,23 +373,28 @@ plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL,
     df$variable <- factor(df$variable, levels = c("Target","Truth","Prior"))
     vord <- order(levels(df$variable))
 
-    out <- ggplot2::ggplot(df, aes(x = time, y = pdp, color = variable, linetype = variable)) +
-      geom_point(data = as.data.frame(datasim$sim),
-                 aes(x = time, y = pdobs), color = unname(pal["darkgrey"]),
+    out <- ggplot2::ggplot(df,
+                           ggplot2::aes(x = time,
+                                        y = pdp,
+                                        color = variable,
+                                        linetype = variable)) +
+      ggplot2::geom_point(data = as.data.frame(datasim$sim),
+                          ggplot2::aes(x = time, y = pdobs),
+                          color = unname(pal["darkgrey"]),
                  inherit.aes = FALSE, alpha = 0.5) +
-      geom_step(data = df[df$variable == "Target",],
-                aes(x = time, y = pdp, color = variable, linetype = variable),
+      ggplot2::geom_step(data = df[df$variable == "Target",],
+                         ggplot2::aes(x = time, y = pdp, color = variable, linetype = variable),
                 size = 0.5) +
-      geom_line(data = df[df$variable != "Target",],
-                aes(x = time, y = pdp, color = variable, linetype = variable),
+      ggplot2::geom_line(data = df[df$variable != "Target",],
+                         ggplot2::aes(x = time, y = pdp, color = variable, linetype = variable),
                 size = 1) +
-      scale_linetype_manual("", values = c(1,1:(length(vord)-1))[vord],
+      ggplot2::scale_linetype_manual("", values = c(1,1:(length(vord)-1))[vord],
                             labels = sort(levels(df$variable))) +
-      scale_color_manual("", values = unname(pal[vord]),
+      ggplot2::scale_color_manual("", values = unname(pal[vord]),
                          labels = sort(levels(df$variable))) +
-      ylim(c(0,100)) +
-      labs(x = "Time", y = "PD response") +
-      theme(legend.position="bottom")
+      ggplot2::ylim(c(0,100)) +
+      ggplot2::labs(x = "Time", y = "PD response") +
+      ggplot2::theme(legend.position="bottom")
 
     if(!is.null(lpars_update)){
 
@@ -378,22 +411,34 @@ plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL,
       df <- rbind(df, cp_update[,c("time","variable","pdp")])
       vord <- order(levels(df$variable))
 
-      out <- ggplot2::ggplot(df, aes(x = time, y = pdp, color = variable, linetype = variable)) +
-        geom_point(data = datasim$sim, aes(x = time, y = pdobs), color = unname(pal["darkgrey"]),
+      out <- ggplot2::ggplot(df,
+                             ggplot2::aes(x = time,
+                                          y = pdp,
+                                          color = variable,
+                                          linetype = variable)) +
+        ggplot2::geom_point(data = datasim$sim,
+                            ggplot2::aes(x = time, y = pdobs),
+                            color = unname(pal["darkgrey"]),
                    inherit.aes = FALSE, alpha = 0.5) +
-        geom_step(data = df[df$variable == "Target",],
-                  aes(x = time, y = pdp, color = variable, linetype = variable),
+        ggplot2::geom_step(data = df[df$variable == "Target",],
+                           ggplot2::aes(x = time,
+                                        y = pdp,
+                                        color = variable,
+                                        linetype = variable),
                   size = 0.5) +
-        geom_line(data = df[df$variable != "Target",],
-                  aes(x = time, y = pdp, color = variable, linetype = variable),
+        ggplot2::geom_line(data = df[df$variable != "Target",],
+                           ggplot2::aes(x = time,
+                                        y = pdp,
+                                        color = variable,
+                                        linetype = variable),
                   size = 1) +
-        scale_linetype_manual("", values = c(1,1:(length(vord)-1))[vord],
+        ggplot2::scale_linetype_manual("", values = c(1,1:(length(vord)-1))[vord],
                               labels = sort(levels(df$variable))) +
-        scale_color_manual("", values = unname(pal[vord]),
+        ggplot2::scale_color_manual("", values = unname(pal[vord]),
                                                labels = sort(levels(df$variable))) +
-        ylim(c(0,100)) +
-        labs(x = "Time", y = "PD response") +
-        theme(legend.position="bottom")
+        ggplot2::ylim(c(0,100)) +
+        ggplot2::labs(x = "Time", y = "PD response") +
+        ggplot2::theme(legend.position="bottom")
     }
   }
 

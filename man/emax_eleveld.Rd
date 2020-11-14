@@ -5,7 +5,7 @@
 \title{pars_emax <- c(c50 = 1.5, gamma = 4, e0 = 100, emx = 100)
 ce_seq <- seq(0,4,0.1)
 all.equal(inv_emax(emax(ce_seq, pars_emax), pars_emax), ce_seq)
-Emax function for Eleveld (2018) model. The parameter gamma depends on whether ce <= c50.}
+Emax function for Eleveld (2018) model.}
 \usage{
 emax_eleveld(ce, pars)
 }
@@ -15,8 +15,5 @@ emax_eleveld(ce, pars)
 \item{pars}{Vector of parameter values in order (c50,gamma,gamma2,e0,emx).}
 }
 \description{
-pars_emax <- c(c50 = 1.5, gamma = 4, e0 = 100, emx = 100)
-ce_seq <- seq(0,4,0.1)
-all.equal(inv_emax(emax(ce_seq, pars_emax), pars_emax), ce_seq)
-Emax function for Eleveld (2018) model. The parameter gamma depends on whether ce <= c50.
+The parameter gamma takes one of two values depending on whether ce <= c50.
 }

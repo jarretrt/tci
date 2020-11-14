@@ -2,10 +2,19 @@
 % Please edit documentation in R/simulations.R
 \name{apply_poppk}
 \alias{apply_poppk}
-\title{Function to apply saved population PK or PK-PD models to a dataframe of patient values.}
+\title{Apply a population PK model to a data frame}
 \usage{
 apply_poppk(patient_df, mod = c("marsh", "schnider", "eleveld"), ...)
 }
+\arguments{
+\item{patient_df}{Dataframe with patient covariate values. Must have
+names used by model "mod"}
+
+\item{mod}{Population PK model to apply to rows of patient_df}
+
+\item{...}{Arguments passed on to population PK model.}
+}
 \description{
-Function to apply saved population PK or PK-PD models to a dataframe of patient values.
+Function to apply saved population PK or PK-PD models to a
+data frame of patient values.
 }

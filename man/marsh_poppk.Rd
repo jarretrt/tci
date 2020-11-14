@@ -5,23 +5,19 @@
 \title{------------------------------------------------------------------------------------
 Population PK and PK-PD functions --------------------------------------------------
 ------------------------------------------------------------------------------------
-Marsh population PK model. Takes in a vector of patient weights and returns
-a data frame of patient PK-PD parameters.
-KE0 parameter set to 1.2 in accordance with Base Primea system and recommendations
-from Absalom et al. (2009) "Pharmacokinetic models for propofol- Defining and
-illuminating the devil in the detail"}
+Marsh population PK model.}
 \usage{
-marsh_poppk(df, rate = T)
+marsh_poppk(df, rate = TRUE)
 }
 \arguments{
-\item{TBM}{Vector of patient total body mass in kg}
+\item{df}{data frame with column titled "TBM" giving patient total body
+mass in kg.}
+
+\item{rate}{Logical. Should elimination rate constants be returned instead
+of clearance parameters.}
 }
 \description{
-------------------------------------------------------------------------------------
-Population PK and PK-PD functions --------------------------------------------------
-------------------------------------------------------------------------------------
-Marsh population PK model. Takes in a vector of patient weights and returns
-a data frame of patient PK-PD parameters.
+Takes in a vector of patient weights and returns a data frame of patient PK-PD parameters.
 KE0 parameter set to 1.2 in accordance with Base Primea system and recommendations
 from Absalom et al. (2009) "Pharmacokinetic models for propofol- Defining and
 illuminating the devil in the detail"

@@ -43,8 +43,6 @@ tail_vec <- function(x){
 
 #' Modified 'cut' function
 #'
-#' @name cut2
-#'
 #' Modified cut function to create equal-length intervals. See documentation
 #' for base::cut for description of function arguments. Not currently used.
 #'

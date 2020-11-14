@@ -151,6 +151,8 @@ class(pkmod3cptm) <- "pkmod"
 #' @param v1 Volume of compartment 1.
 #' @param v2 Volume of compartment 2.
 #' @param v3 Volume of compartment 3.
+#'
+#' @export
 pk_basic_solution_3cpt_metab <- function(kR,
                                          k10 = k_10_d,
                                          k12 = k_12_d,
@@ -262,7 +264,8 @@ pk_basic_solution_3cpt_metab <- function(kR,
 #' cbind(sol$c_1(tms), sol$c_4(tms))
 
 # pre-compiled version
-pk_basic_solution_3cpt_metab_c <- compiler::cmpfun(pk_basic_solution_3cpt_metab)
+
+# pk_basic_solution_3cpt_metab_c <- compiler::cmpfun(pk_basic_solution_3cpt_metab)
 
 #' This function extends the function pk_basic_solution_3cpt_metab to a specified infusion schedule, rather than a single
 #' infusion.
@@ -270,6 +273,7 @@ pk_basic_solution_3cpt_metab_c <- compiler::cmpfun(pk_basic_solution_3cpt_metab)
 #' @param ivt Infusion schedule given in the form of a named list
 #' (e.g. list(list(begin = 0, end = 2, k_R = 1), list(begin = 4, end = 6, k_R = 1)))
 #' @param init inital concentrations for the 4 compartments.
+#' @export
 pk_solution_3cpt_metab <- function(pars, ivt, init)
 {
   k_10 = pars[1]
@@ -309,7 +313,7 @@ pk_solution_3cpt_metab <- function(pars, ivt, init)
                     rits[[i-1]]$c_4(rits[[i-1]]$end-rits[[i-1]]$begin))
     }
 
-    sol <- pk_basic_solution_3cpt_metab_c(kR=rit$idose, k10 = k_10, k12 = k_12, k21 = k_21, k13 = k_13,
+    sol <- pk_basic_solution_3cpt_metab(kR=rit$idose, k10 = k_10, k12 = k_12, k21 = k_21, k13 = k_13,
                                           k31 = k_31, v1 = v_1, v2 = v_2, v3 = v_3, ke0 = k_e0, c0=rit$init)
 
     rits[[i]] <- c(rit, sol)
@@ -369,6 +373,7 @@ pk_solution_3cpt_metab <- function(pars, ivt, init)
 #' @param init Inital concentrations for the 4 compartments.
 #' @param ce_only Logical. Should only the effect-site concentration be returned.
 #' Defaults to FALSE
+#' @export
 pk_solution_3cpt_metab_singleinf <- function(pars, ivt, init, ce_only = FALSE){
 
   k_10 = pars[1]
@@ -385,10 +390,10 @@ pk_solution_3cpt_metab_singleinf <- function(pars, ivt, init, ce_only = FALSE){
   end <- ivt$end
   delta <- end - begin
 
-  sol_inf <- pk_basic_solution_3cpt_metab_c(kR=ivt$k_R, k10 = k_10, k12 = k_12, k21 = k_21, k13 = k_13,
+  sol_inf <- pk_basic_solution_3cpt_metab(kR=ivt$k_R, k10 = k_10, k12 = k_12, k21 = k_21, k13 = k_13,
                                             k31 = k_31, v1 = v_1, v2 = v_2, v3 = v_3, ke0 = k_e0, c0=init)
   c_end_inf <- c(sol_inf$c_1(delta), sol_inf$c_2(delta), sol_inf$c_3(delta), sol_inf$c_4(delta))
-  sol_coast <- pk_basic_solution_3cpt_metab_c(kR=0, k10 = k_10, k12 = k_12, k21 = k_21, k13 = k_13,
+  sol_coast <- pk_basic_solution_3cpt_metab(kR=0, k10 = k_10, k12 = k_12, k21 = k_21, k13 = k_13,
                                               k31 = k_31, v1 = v_1, v2 = v_2, v3 = v_3, ke0 = k_e0, c0=c_end_inf)
 
   if(ce_only){
@@ -434,6 +439,7 @@ pk_solution_3cpt_metab_singleinf <- function(pars, ivt, init, ce_only = FALSE){
 #' @param eta Vector of random effects
 #' @param patient_vars Named list of observed patient characteristics
 #' @param returnQ Logical. Should clearance be returned instead of rates
+#' @export
 gen_eleveld_pk_pars <- function(theta, eta, patient_vars, returnQ = FALSE){
 
   AGE  <- patient_vars$AGE
@@ -518,6 +524,7 @@ gen_eleveld_pk_pars <- function(theta, eta, patient_vars, returnQ = FALSE){
 #' @param ETA Vector of random effect variances
 #' @param PATIENT_VARS Named list of patient covariate values
 #' @param returnQ Optional logical value to indicate if clearance values should be returned instead of elimination rate constants.
+#' @export
 gen_eleveld_pk_pars_nonmem <- function(THETA, ETA, PATIENT_VARS, returnQ = FALSE){
 
   # convert to logged values - add one when negative
@@ -627,6 +634,7 @@ gen_eleveld_pk_pars_nonmem <- function(THETA, ETA, PATIENT_VARS, returnQ = FALSE
 #' @param theta Fixed effect parameters on non-logged scale
 #' @param eta Vector of random effects
 #' @param patient_vars Named list of patient covariate values
+#' @export
 gen_eleveld_pd_pars <- function(theta, eta, patient_vars){
   AGE = patient_vars$AGE
   WGT = patient_vars$WGT

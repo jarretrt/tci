@@ -9,10 +9,10 @@
 #' from Absalom et al. (2009) "Pharmacokinetic models for propofol- Defining and
 #' illuminating the devil in the detail"
 #'
-#' @name marsh_poppk
-#'
-#' @param df data frame with column titled "TBM" giving patient total body mass in kg
-#'
+#' @param df data frame with column titled "TBM" giving patient total body
+#' mass in kg.
+#' @param rate Logical. Should elimination rate constants be returned instead
+#' of clearance parameters.
 #' @export
 marsh_poppk <- function(df, rate = TRUE){
   if(!("TBM" %in% names(df))) stop('The data frame must have a column named "TBM"')
@@ -52,14 +52,12 @@ marsh_poppk <- function(df, rate = TRUE){
 
 #' Schnider population PK model
 #'
-#' @name schnider_poppk
 #' @param df data frame with variable names "AGE","TBM","HGT","MALE"
 #' @rate Logical. Should rate parameters be returned rather than clearance.
 #' Defaults to FALSE
 #' @rand Logical. Should a vector of Monte Carlo samples be returned instead
 #' of point estimates at patient covariate values. Defaults to FALSE.
 #' @export
-#'
 schnider_poppk <- function(df, rate = FALSE, rand = FALSE){
 
   covar_names <- c("AGE","TBM","HGT","MALE")
@@ -121,7 +119,6 @@ schnider_poppk <- function(df, rate = FALSE, rand = FALSE){
 #' Function takes a data frame of patient covariate values with variable names
 #' "AGE","TBM","HGT","MALE" and returns PK parameter values.
 #'
-#' @name eleveld_poppk
 #' @param df Data frame with variable names "AGE","TBM","HGT","MALE"
 #' @param PD Logical. Should PD parameters be returned in addition to PK parameters.
 #' Defaults to TRUE.

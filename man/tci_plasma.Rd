@@ -20,5 +20,5 @@ existing TCI pumps (e.g. Anestfusor TCI program).}
 \item{cmpt}{Compartment into which infusions are administered. Defaults to the first compartment.}
 }
 \description{
-TCI algorithim based on the algorithm described by Jacobs (1990).
+TCI algorithm based on the algorithm described by Jacobs (1990).
 }
