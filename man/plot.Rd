@@ -8,10 +8,11 @@
 \title{Plot pkmod object. Will show predicted concentrations in
 compartments associated with an infusion schedule.}
 \usage{
-\method{plot}{pkmod}(pkmod, inf, npts = 1000, title = NULL, ...)
+\method{plot}{pkmod}(x, ..., inf, npts = 1000, title = NULL)
 
 \method{plot}{pdmod}(
-  pdmod,
+  x,
+  ...,
   pkmod,
   inf,
   pars_pd,
@@ -19,14 +20,13 @@ compartments associated with an infusion schedule.}
   npts = 1000,
   plot_pk = TRUE,
   title = NULL,
-  ecmpt = NULL,
-  ...
+  ecmpt = NULL
 )
 
-\method{plot}{tciinf}(tciinf, title = NULL, ...)
+\method{plot}{tciinf}(x, ..., title = NULL)
 
 \method{plot}{datasim}(
-  datasim,
+  x,
   lpars_prior = NULL,
   lpars_update = NULL,
   lpars_fixed = NULL,
@@ -36,15 +36,15 @@ compartments associated with an infusion schedule.}
 )
 }
 \arguments{
-\item{pkmod}{An object with class pkmod.}
+\item{x}{An object with class datasim, created by function `gen_data`.}
+
+\item{...}{\dots}
 
 \item{inf}{An infusion schedule object with columns "begin","end","infrt".}
 
 \item{npts}{Number of points used to evaluate predicted concentrations.}
 
 \item{title}{Title of plot.}
-
-\item{...}{\dots}
 
 \item{pars_pd}{Parameters used by pdmod.}
 
@@ -68,8 +68,6 @@ alongside observed data.}
 lpars_update.}
 
 \item{dt}{Time interval used to predict PK-PD values.}
-
-\item{x}{An object with class datasim, created by function `gen_data`.}
 }
 \description{
 Plot pkmod object. Will show predicted concentrations in

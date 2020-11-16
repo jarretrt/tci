@@ -2,21 +2,19 @@
 % Please edit documentation in R/pk_mods.R
 \name{pk_basic_solution_3cpt_metab}
 \alias{pk_basic_solution_3cpt_metab}
-\title{3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
-The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
-Abuhelwa et al. 2015.}
+\title{Solution to three-compartment IV model}
 \usage{
 pk_basic_solution_3cpt_metab(
   kR,
-  k10 = k_10_d,
-  k12 = k_12_d,
-  k21 = k_21_d,
-  k13 = k_13_d,
-  k31 = k_31_d,
-  v1 = v_1_d,
-  v2 = v_2_d,
-  v3 = v_3_d,
-  ke0 = k_e0_d,
+  k10,
+  k12,
+  k21,
+  k13,
+  k31,
+  v1,
+  v2,
+  v3,
+  ke0,
   c0 = c(0, 0, 0, 0)
 )
 }
@@ -42,6 +40,11 @@ pk_basic_solution_3cpt_metab(
 \item{ke0}{Rate of transfer from effect-site compartment to compartment 1.}
 }
 \description{
+3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
+The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
+Abuhelwa et al. 2015.
+}
+\details{
 This function takes in arguments for each of the absorption and elimination rate constants of a three-compartment model
 as well as initial concentrations, c0. ke0 gives the rate of elimination from the effect-site compartment into the
 central compartment (i.e. k41). The rate of absorption into the effect-site compartment is set at 1/10,000 the value of ke0.

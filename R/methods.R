@@ -3,9 +3,6 @@
 # --------------------------------------------------------------------------------------------------------------------------------
 
 
-pkmod <- function(x, ...) UseMethod("linmod")
-
-
 #' Predict concentrations from a pkmod object
 #'
 #' predict method to apply pk model piecewise to infusion schedule
@@ -25,7 +22,8 @@ pkmod <- function(x, ...) UseMethod("linmod")
 #' @param ... Arguments passed on to pkmod
 #'
 #' @export
-predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, return_init = FALSE, remove_bounds = TRUE, tm_digits = 7, ...){
+predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = FALSE,
+                          remove_bounds = TRUE, tm_digits = 7){
 
   if(!all(c("infrt","begin","end") %in% colnames(inf)))
     stop("inf must include 'infrt','begin','end' as column names")
@@ -62,17 +60,17 @@ predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, return_init = FALSE,
     init[[1]] <- unlist(dot.args$init)
     dot.args$init <- NULL
   } else {
-    init[[1]] <- eval(formals(pkmod)$init)
+    init[[1]] <- eval(formals(object)$init)
   }
 
   # get indexes of times and initialize matrix for predictions
   tm_ix <- lapply(tms_eval, function(x) match(x,tms_all))
-  ncmpt <- length(eval(formals(pkmod)$init))
+  ncmpt <- length(eval(formals(object)$init))
   pred <- matrix(NA, nrow = ncmpt, ncol = length(tms_all))
 
   # Predict concentrations and store initial values.
   for(i in 1:nrow(inf)){
-    pred[,tm_ix[[i]]] <- do.call("pkmod", c(list(tm = tms_eval[[i]],
+    pred[,tm_ix[[i]]] <- do.call("object", c(list(tm = tms_eval[[i]],
                                                  kR = inf[i,"infrt"],
                                                  init = init[[i]],
                                                  inittm = inf[i,"begin"]),
@@ -113,11 +111,14 @@ predict.pkmod <- function(pkmod, inf, tms = NULL, dt = 1/6, return_init = FALSE,
 #'
 #' @rdname plot
 #' @export
-plot.pkmod <- function(pkmod, inf, npts = 1000, title = NULL, ...){
+# plot.pkmod <- function(pkmod, inf, npts = 1000, title = NULL, ...){
+plot.pkmod <- function(x, ..., inf, npts = 1000, title = NULL){
   # set dt based on range between points
   dt <- diff(range(inf[,"begin"], inf[,"end"])) / npts
   # predict concentrations
-  con <- data.frame(predict(pkmod, inf, dt = dt, return_init = TRUE, ...))
+  # pkmod_args <- c(list(x = x, inf = inf, dt = dt, return_init = TRUE), pkmod_args)
+  # con <- data.frame(do.call("predict.pkmod", pkmod_args))
+  con <- data.frame(predict(x, inf = inf, dt = dt, return_init = TRUE, ...))
 
   ggplot2::ggplot(reshape::melt(con, id = "time"),
                   ggplot2::aes(x = time,
@@ -138,7 +139,7 @@ plot.pkmod <- function(pkmod, inf, npts = 1000, title = NULL, ...){
 #' concentrations and a PD model OR an infusion schedule with a PK-PD model
 
 #' @param x An object with class pdmod.
-#' @param pkmod An object with class pkmod.
+# @param pkmod An object with class pkmod.
 #' @param inf An infusion schedule object with columns "begin","end","infrt".
 #' @param pars_pd Parameters used by pdmod.
 #' @param pars_pk Parameters used by pkmod.
@@ -152,21 +153,22 @@ plot.pkmod <- function(pkmod, inf, npts = 1000, title = NULL, ...){
 #'
 #' @rdname plot
 #' @export
-plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000,
-                       plot_pk = TRUE, title = NULL, ecmpt = NULL, ...){
-
+# plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000,
+#                        plot_pk = TRUE, title = NULL, ecmpt = NULL, ...){
+plot.pdmod <- function(x, ..., pkmod, inf, pars_pd, pars_pk, npts = 1000,
+                       plot_pk = TRUE, title = NULL, ecmpt = NULL){
 
   # set dt based on range between points
   dt <- diff(range(inf[,"begin"], inf[,"end"])) / npts
   # predict concentrations
-  con <- data.frame(predict(pkmod, inf, dt = dt, return_init = TRUE, pars = pars_pk, ...))
+  con <- data.frame(predict(pkmod, inf = inf, dt = dt, return_init = TRUE, pars = pars_pk, ...))
 
   # effect site comparment
   if(is.null(ecmpt))
     ecmpt <- length(eval(formals(pkmod)$init))
 
   # predict PD values
-  pd <- data.frame(time = con$time, pdresp = pdmod(con[,ecmpt], pars_pd))
+  pd <- data.frame(time = con$time, pdresp = x(con[,ecmpt], pars_pd))
 
   if(plot_pk){
     p1 <- ggplot2::ggplot(reshape::melt(con, id = "time"),
@@ -210,9 +212,9 @@ plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000,
 #'
 #' @rdname plot
 #' @export
-plot.tciinf <- function(tciinf, title = NULL, ...){
+plot.tciinf <- function(x, ..., title = NULL){
 
-  tciinf <- as.data.frame(tciinf)
+  tciinf <- as.data.frame(x)
   # move end of last row to start column for plotting
   tciinf <- rbind(tciinf, NA)
   ncpt <- length(grep("c[0-9]_start",names(tciinf)))
@@ -285,9 +287,10 @@ plot.tciinf <- function(tciinf, title = NULL, ...){
 #'
 #' @rdname plot
 #' @export
-plot.datasim <- function(datasim, lpars_prior = NULL, lpars_update = NULL,
+plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
                          lpars_fixed = NULL, pd_ix = 10, dt = 1/60, ...){
 
+  datasim <- x
   datasim$sim <- as.data.frame(datasim$sim)
   datasim$inf <- as.data.frame(datasim$inf)
   r <- range(datasim$inf[,c("begin","end")])

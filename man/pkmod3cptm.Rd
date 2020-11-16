@@ -2,9 +2,7 @@
 % Please edit documentation in R/pk_mods.R
 \name{pkmod3cptm}
 \alias{pkmod3cptm}
-\title{3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
-The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
-Abuhelwa et al. 2015.}
+\title{Solution to three-compartment IV model}
 \usage{
 pkmod3cptm(
   tm,
@@ -30,6 +28,11 @@ pkmod3cptm(
 Defaults to returning all compartment concentrations.}
 }
 \description{
+3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
+The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
+Abuhelwa et al. 2015.
+}
+\details{
 This function takes in arguments for each of the absorption and elimination rate constants of a three-compartment model
 as well as initial concentrations, c0. ke0 gives the rate of elimination from the effect-site compartment into the
 central compartment (i.e. k41). The rate of absorption into the effect-site compartment is set at 1/10,000 the value of ke0.

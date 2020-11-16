@@ -49,7 +49,7 @@
 #'   \item{ID}{Patient ID}
 #'   \item{E50}{EB estimate of effect-site concentration required to achieve 50 percent response}
 #'   \item{KE0}{EB estimate of elimination rate from effect-site compartment}
-#'   \item{Emax}{EB estimate of baseline bispectral index (BIS) with no drug administered}
+#'   \item{EMAX}{EB estimate of baseline bispectral index (BIS) with no drug administered}
 #'   \item{GAM}{EB estimate of Hill parameter when the effect-site concentration is less than E50}
 #'   \item{GAM1}{EB estimate of Hill parameter when the effect-site concentration is greater than than E50}
 #'   \item{RESD}{EB estimate of residual error term}

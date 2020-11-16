@@ -26,6 +26,8 @@ pkmod1cpt <- function(tm, kR, pars, init = 0, inittm = 0){
 class(pkmod1cpt) <- "pkmod"
 
 
+#' Solution to three-compartment IV model
+#'
 #' 3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
 #' The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
 #' Abuhelwa et al. 2015.
@@ -132,6 +134,8 @@ pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0,
 }
 class(pkmod3cptm) <- "pkmod"
 
+#' Solution to three-compartment IV model
+#'
 #' 3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
 #' The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
 #' Abuhelwa et al. 2015.
@@ -153,18 +157,9 @@ class(pkmod3cptm) <- "pkmod"
 #' @param v3 Volume of compartment 3.
 #'
 #' @export
-pk_basic_solution_3cpt_metab <- function(kR,
-                                         k10 = k_10_d,
-                                         k12 = k_12_d,
-                                         k21 = k_21_d,
-                                         k13 = k_13_d,
-                                         k31 = k_31_d,
-                                         v1 = v_1_d,
-                                         v2 = v_2_d,
-                                         v3 = v_3_d,
-                                         ke0 = k_e0_d,
-                                         c0=c(0,0,0,0)) {
-
+pk_basic_solution_3cpt_metab <- function(kR,k10,k12,k21,k13,k31,v1,v2,v3,ke0,
+                                         c0=c(0,0,0,0))
+  {
 
   kme <- ke0 # k41
   # k14 Absorption into the effect site is set much slower than elimination. As
@@ -245,8 +240,10 @@ pk_basic_solution_3cpt_metab <- function(kR,
 }
 
 #' @examples
-#' pk_pars <- eleveld_pk[eleveld_pk$ID == 403,c("V1","V2","V3","CL","Q2","Q3")]
-#' pd_pars <- eleveld_pd[eleveld_pd$ID == 403,c("E50","KE0","EMAX","GAM","GAM1","RESD")]
+#' pk_vars <- c("V1","V2","V3","CL","Q2","Q3")
+#' pd_vars <- c("E50","KE0","EMAX","GAM","GAM1","RESD")
+#' pk_pars <- subset(pk_pars, ID == 403, select = pk_vars)
+#' pd_pars <- subset(pk_pars, ID == 403, select = pd_vars)
 #'
 #' sol <- pk_basic_solution_3cpt_metab(kR = 1,
 #'                                     k10 = pk_pars$CL / pk_pars$V1,
@@ -267,8 +264,13 @@ pk_basic_solution_3cpt_metab <- function(kR,
 
 # pk_basic_solution_3cpt_metab_c <- compiler::cmpfun(pk_basic_solution_3cpt_metab)
 
+#' Iterate solution to three-compartment model
+#'
 #' This function extends the function pk_basic_solution_3cpt_metab to a specified infusion schedule, rather than a single
 #' infusion.
+#'
+#' @name pk_solution_3cpt_metab
+#' @title pk_solution_3cpt_metab
 #' @param pars Named vector of parameters for a 3-compartment model with effect-site.
 #' @param ivt Infusion schedule given in the form of a named list
 #' (e.g. list(list(begin = 0, end = 2, k_R = 1), list(begin = 4, end = 6, k_R = 1)))
@@ -362,10 +364,16 @@ pk_solution_3cpt_metab <- function(pars, ivt, init)
 #' legend("bottomright", c("Central concentration", "Effect-site concentration"), col = c(1,2), lty = c(1,1))
 
 
+
+#' Single infusion 3-compartment PK solution
+#'
 #' Piece-wise solution for a single infusion followed by a period with no infusion.
 #' This function is similar to pk_solution_3cpt_metab, except that it accepts and
-#' implements only the first infusion (ivt[[1]]). This function exists primarily for
+#' implements only the first infusion. This function exists primarily for
 #' reducing computational speed when searching for time until maximum concentration.
+#'
+#' @name pk_solution_3cpt_metab_singleinf
+#' @title pk_solution_3cpt_metab_singleinf
 #'
 #' @param pars Named vector of parameters for a 3-compartment model with effect-site.
 #' @param ivt Infusion schedule given in the form of a named list
@@ -434,7 +442,13 @@ pk_solution_3cpt_metab_singleinf <- function(pars, ivt, init, ce_only = FALSE){
 #' legend("bottomright", c("Central concentration", "Effect-site concentration"), col = c(1,2), lty = c(1,1))
 
 
+#' Eleveld model PK parameters
+#'
 #' Function to generate PK parameters for Eleveld model.
+#'
+#' @name gen_eleveld_pk_pars
+#' @title gen_eleveld_pk_pars
+#'
 #' @param theta Vector of fixed effects
 #' @param eta Vector of random effects
 #' @param patient_vars Named list of observed patient characteristics
@@ -509,7 +523,8 @@ gen_eleveld_pk_pars <- function(theta, eta, patient_vars, returnQ = FALSE){
 #' eleveld_eta_pk_var <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463)
 #'
 #' # Example patient covariate values, fixed effects, and random effects
-#' patient_covariates <- eleveld_pk[eleveld_pk$ID == 403,c("AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
+#' vars <- c("AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")
+#' patient_covariates <- subset(eleveld_pd, ID == 403, select = vars)
 #' eta_obs <- c(mvtnorm::rmvnorm(1,sigma = diag(eleveld_eta_pk_var)))
 #' gen_eleveld_pk_pars(theta = eleveld_theta_pk_est,
 #'                     eta = eta_obs,
@@ -517,13 +532,20 @@ gen_eleveld_pk_pars <- function(theta, eta, patient_vars, returnQ = FALSE){
 
 
 
-#' R code adapted from nonmem PK file provided in supplementary material of Eleveld et al. Function takes in fixed effect
+#' Generate Eleveld model PK parameters
+#'
+#' R code adapted from NONMEM PK file provided in supplementary material of Eleveld et al. Function takes in fixed effect
 #' parameter estimates and random effect variance estimates to return parameters for a 3 compartment pk model with an
 #' effect site compartment.
+#'
+#' @name gen_eleveld_pk_pars_nonmem
+#' @title gen_eleveld_pk_pars_nonmem
+#'
 #' @param THETA Vector of fixed effects
 #' @param ETA Vector of random effect variances
 #' @param PATIENT_VARS Named list of patient covariate values
 #' @param returnQ Optional logical value to indicate if clearance values should be returned instead of elimination rate constants.
+#'
 #' @export
 gen_eleveld_pk_pars_nonmem <- function(THETA, ETA, PATIENT_VARS, returnQ = FALSE){
 
@@ -623,17 +645,24 @@ gen_eleveld_pk_pars_nonmem <- function(THETA, ETA, PATIENT_VARS, returnQ = FALSE
 #' eleveld_eta_pk_var <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463)
 #'
 #' # Example patient covariate values, fixed effects, and random effects
-#' patient_covariates <- eleveld_pk[eleveld_pk$ID == 403,c("AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
+#' vars <- c("AGE","WGT","HGT","M1F2","PMA","TECH","A1V2")
+#' patient_covariates <- subset(eleveld_pd, ID == 403, select = vars)
 #' eta_obs <- c(mvtnorm::rmvnorm(1,sigma = diag(eleveld_eta_pk_var)))
 #' gen_eleveld_pk_pars_nonmem(THETA = eleveld_theta_pk_est,
 #'                            ETA = eta_obs,
 #'                            PATIENT_VARS = patient_covariates)
 
 
-#' Function to generate Emax PD model described by Eleveld et al
+#' Eleveld model PD parameters
+#'
+#' Function to generate Emax PD model described by Eleveld et al.
+#'
+#' @name gen_eleveld_pd_pars
+#' @title gen_eleveld_pd_pars
 #' @param theta Fixed effect parameters on non-logged scale
 #' @param eta Vector of random effects
 #' @param patient_vars Named list of patient covariate values
+#'
 #' @export
 gen_eleveld_pd_pars <- function(theta, eta, patient_vars){
   AGE = patient_vars$AGE
@@ -644,20 +673,24 @@ gen_eleveld_pd_pars <- function(theta, eta, patient_vars){
   Ce50 = theta[1]*faging(theta[7])*exp(eta[1])
   ke0 = ifelse(ARTERIAL, theta[2]*(WGT/70)^(-0.25)*exp(eta[2]), theta[8]*(WGT/70)^(-0.25)*exp(eta[2]))
   BISbaseline = theta[3]
-  gamma = theta[4] # value of gamma when Ce < Ce50
+  gamma = theta[4]
   gamma2 = theta[9]
   sigma = theta[5]*exp(eta[3])
   bis_delay = 15 + exp(theta[6]*AGE)
   return(c(ke0 = ke0, c50 = Ce50, gamma = gamma, gamma2 = gamma2, E0 = BISbaseline, sigma = sigma, bis_delay = bis_delay))
 }
-#' @Examples
+#' @examples
 #'
 #' # PD fixed effect values and random effect variances from Eleveld et al. (2018)
 #' eleveld_theta_pd_est <- c(3.08,0.146,93.0,1.47,8.03,0.0517,-0.00635,1.24,1.89)
 #' eleveld_eta_pd_var <- c(0.242,0.702,0.230)
 #'
-#' patient_covariates <- eleveld_pd[eleveld_pd$ID == 403,c("AGE","WGT","HGT","M1F2","PMA","TECH","A1V2")]
+#' vars <- c("AGE","WGT","HGT","M1F2","PMA","TECH","A1V2")
+#' patient_covariates <- subset(eleveld_pd, ID == 403, select = vars)
 #' eta_obs <- c(mvtnorm::rmvnorm(1,sigma = diag(eleveld_eta_pd_var)))
 #' gen_eleveld_pd_pars(theta = eleveld_theta_pd_est,
 #'                     eta = eleveld_eta_pd_var,
 #'                     patient_vars = patient_covariates)
+
+
+

@@ -22,6 +22,16 @@ apply_targetfn(
 \item{tm}{Time values to evaluate}
 
 \item{targetfn}{Target function}
+
+\item{prior_pk}{Prior PK point estimates}
+
+\item{prior_pd}{Prior PD point estimates}
+
+\item{pkmod}{PK model to evaluate}
+
+\item{pdmod}{PD model to evaluate}
+
+\item{pdinv}{Inverse PD model}
 }
 \description{
 Function to apply any specified target function to a PK-PD model

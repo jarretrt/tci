@@ -34,6 +34,8 @@ inv_emax <- function(pdresp, pars){
 #' Emax function for Eleveld (2018) model.
 #'
 #' The parameter gamma takes one of two values depending on whether ce <= c50.
+#' @name inv_emax
+#' @title inv_emax
 #'
 #' @param ce Vector of effect-site concentrations.
 #' @param pars Vector of parameter values in order (c50,gamma,gamma2,e0,emx).
@@ -56,6 +58,8 @@ class(emax_eleveld) <- "pdmod"
 
 #' Inverse Emax function
 #'
+#' @name inv_emax_eleveld
+#' @title inv_emax_eleveld
 #' @param pdresp PD response values
 #' @param pars Named vector of parameter values with names (c50,gamma,E0,Emx).
 #' @export

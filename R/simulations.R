@@ -24,7 +24,7 @@ gen_data <- function(inf, pkmod, pars_pk0,
   if(is.null(init))
     init <- eval(formals(pkmod)$init)
 
-  con0 <- predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
+  con0 <- predict(x = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
 
   # additive and multiplicative errors
   eadd  <- rnorm(nrow(con0),0,sigma_add)
@@ -137,6 +137,7 @@ apply_poppk <- function(patient_df, mod = c("marsh","schnider","eleveld"), ...){
 #' @param lpr log parameter values to evaluate
 #' @param mu mean for model parameters and mean residual error
 #' @param sig variance covariance matrix for model parameters
+#' @importFrom mvtnorm dmvnorm
 #'
 #' @export
 log_prior <- function(lpr, mu, sig){
@@ -152,6 +153,7 @@ log_prior <- function(lpr, mu, sig){
 #' These are concatenated to lpr[pd_ix] and the ordering may be important for use of the PD function.
 #' @param pdix indices for PD function values to be updated.
 #' @param err_ix index for standard deviation of residual error term
+#' @importFrom truncnorm dtruncnorm
 #'
 #' @export
 log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
@@ -373,11 +375,11 @@ sigmoid_targetfn <- function(lpars, tms, bis0 = 93, ...)
 #' @param lp Logged parameter values
 #' @param tm Time values to evaluate
 #' @param targetfn Target function
-#' @prior_pk Prior PK point estimates
-#' @prior_pd Prior PD point estimates
-#' @pkmod PK model to evaluate
-#' @pdmod PD model to evaluate
-#' @pdinv Inverse PD model
+#' @param prior_pk Prior PK point estimates
+#' @param prior_pd Prior PD point estimates
+#' @param pkmod PK model to evaluate
+#' @param pdmod PD model to evaluate
+#' @param pdinv Inverse PD model
 #'
 #' @export
 apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,

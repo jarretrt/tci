@@ -41,6 +41,8 @@ create_intvl <- function(dose, inittm = 0){
 #' Function to place restriction on gamma and E50 parameters of target sigmoid
 #' such that it passes through point (tfinal, BISfinal+eps)
 #'
+#' @name restrict_sigmoid
+#' @title restrict_sigmoid
 #' @param t50 parameter of Emax model
 #' @param tfinal end of the induction period
 #' @param eps distance between BISfinal and the target function at tfinal
@@ -102,7 +104,10 @@ poppk_cov <- function(poppk = c("Schnider","Eleveld"), pd = TRUE){
 #' Extract the logged parameter values to be updated within the Eleveld model
 #' from a data frame of patient PK-PD values.
 #'
-#' @param x vector or data frame with Eleveld PK-PD model parameters
+#' @name elvdlpars
+#' @title elvdlpars
+#' @param x Vector or data frame with Eleveld PK-PD model parameters
+#' @param pd Logical. Should PD parameters be returned in addition to PK parameters.
 #' @export
 elvdlpars <- function(x, pd = TRUE){
 
