@@ -294,13 +294,13 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
   tms <- seq(r[1], r[2], dt)
 
   # predict concentrations at true parameter values
-  cp <- predict(pkmod = datasim$pkmod,
-                           inf = datasim$inf,
-                           tms = tms,
-                           pars = datasim$pars_pk0,
-                           init = datasim$init)
+  cp <- predict(datasim$pkmod,
+                inf = datasim$inf,
+                tms = tms,
+                pars = datasim$pars_pk0,
+                init = datasim$init)
 
-  cp <- data.frame(predict(pkmod = datasim$pkmod,
+  cp <- data.frame(predict(datasim$pkmod,
                            inf = datasim$inf,
                            tms = tms,
                            pars = datasim$pars_pk0,
@@ -338,7 +338,7 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
       ggplot2::labs(x = "Time (min)", y = "Concentration", color = "", linetype = "")
 
     if(!is.null(lpars_update)){
-      cp_update <- data.frame(predict(pkmod = datasim$pkmod,
+      cp_update <- data.frame(predict(datasim$pkmod,
                                       inf = datasim$inf,
                                       tms = tms,
                                       pars = exp(lpars_update),
@@ -398,7 +398,7 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
 
     if(!is.null(lpars_update)){
 
-      cp_update <- data.frame(predict(pkmod = datasim$pkmod,
+      cp_update <- data.frame(predict(datasim$pkmod,
                                       inf = datasim$inf,
                                       tms = tms,
                                       pars = exp(lpars_update),
