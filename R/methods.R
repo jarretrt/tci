@@ -111,14 +111,11 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = 
 #'
 #' @rdname plot
 #' @export
-# plot.pkmod <- function(pkmod, inf, npts = 1000, title = NULL, ...){
 plot.pkmod <- function(x, ..., inf, npts = 1000, title = NULL){
   # set dt based on range between points
   dt <- diff(range(inf[,"begin"], inf[,"end"])) / npts
   # predict concentrations
-  # pkmod_args <- c(list(x = x, inf = inf, dt = dt, return_init = TRUE), pkmod_args)
-  # con <- data.frame(do.call("predict.pkmod", pkmod_args))
-  con <- data.frame(predict(x, inf = inf, dt = dt, return_init = TRUE, ...))
+  con <- tibble::data_frame(predict(x, inf = inf, dt = dt, return_init = TRUE, ...))
 
   ggplot2::ggplot(reshape::melt(con, id = "time"),
                   ggplot2::aes(x = time,

@@ -24,7 +24,7 @@ gen_data <- function(inf, pkmod, pars_pk0,
   if(is.null(init))
     init <- eval(formals(pkmod)$init)
 
-  con0 <- predict(x = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
+  con0 <- predict(object = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
 
   # additive and multiplicative errors
   eadd  <- rnorm(nrow(con0),0,sigma_add)
@@ -175,7 +175,7 @@ log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
   ini <- dat$inf[1,grep("c[0-9]_start",colnames(dat$inf))]
 
   # predict concentrations at lpr
-  cp <- predict(pkmod = dat$pkmod,
+  cp <- predict(dat$pkmod,
                 inf = dat$inf,
                 tms = tms,
                 pars = exp(lpr),
