@@ -126,4 +126,21 @@ elvdlpars <- function(x, pd = TRUE){
 }
 
 
+#' Set default PK parameter values
+#'
+#' @param pkmod pkmod object
+#' @param pars PK parameters to assign as default values of pkmod
+assign_pars <- function(pkmod, pars){
+
+  if(class(pkmod) != "pkmod")
+    stop("Class of pkmod must be 'pkmod'")
+  if(!("pars" %in% names(formals(pkmod))))
+    stop("Object 'pkmod' must have argument 'pars'")
+  formals(pkmod)$pars <- pars
+  class(pkmod) <- "pkmod"
+
+  return(pkmod)
+}
+
+
 
