@@ -73,9 +73,12 @@ restrict_sigmoid <- function(t50, tfinal =10, eps = 1, BIS0 = 100, BISfinal = 50
 poppk_cov <- function(poppk = c("Schnider","Eleveld"), pd = TRUE){
   warning("This function isn't working properly. Covariance terms should be non-zero
           for some parameters.")
+
   poppk <- match.arg(poppk)
   if(poppk == "Schnider") out <- diag(c(0.278,2.330,34.900,0.059,0.112,0.044,0.070,0.009,0.017,0.009,0.005))
+
   if(poppk == "Eleveld"){
+    warning("Eleveld v")
     lvars <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463,0.242,0.702,0.230)
     names(lvars) <- c("v1","v2","v3","cl","q2","q3","resid_pk","ce50","ke0","resid_pd")
     lvars <- c(lvars, c(k10 = unname(lvars["cl"] + lvars["v1"]),
@@ -91,6 +94,38 @@ poppk_cov <- function(poppk = c("Schnider","Eleveld"), pd = TRUE){
   }
 }
 #' @examples poppk_cov("Eleveld", pd = TRUE)
+
+
+
+#' Generate variance-covariance matrix for Eleveld PK-PD model
+#'
+#' Generate the variance-covariance matrix for Eleveld PK-PD model for an observation
+#' via Monte Carlo sampling.
+#'
+#' @param dat Data frame of observed patient covariates
+#' @param N Number of Monte Carlo samples
+#' @param rates Logical. Should rate constants be calculated
+#' @param varnames Column names of variables used to calculate variance-covariance matrix
+#'
+#' @export
+eleveld_vcov <- function(dat,
+                         N = 1000,
+                         rates = TRUE,
+                         varnames = c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")){
+
+
+  vcv_list <- lapply(1:nrow(dat), function(i){
+    mc_samples <- replicate(N, log(unlist(
+      eleveld_poppk(dat[i,], rate = rates, PD = TRUE, rand = TRUE)[,varnames])
+    ))
+    vcv <- cov(t(mc_samples))
+    if(rcond(vcv) < 1e-5)
+      diag(vcv) <- diag(vcv) + 1e-3
+    round(vcv,5)
+  })
+
+  vcv_list
+}
 
 
 # All parameters in the Eleveld model are log-normally distributed or constant within the population.

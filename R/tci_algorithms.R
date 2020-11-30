@@ -184,7 +184,6 @@ tci <- function(Ct, tms, pkmod, pars, init = NULL,
                              tci_alg = c("effect","plasma"),
                              tci_custom = NULL, dt = 1/6, ...){
 
-
   tci_alg <- match.arg(tci_alg)
 
   if(!is.null(tci_custom)){
@@ -194,7 +193,7 @@ tci <- function(Ct, tms, pkmod, pars, init = NULL,
     else tci_alg <- tci_plasma
   }
 
-  # adjust times such that infusions start at tm = 0 and can be usd by stepfun
+  # adjust times such that infusions start at tm = 0 and can be used by stepfun
   inittm <- tms[1]
   tms <- tms[-1] - inittm
 

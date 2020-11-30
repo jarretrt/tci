@@ -86,6 +86,9 @@ gen_data <- function(inf, pkmod, pars_pk0,
 }
 
 
+
+
+
 #' Combine simulation outputs
 #'
 #' Function to merge objects with class datasim from different infusion schedules
