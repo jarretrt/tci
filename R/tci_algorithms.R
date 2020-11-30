@@ -219,8 +219,8 @@ tci <- function(Ct, tms, pkmod, pars, init = NULL,
     ini[,i+1] <- pkmod(tm = dt, kR = inf[i], pars = pars, init = ini[,i])
   }
 
-  startcon <- matrix(ini[,-ncol(ini)], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T)
-  endcon <- matrix(ini[,-1], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T)
+  startcon <- matrix(ini[,-ncol(ini)], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = TRUE)
+  endcon <- matrix(ini[,-1], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = TRUE)
   dose <- create_intvl(cbind(time = seq(dt+inittm, max(tms)+inittm, dt), infrt = inf), inittm = inittm)
   out <- cbind(dose, dose[,"end"] - dose[,"begin"], sf(updatetms), startcon, endcon)
   colnames(out) <- c("infrt","begin","end","dt","Ct",paste0("c",1:ncpt, "_start"), paste0("c",1:ncpt, "_end"))
