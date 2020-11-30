@@ -14,11 +14,9 @@ log_likelihood(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11)
 \item{fixed_lpr}{values used by PD function that are not updated.
 These are concatenated to lpr[pd_ix] and the ordering may be important for use of the PD function.}
 
+\item{pd_ix}{indices for PD function values to be updated.}
+
 \item{err_ix}{index for standard deviation of residual error term}
-
-\item{ivt}{infusion schedule}
-
-\item{pdix}{indices for PD function values to be updated.}
 }
 \description{
 Function to evaluate the log likelihood given a set of logged parameter values and a set of observed BIS values.

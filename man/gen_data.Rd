@@ -24,9 +24,31 @@ gen_data(
 \arguments{
 \item{inf}{An infusion rate object outputted from either the 'create_intvl' function or the 'iterate_tci_grid' function}
 
+\item{pkmod}{PK model}
+
 \item{pars_pk0}{"True" parameter estimates used to simulate data observations.}
 
-\item{pars_pk}{Alternate parameter estimates that can}
+\item{sigma_add}{Additive residual error standard deviation.}
+
+\item{sigma_mult}{Multiplicative residual error standard deviation.}
+
+\item{log_err}{Logical. Should the error be log-normally distributed?}
+
+\item{init}{Initial concentrations.}
+
+\item{tms}{Observation times. Defaults to beginning of each infusion if unspecified.}
+
+\item{pdmod}{PD model if applicable.}
+
+\item{pars_pd0}{PD model parameters if applicable.}
+
+\item{ecmpt}{Effect-site compartment number. Defaults to last compartment.}
+
+\item{delay}{Delay between generation and observation of measurements.}
+
+\item{max_pdval}{Maximum PD value.}
+
+\item{min_pdval}{Minimum PD value}
 }
 \description{
 Function to simulate data from a specified PK or PK-PD model with a specified infusion schedule.

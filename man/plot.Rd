@@ -5,8 +5,7 @@
 \alias{plot.pdmod}
 \alias{plot.tciinf}
 \alias{plot.datasim}
-\title{Plot pkmod object. Will show predicted concentrations in
-compartments associated with an infusion schedule.}
+\title{Plot object with class 'pkmod'}
 \usage{
 \method{plot}{pkmod}(x, ..., inf, npts = 1000, title = NULL)
 
@@ -46,6 +45,8 @@ compartments associated with an infusion schedule.}
 
 \item{title}{Title of plot.}
 
+\item{pkmod}{PK model}
+
 \item{pars_pd}{Parameters used by pdmod.}
 
 \item{pars_pk}{Parameters used by pkmod.}
@@ -70,16 +71,8 @@ lpars_update.}
 \item{dt}{Time interval used to predict PK-PD values.}
 }
 \description{
-Plot pkmod object. Will show predicted concentrations in
-compartments associated with an infusion schedule.
+Will show predicted concentrations in compartments associated with an infusion schedule.
 
-Plot method for PD models. User can provide a series of effect-site
-concentrations and a PD model OR an infusion schedule with a PK-PD model
-
-Plotting method for tciinf objects. Will work for outputs from "iterate_tci_grid" or "tci_pd".
-Note: the tci targets function is left-continous. Consequently, it plots
-final target value plotted will be a repetition of the preceeding value
-
-Plot method for PD models. User can provide a series of effect-site
-concentrations and a PD model OR an infusion schedule with a PK-PD model
+User can provide a series of effect-site concentrations and a PD model or
+ an infusion schedule with a PK-PD model.
 }

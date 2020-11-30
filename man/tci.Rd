@@ -11,18 +11,34 @@ tci(
   pars,
   init = NULL,
   tci_alg = c("effect", "plasma"),
-  dt = 1/6,
   tci_custom = NULL,
+  dt = 1/6,
   ...
 )
 }
 \arguments{
 \item{Ct}{Vector of target concentrations}
 
-\item{tms}{Times at which the TCI algorithm should try to achieve the target concentrations}
+\item{tms}{Times at which the TCI algorithm should try to achieve the
+target concentrations}
 
-\item{tci_alg}{TCI algorithm. Options are provided for effect-site (default) or plasma targeting.
-Alternate algorithms can be specified through the 'tci_custom' argument.}
+\item{pkmod}{PK model}
+
+\item{pars}{PK model parameters}
+
+\item{init}{Initial concentrations for PK model}
+
+\item{tci_alg}{TCI algorithm. Options are provided for effect-site
+(default) or plasma targeting. Alternate algorithms can be specified
+through the 'tci_custom' argument.}
+
+\item{tci_custom}{Custom TCI algorithm. Algorithm should have arguments
+specifying target concentration, PK model, and duration of infusion to
+reach the target.}
+
+\item{dt}{Time difference between infusion rate updates.}
+
+\item{...}{Arguments passed on to TCI algorithm.}
 }
 \description{
 Function to iterate any arbitrary TCI algorithm to a series of points. By default,

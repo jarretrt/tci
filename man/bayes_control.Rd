@@ -21,19 +21,35 @@ bayes_control(
 )
 }
 \arguments{
-\item{targets}{Dataframe with columns ("time","target")}
+\item{targets}{Data frame with columns ("time","target")}
 
-\item{updates}{Dataframe of times at which closed-loop updates should be conducted and
+\item{updates}{Data frame of times at which closed-loop updates should be conducted and
 optional variable with logical values named 'full_data' indicating if full updates should
 be used. Defaults to partial.}
 
 \item{prior}{List with elements "mu" and "sig" specifying the prior mean and covariance
 matrices for the logged parameter values.}
 
+\item{true_pars}{Vector of true patient PK-PD parameters.}
+
+\item{pkmod}{PK model}
+
+\item{pdmod}{PD model}
+
+\item{pdinv}{Inverse PD model}
+
+\item{init0}{True initial concentrations}
+
 \item{obs_tms}{Times at which observations are collected. If null, observations will be
 made at fixed intervals specified by 'dt'.}
 
 \item{dt}{Interval between measurements.}
+
+\item{sim_starttm}{Start time of simulation}
+
+\item{tci_alg}{TCI algorithm used. Defaults to effect-site targeting.}
+
+\item{initp}{Predicted initial concentrations}
 }
 \description{
 Function to provide Bayesian closed-loop control to

@@ -13,8 +13,4 @@ pal
 \description{
 Color palate for tci plotting functions
 }
-\examples{
-pal["navy"]
-
-}
 \keyword{datasets}

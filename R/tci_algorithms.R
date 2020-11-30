@@ -13,6 +13,7 @@
 #' maximum infusion rate of 1200 ml/h permitted by
 #' existing TCI pumps (e.g. Anestfusor TCI program).
 #' @param cmpt Compartment into which infusions are administered. Defaults to the first compartment.
+#' @param ... Arguments passed on to pkmod.
 #'
 #' @export
 tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
@@ -46,21 +47,23 @@ tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
 #'
 #' @param Cet Numeric vector of target effect-site concentrations.
 #' @param pkmod PK model
-#' @param dt Frequency of TCI updates. Default is 10 seconds expressed in terms of minutes = 1/6.
-#' @param max_kR Maximum infusion rate of TCI pump. Defaults to 1200.
+#' @param dt Frequency of TCI updates. Default is 1/6 minutes = 10 seconds.
 #' @param ecmpt Effect site compartment number
-#' @param plasma_tol Maximum percent difference between predicted plasma concentration and target concentration permitted
-#' in order to switch to plasma-targeting mode. Plasma-targeting mode is used primarily to increase computational efficiency
-#' when the effect-site concentration is sufficiently stable and close to the target concentration.
-#' @param effect_tol Maximum percent difference between predicted effect-site concentration and target concentration
-#' permitted in order to switch to plasma-targeting mode.
-#'
+#' @param tmax_search Outer bound on times searched to find a maximum concentration
+#' following an infusion of duration dt. Defaults to 20 minutes. May need to be increased
+#' if a drug has a slow elimination rate.
+#' @param maxrt Maximum infusion rate of TCI pump. Defaults to 1200.
+#' @param grid_len Number of time points used to identify time of maximum concentration.
+#' Can be increased for more precision.
+#' @param ... Arguments used by pkmod.
 #' @export
-tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20, maxrt = 1200, grid_len = 1200, ...){
+tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20,
+                       maxrt = 1200, grid_len = 1200, ...){
 
   list2env(list(...), envir = environment())
   if(is.null(init)) init <- eval(formals(pkmod)$init)
-  if(is.null(pars)) pars <- try(eval(formals(pkmod)$pars), silent = T)
+  if(is.null(pars)) pars <- try(eval(formals(pkmod)$pars),
+                                silent = TRUE)
   if(is.null(ecmpt)) ecmpt <- length(init)
   if(class(pars) == "try-error") stop("PK parameters must either be provided as arguments to the TCI algorithm or as defaults to the PK model.")
 
@@ -125,8 +128,11 @@ tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20, max
 #' @param pkmod PK model
 #' @param cptol Percentage of plasma concentration required to be within to switch
 #' to plasma targeting.
-#' @param cptol Percentage of effect-site concentration required to be within to switch
+#' @param cetol Percentage of effect-site concentration required to be within to switch
 #' to plasma targeting.
+#' @param cp_cmpt Position of central compartment. Defaults to first compartment.
+#' @param ce_cmpt Position of effect-site compartment. Defaults to fourth compartment.
+#' @param ... Arguments passed on to 'tci_plasma' and 'tci_effect' functions.
 #'
 #' @export
 tci_comb <- function(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt = 4, ...){
@@ -160,13 +166,23 @@ tci_comb <- function(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt 
 #' concentration target at all times.
 #'
 #' @param Ct Vector of target concentrations
-#' @param tms Times at which the TCI algorithm should try to achieve the target concentrations
-#' @param tci_alg TCI algorithm. Options are provided for effect-site (default) or plasma targeting.
-#' Alternate algorithms can be specified through the 'tci_custom' argument.
+#' @param tms Times at which the TCI algorithm should try to achieve the
+#' target concentrations
+#' @param pkmod PK model
+#' @param pars PK model parameters
+#' @param init Initial concentrations for PK model
+#' @param tci_alg TCI algorithm. Options are provided for effect-site
+#' (default) or plasma targeting. Alternate algorithms can be specified
+#' through the 'tci_custom' argument.
+#' @param tci_custom Custom TCI algorithm. Algorithm should have arguments
+#' specifying target concentration, PK model, and duration of infusion to
+#' reach the target.
+#' @param dt Time difference between infusion rate updates.
+#' @param ... Arguments passed on to TCI algorithm.
 #' @export
 tci <- function(Ct, tms, pkmod, pars, init = NULL,
                              tci_alg = c("effect","plasma"),
-                             dt = 1/6, tci_custom = NULL, ...){
+                             tci_custom = NULL, dt = 1/6, ...){
 
 
   tci_alg <- match.arg(tci_alg)
@@ -198,13 +214,13 @@ tci <- function(Ct, tms, pkmod, pars, init = NULL,
 
   # iterate through times
   for(i in 1:length(updatetms)){
-    inf[i] <- tci_alg(sf(updatetms[i]), pkmod = pkmod, pars = pars, dt = dt, init = ini[,i], ...)
+    inf[i] <- tci_alg(sf(updatetms[i]), pkmod = pkmod, pars = pars,
+                      dt = dt, init = ini[,i], ...)
     ini[,i+1] <- pkmod(tm = dt, kR = inf[i], pars = pars, init = ini[,i])
   }
 
   startcon <- matrix(ini[,-ncol(ini)], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T)
   endcon <- matrix(ini[,-1], ncol = nrow(ini), nrow = ncol(ini)-1, byrow = T)
-  # dose <- create_intvl(cbind(time = seq(dt+inittm, max(tms)+inittm, dt), infrt = inf[,1]), inittm = inittm)
   dose <- create_intvl(cbind(time = seq(dt+inittm, max(tms)+inittm, dt), infrt = inf), inittm = inittm)
   out <- cbind(dose, dose[,"end"] - dose[,"begin"], sf(updatetms), startcon, endcon)
   colnames(out) <- c("infrt","begin","end","dt","Ct",paste0("c",1:ncpt, "_start"), paste0("c",1:ncpt, "_end"))

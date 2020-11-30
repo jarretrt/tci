@@ -6,8 +6,6 @@
 
 #' Color palate for tci plotting functions
 #'
-#' @examples pal["navy"]
-#'
 #' @export
 pal  <- c(black = "#020201",
           navy  = "#6f859b",
@@ -23,7 +21,6 @@ pal  <- c(black = "#020201",
 #' Function to extract the last element from a vector or the last column from a matrix
 #'
 #' @param x Vector or matrix
-#'
 #' @export
 tail_vec <- function(x){
 
@@ -46,8 +43,6 @@ tail_vec <- function(x){
 #' Modified cut function to create equal-length intervals. See documentation
 #' for the base function 'cut' for description of function arguments. Not currently used.
 #'
-#' @name cut2
-#' @title cut2
 #' @export
 cut2 <- function(x, breaks, labels = NULL, include.lowest = FALSE, right = TRUE,
                   dig.lab = 3L, ordered_result = FALSE, ...)

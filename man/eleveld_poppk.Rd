@@ -26,8 +26,8 @@ dat <- data.frame(AGE  = c(20,40,65),
                   TBM  = c(50,70,90),
                   HGT  = c(150,170,200),
                   MALE = c(TRUE,FALSE,TRUE))
-schnider_poppk(dat, rand = F, rate = F)
-schnider_poppk(dat, rand = T, rate = T)
+schnider_poppk(dat, rand = FALSE, rate = FALSE)
+schnider_poppk(dat, rand = TRUE, rate = TRUE)
 Eleveld et al. population PK model.
 
 Function takes a data frame of patient covariate values with variable names

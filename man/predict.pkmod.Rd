@@ -16,6 +16,8 @@
 )
 }
 \arguments{
+\item{object}{An object with class pkmod.}
+
 \item{...}{Arguments passed on to pkmod}
 
 \item{inf}{An infusion schedule object with columns "begin","end","infrt".}
@@ -35,8 +37,6 @@ are returned.}
 
 \item{tm_digits}{Number of digits used to identify unique times. Only
 modify if the same time point receives multiple concentration records.}
-
-\item{pkmod}{An object with class pkmod.}
 }
 \description{
 predict method to apply pk model piecewise to infusion schedule

@@ -9,15 +9,13 @@ log_posterior_neg(lpr, dat, mu, sig, ...)
 \arguments{
 \item{lpr}{logged PK-PD-error parameter values}
 
-\item{dat}{data frame with columns corresponding to  observed time and bis values}
+\item{dat}{data frame with columns corresponding to observed time and PD response values.}
 
-\item{ivt}{infusion schedule}
+\item{mu}{Mean of prior distribution.}
 
-\item{lhyper}{hyperparameter values to be passed to log_prior()}
+\item{sig}{Variance-covariance matrix of prior distribution.}
 
-\item{gamma}{gamma parameter of PD model (fixed in Eleveld model)}
-
-\item{E0}{E0 parameter of PD model (fixed in Eleveld model)}
+\item{...}{Arguments passed on to log-likelihood.}
 }
 \description{
 Function to evaluate the negative log posterior given a set of logged parameter values and observed BIS values.

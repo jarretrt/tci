@@ -6,7 +6,7 @@
 #' Predict concentrations from a pkmod object
 #'
 #' predict method to apply pk model piecewise to infusion schedule
-#' @param pkmod An object with class pkmod.
+#' @param object An object with class pkmod.
 #' @param inf An infusion schedule object with columns "begin","end","infrt".
 #' @param tms Times to evaluate predictions at. Will default to a sequence
 #' spanning the infusions at intervals of dt.
@@ -102,14 +102,16 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = 
 }
 
 
-#' Plot pkmod object. Will show predicted concentrations in
-#' compartments associated with an infusion schedule.
+#' Plot object with class 'pkmod'
+#'
+#' Will show predicted concentrations in compartments associated with an infusion schedule.
 #' @param x An object with class pkmod.
+#' @param ... Arguments passed on to predict.pkmod
 #' @param inf An infusion schedule object with columns "begin","end","infrt".
 #' @param npts Number of points used to evaluate predicted concentrations.
-#' @param ... Arguments passed on to predict.pkmod
 #'
 #' @rdname plot
+#' @importFrom tibble data_frame
 #' @export
 plot.pkmod <- function(x, ..., inf, npts = 1000, title = NULL){
   # set dt based on range between points
@@ -132,11 +134,14 @@ plot.pkmod <- function(x, ..., inf, npts = 1000, title = NULL){
 }
 
 
-#' Plot method for PD models. User can provide a series of effect-site
-#' concentrations and a PD model OR an infusion schedule with a PK-PD model
-
+#' Plot method for PD models.
+#'
+#' User can provide a series of effect-site concentrations and a PD model or
+#'  an infusion schedule with a PK-PD model.
+#'
 #' @param x An object with class pdmod.
-# @param pkmod An object with class pkmod.
+#' @param ... Arguments passed on to method predict.pkmod.
+#' @param pkmod PK model
 #' @param inf An infusion schedule object with columns "begin","end","infrt".
 #' @param pars_pd Parameters used by pdmod.
 #' @param pars_pk Parameters used by pkmod.
@@ -146,12 +151,9 @@ plot.pkmod <- function(x, ..., inf, npts = 1000, title = NULL){
 #' @param title Title of plot
 #' @param ecmpt Effect-site compartment number. Defaults to the last
 #' compartment concentration returned by pkmod.
-#' @param ... Arguments passed on to method predict.pkmod.
 #'
 #' @rdname plot
 #' @export
-# plot.pdmod <- function(pdmod, pkmod, inf, pars_pd, pars_pk, npts = 1000,
-#                        plot_pk = TRUE, title = NULL, ecmpt = NULL, ...){
 plot.pdmod <- function(x, ..., pkmod, inf, pars_pd, pars_pk, npts = 1000,
                        plot_pk = TRUE, title = NULL, ecmpt = NULL){
 

@@ -5,8 +5,8 @@
 #' Marsh population PK model.
 #'
 #' Takes in a vector of patient weights and returns a data frame of patient PK-PD parameters.
-#' KE0 parameter set to 1.2 in accordance with Base Primea system and recommendations
-#' from Absalom et al. (2009) "Pharmacokinetic models for propofol- Defining and
+#' KE0 parameter set to 1.2 in accordance with recommendations
+#' from Absalom et al., 2009 "Pharmacokinetic models for propofol- Defining and
 #' illuminating the devil in the detail"
 #'
 #' @param df data frame with column titled "TBM" giving patient total body
@@ -52,8 +52,6 @@ marsh_poppk <- function(df, rate = TRUE){
 
 #' Schnider population PK model
 #'
-#' @name schnider_poppk
-#' @title schnider_poppk
 #' @param df data frame with variable names "AGE","TBM","HGT","MALE"
 #' @param rate Logical. Should rate parameters be returned rather than clearance.
 #' Defaults to FALSE
@@ -112,17 +110,15 @@ schnider_poppk <- function(df, rate = FALSE, rand = FALSE){
 #'                   TBM  = c(50,70,90),
 #'                   HGT  = c(150,170,200),
 #'                   MALE = c(TRUE,FALSE,TRUE))
-#' schnider_poppk(dat, rand = F, rate = F)
-#' schnider_poppk(dat, rand = T, rate = T)
+#'
+#' schnider_poppk(dat, rand = FALSE, rate = FALSE)
+#' schnider_poppk(dat, rand = TRUE, rate = TRUE)
 
 
 #' Eleveld et al. population PK model.
 #'
 #' Function takes a data frame of patient covariate values with variable names
 #' "AGE","TBM","HGT","MALE" and returns PK parameter values.
-#'
-#' @name eleveld_poppk
-#' @title eleveld_poppk
 #'
 #' @param df Data frame with variable names "AGE","TBM","HGT","MALE"
 #' @param PD Logical. Should PD parameters be returned in addition to PK parameters.

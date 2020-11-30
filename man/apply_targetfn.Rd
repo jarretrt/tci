@@ -32,6 +32,8 @@ apply_targetfn(
 \item{pdmod}{PD model to evaluate}
 
 \item{pdinv}{Inverse PD model}
+
+\item{...}{Additional arguments passed on to tci_pd}
 }
 \description{
 Function to apply any specified target function to a PK-PD model

@@ -50,7 +50,6 @@ pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0,
                        returncpt = c("all","cpt1","cpt2","cpt3","cpt4")) {
 
   if(is.null(names(pars))){
-    # warning("Parameter vector is not named. Assuming ordering (k10,k12,k21,k13,k31,v1,v2,v3,ke0) for first 9 values.")
     names(pars)[1:9] <- c("k10","k12","k21","k13","k31","v1","v2","v3","ke0")
   }
   names(pars) <- tolower(names(pars))
@@ -151,10 +150,11 @@ class(pkmod3cptm) <- "pkmod"
 #' @param k21 Rate of transfer from compartment 2 to compartment 1.
 #' @param k13 Rate of transfer from compartment 1 to compartment 3.
 #' @param k31 Rate of transfer from compartment 3 to compartment 1.
-#' @param ke0 Rate of transfer from effect-site compartment to compartment 1.
 #' @param v1 Volume of compartment 1.
 #' @param v2 Volume of compartment 2.
 #' @param v3 Volume of compartment 3.
+#' @param ke0 Rate of transfer from effect-site compartment to compartment 1.
+#' @param c0 Initial concentrations. Defaults to 0 in each compartment.
 #'
 #' @export
 pk_basic_solution_3cpt_metab <- function(kR,k10,k12,k21,k13,k31,v1,v2,v3,ke0,

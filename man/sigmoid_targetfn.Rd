@@ -12,6 +12,8 @@ sigmoid_targetfn(lpars, tms, bis0 = 93, ...)
 \item{tms}{Times to evaluate sigmoid function}
 
 \item{bis0}{BIS value with no drug administered}
+
+\item{...}{Arguments passed on to 'restrict_sigmoid' function}
 }
 \description{
 Sigmoid target function

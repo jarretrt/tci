@@ -4,8 +4,19 @@
 
 #' Function to simulate data from a specified PK or PK-PD model with a specified infusion schedule.
 #' @param inf An infusion rate object outputted from either the 'create_intvl' function or the 'iterate_tci_grid' function
+#' @param pkmod PK model
 #' @param pars_pk0 "True" parameter estimates used to simulate data observations.
-#' @param pars_pk Alternate parameter estimates that can
+#' @param sigma_add Additive residual error standard deviation.
+#' @param sigma_mult Multiplicative residual error standard deviation.
+#' @param log_err Logical. Should the error be log-normally distributed?
+#' @param init Initial concentrations.
+#' @param tms Observation times. Defaults to beginning of each infusion if unspecified.
+#' @param pdmod PD model if applicable.
+#' @param pars_pd0 PD model parameters if applicable.
+#' @param ecmpt Effect-site compartment number. Defaults to last compartment.
+#' @param delay Delay between generation and observation of measurements.
+#' @param max_pdval Maximum PD value.
+#' @param min_pdval Minimum PD value
 #' @import stats
 #'
 #' @export
@@ -147,11 +158,10 @@ log_prior <- function(lpr, mu, sig){
 
 #' Function to evaluate the log likelihood given a set of logged parameter values and a set of observed BIS values.
 #' @param lpr logged PK-PD-error parameter values
-#' @param ivt infusion schedule
 #' @param dat data frame with columns c("time","bis") corresponding to observed time and bis values
 #' @param fixed_lpr values used by PD function that are not updated.
 #' These are concatenated to lpr[pd_ix] and the ordering may be important for use of the PD function.
-#' @param pdix indices for PD function values to be updated.
+#' @param pd_ix indices for PD function values to be updated.
 #' @param err_ix index for standard deviation of residual error term
 #' @importFrom truncnorm dtruncnorm
 #'
@@ -195,11 +205,10 @@ log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
 
 #' Function to evaluate the negative log posterior given a set of logged parameter values and observed BIS values.
 #' @param lpr logged PK-PD-error parameter values
-#' @param ivt infusion schedule
-#' @param dat data frame with columns corresponding to  observed time and bis values
-#' @param lhyper hyperparameter values to be passed to log_prior()
-#' @param gamma gamma parameter of PD model (fixed in Eleveld model)
-#' @param E0 E0 parameter of PD model (fixed in Eleveld model)
+#' @param dat data frame with columns corresponding to observed time and PD response values.
+#' @param mu Mean of prior distribution.
+#' @param sig Variance-covariance matrix of prior distribution.
+#' @param ... Arguments passed on to log-likelihood.
 #'
 #' @export
 log_posterior_neg <- function(lpr, dat, mu, sig, ...) {
@@ -208,21 +217,30 @@ log_posterior_neg <- function(lpr, dat, mu, sig, ...) {
 
 
 #' Function to provide Bayesian closed-loop control to
-#' @param targets Dataframe with columns ("time","target")
-#' @param updates Dataframe of times at which closed-loop updates should be conducted and
+#' @param targets Data frame with columns ("time","target")
+#' @param updates Data frame of times at which closed-loop updates should be conducted and
 #' optional variable with logical values named 'full_data' indicating if full updates should
 #' be used. Defaults to partial.
 #' @param prior List with elements "mu" and "sig" specifying the prior mean and covariance
 #' matrices for the logged parameter values.
+#' @param true_pars Vector of true patient PK-PD parameters.
+#' @param pkmod PK model
+#' @param pdmod PD model
+#' @param pdinv Inverse PD model
+#' @param init0 True initial concentrations
+#' @param init_p Predicted initial concentrations
 #' @param obs_tms Times at which observations are collected. If null, observations will be
 #' made at fixed intervals specified by 'dt'.
 #' @param dt Interval between measurements.
+#' @param sim_starttm Start time of simulation
+#' @param tci_alg TCI algorithm used. Defaults to effect-site targeting.
 #'
 #' @export
 bayes_control <- function(targets, updates, prior, true_pars,
-                          pkmod = pkmod3cptm, pdmod = emax_eleveld, pdinv = inv_emax_eleveld,
-                          init0 = NULL, init_p = NULL, obs_tms = NULL, dt = 1/60, sim_starttm = 0,
-                          tci_alg = "effect"){
+                          pkmod = pkmod3cptm, pdmod = emax_eleveld,
+                          pdinv = inv_emax_eleveld,
+                          init0 = NULL, init_p = NULL, obs_tms = NULL,
+                          dt = 1/60, sim_starttm = 0, tci_alg = "effect"){
 
   # set observation/measurement times
   if(is.null(obs_tms)) obs_tms <- seq(dt, max(targets$time), dt)
@@ -233,9 +251,9 @@ bayes_control <- function(targets, updates, prior, true_pars,
   if(is.null(init_p)) init_p <- rep(0,ncpt)
 
   if(is.vector(updates)) updates <- data.frame(time = updates)
-  if("time" %nin% names(updates)) stop("dataframe updates must have column named 'time'")
-  if("full_data" %nin% names(updates)) updates$full_data <- FALSE
-  if("plot_progress" %nin% names(updates)) updates$plot_progress <- FALSE
+  if(!("time" %in% names(updates))) stop("dataframe updates must have column named 'time'")
+  if(!("full_data" %in% names(updates))) updates$full_data <- FALSE
+  if(!("plot_progress" %in% names(updates))) updates$plot_progress <- FALSE
 
   # add simulation start time to list of update times
   update_tms <- c(sim_starttm, updates$time)
@@ -351,6 +369,8 @@ bayes_control <- function(targets, updates, prior, true_pars,
 #' @param lpars Logged parameter values
 #' @param tms Times to evaluate sigmoid function
 #' @param bis0 BIS value with no drug administered
+#' @param ... Arguments passed on to 'restrict_sigmoid' function
+#'
 #' @export
 sigmoid_targetfn <- function(lpars, tms, bis0 = 93, ...)
   emax(tms, restrict_sigmoid(t50 = exp(lpars), BIS0 = bis0, ...))
@@ -380,6 +400,7 @@ sigmoid_targetfn <- function(lpars, tms, bis0 = 93, ...)
 #' @param pkmod PK model to evaluate
 #' @param pdmod PD model to evaluate
 #' @param pdinv Inverse PD model
+#' @param ... Additional arguments passed on to tci_pd
 #'
 #' @export
 apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,

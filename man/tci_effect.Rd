@@ -20,18 +20,20 @@ tci_effect(
 
 \item{pkmod}{PK model}
 
-\item{dt}{Frequency of TCI updates. Default is 10 seconds expressed in terms of minutes = 1/6.}
+\item{dt}{Frequency of TCI updates. Default is 1/6 minutes = 10 seconds.}
 
 \item{ecmpt}{Effect site compartment number}
 
-\item{max_kR}{Maximum infusion rate of TCI pump. Defaults to 1200.}
+\item{tmax_search}{Outer bound on times searched to find a maximum concentration
+following an infusion of duration dt. Defaults to 20 minutes. May need to be increased
+if a drug has a slow elimination rate.}
 
-\item{plasma_tol}{Maximum percent difference between predicted plasma concentration and target concentration permitted
-in order to switch to plasma-targeting mode. Plasma-targeting mode is used primarily to increase computational efficiency
-when the effect-site concentration is sufficiently stable and close to the target concentration.}
+\item{maxrt}{Maximum infusion rate of TCI pump. Defaults to 1200.}
 
-\item{effect_tol}{Maximum percent difference between predicted effect-site concentration and target concentration
-permitted in order to switch to plasma-targeting mode.}
+\item{grid_len}{Number of time points used to identify time of maximum concentration.
+Can be increased for more precision.}
+
+\item{...}{Arguments used by pkmod.}
 }
 \description{
 Function for calculating a TCI infusion schedule corresponding to a set of target concentrations.

@@ -11,8 +11,17 @@ tci_comb(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt = 4, ...)
 
 \item{pkmod}{PK model}
 
-\item{cptol}{Percentage of effect-site concentration required to be within to switch
+\item{cptol}{Percentage of plasma concentration required to be within to switch
 to plasma targeting.}
+
+\item{cetol}{Percentage of effect-site concentration required to be within to switch
+to plasma targeting.}
+
+\item{cp_cmpt}{Position of central compartment. Defaults to first compartment.}
+
+\item{ce_cmpt}{Position of effect-site compartment. Defaults to fourth compartment.}
+
+\item{...}{Arguments passed on to 'tci_plasma' and 'tci_effect' functions.}
 }
 \description{
 Modified effect-site TCI algorithm that follows Jacobs (1993) suggestion of

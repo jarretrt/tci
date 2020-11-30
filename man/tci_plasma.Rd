@@ -18,6 +18,8 @@ maximum infusion rate of 1200 ml/h permitted by
 existing TCI pumps (e.g. Anestfusor TCI program).}
 
 \item{cmpt}{Compartment into which infusions are administered. Defaults to the first compartment.}
+
+\item{...}{Arguments passed on to pkmod.}
 }
 \description{
 TCI algorithm based on the algorithm described by Jacobs (1990).
