@@ -25,10 +25,12 @@
 predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = FALSE,
                           remove_bounds = TRUE, tm_digits = 7){
 
+  fptol = 1e-10
+
   if(!all(c("infrt","begin","end") %in% colnames(inf)))
     stop("inf must include 'infrt','begin','end' as column names")
 
-  if(!is.null(tms) & any(tms > max(inf[,"end"])))
+  if(!is.null(tms) & abs(max(tms) - max(inf[,"end"])) > fptol)
     stop("Prediction time points are outside range of dosing interval")
 
   dot.args <- list(...)
@@ -46,13 +48,13 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = 
     # round times - this is needed to prevent errors associated with rounding numeric values
     tms <- round(tms, tm_digits)
     # if times are provided, predict at those times plus boundaries for initial values
-    b <- sort(unique(
+    bnd <- sort(unique(
       round(as.numeric(unlist(inf[,c("begin","end")])),tm_digits)
       ))
     tms_all <- sort(unique(
-      round(c(b,tms),tm_digits)
+      round(c(bnd,tms),tm_digits)
       ))
-    tms_eval <- split(tms_all, findInterval(tms_all, b,
+    tms_eval <- split(tms_all, findInterval(tms_all, bnd,
                                             rightmost.closed = TRUE,
                                             left.open = TRUE))
   } else{
@@ -328,7 +330,7 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
                            pars = datasim$pars_pk0,
                            init = datasim$init))
 
-  cp$variable <- as.factor("Truth")
+  cp$variable <- as.factor("Observed")
   df <- cp[,c("time","variable","c1")]
 
   # get predicted concentrations based on prior parameter estimates
@@ -344,7 +346,7 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
     tciinf <- tciinf[,c("begin","variable","c1_start")]
     names(tciinf) <- c("time","variable","c1")
     df <- rbind(df, tciinf)
-    df$variable <- factor(df$variable, levels = c("Truth","Prior"))
+    df$variable <- factor(df$variable, levels = c("Observed","Prior"))
 
     out <- ggplot2::ggplot(df,
                            ggplot2::aes(x = time,
@@ -391,8 +393,8 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
     names(tciinfm) <- c("time","variable","pdp")
     cp$variable <- as.factor("True response")
     df <- rbind(cp[,c("time","variable","pdp")], tciinfm)
-    levels(df$variable) <- c("Truth","Target","Prior")
-    df$variable <- factor(df$variable, levels = c("Target","Truth","Prior"))
+    levels(df$variable) <- c("Observed","Target","Prior")
+    df$variable <- factor(df$variable, levels = c("Target","Observed","Prior"))
     vord <- order(levels(df$variable))
 
     out <- ggplot2::ggplot(df,
