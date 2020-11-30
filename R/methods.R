@@ -31,6 +31,16 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = 
   if(!is.null(tms) & any(tms > max(inf[,"end"])))
     stop("Prediction time points are outside range of dosing interval")
 
+  dot.args <- list(...)
+
+  if(!("init" %in% names(formals(object))))
+    stop("object must contain argument 'init'")
+
+  if(!("pars" %in% names(dot.args)) &
+     is.null(eval(formals(object)$pars)))
+    stop("PK parameters must be passed as 'pars' within predict or set
+         as defaults in PK model object")
+
   # Times to evaluate concentrations at. Defaults to a sequence of values at intervals of dt.
   if(!is.null(tms)){
     # round times - this is needed to prevent errors associated with rounding numeric values
@@ -55,12 +65,18 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = 
   init <- vector("list", nrow(inf)+1)
 
   # Pass on initial concentrations to first element of init. Use values if specified, else defaults.
-  dot.args <- list(...)
   if("init" %in% names(dot.args)){
     init[[1]] <- unlist(dot.args$init)
     dot.args$init <- NULL
   } else {
     init[[1]] <- eval(formals(object)$init)
+  }
+
+  if("pars" %in% names(dot.args)){
+    pars <- unlist(dot.args$pars)
+    dot.args$pars <- NULL
+  } else {
+    pars <- eval(formals(object)$pars)
   }
 
   # get indexes of times and initialize matrix for predictions
@@ -72,6 +88,7 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = 
   for(i in 1:nrow(inf)){
     pred[,tm_ix[[i]]] <- do.call("object", c(list(tm = tms_eval[[i]],
                                                  kR = inf[i,"infrt"],
+                                                 pars = pars,
                                                  init = init[[i]],
                                                  inittm = inf[i,"begin"]),
                                             dot.args))
@@ -153,15 +170,19 @@ plot.pkmod <- function(x, ..., inf, npts = 1000, title = NULL){
 #'
 #' @rdname plot
 #' @export
-plot.pdmod <- function(x, ..., pkmod, inf, pars_pd, pars_pk, npts = 1000,
+plot.pdmod <- function(x, ..., pkmod, inf, pars_pd, pars_pk = NULL, npts = 1000,
                        plot_pk = TRUE, title = NULL, ecmpt = NULL){
 
   # set dt based on range between points
   dt <- diff(range(inf[,"begin"], inf[,"end"])) / npts
   # predict concentrations
-  con <- data.frame(predict(pkmod, inf = inf, dt = dt, return_init = TRUE, pars = pars_pk, ...))
+  if(is.null(pars_pk)){
+    con <- data.frame(predict(pkmod, inf = inf, dt = dt, return_init = TRUE, ...))
+  } else{
+    con <- data.frame(predict(pkmod, inf = inf, dt = dt, return_init = TRUE, pars = pars_pk, ...))
+  }
 
-  # effect site comparment
+  # effect site compartment
   if(is.null(ecmpt))
     ecmpt <- length(eval(formals(pkmod)$init))
 
