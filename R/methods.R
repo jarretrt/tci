@@ -30,9 +30,6 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = 
   if(!all(c("infrt","begin","end") %in% colnames(inf)))
     stop("inf must include 'infrt','begin','end' as column names")
 
-  if(!is.null(tms) & any(abs(tms - max(inf[,"end"])) < fptol))
-    stop("Prediction time points are outside range of dosing interval")
-
   dot.args <- list(...)
 
   if(!("init" %in% names(formals(object))))
