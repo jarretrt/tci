@@ -15,7 +15,7 @@
   pkmod,
   inf,
   pars_pd,
-  pars_pk,
+  pars_pk = NULL,
   npts = 1000,
   plot_pk = TRUE,
   title = NULL,

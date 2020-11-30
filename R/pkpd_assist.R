@@ -93,8 +93,8 @@ poppk_cov <- function(poppk = c("Schnider","Eleveld"), pd = TRUE){
 #' @examples poppk_cov("Eleveld", pd = TRUE)
 
 
-# All parameters in the eleveld model are log-normally distributed or constant within the population.
-# For each patient, there is a fixed set of model parameters predicted with variablilty around it.
+# All parameters in the Eleveld model are log-normally distributed or constant within the population.
+# For each patient, there is a fixed set of model parameters predicted with variability around it.
 # The fixed set of model parameters includes an estimate of the residual error standard deviation.
 # The estimate of the sd is given by omega5 = 8.03 in the PD model and omega7 = 0.191 in the pk model.
 # The residual error also is log-normally distributed --> log(err) ~ N(log(omega7), )
@@ -128,8 +128,12 @@ elvdlpars <- function(x, pd = TRUE){
 
 #' Set default PK parameter values
 #'
+#' Set default PK parameter values for a pkmod object.
+#' @name assign_pars
+#' @title assign_pars
 #' @param pkmod pkmod object
 #' @param pars PK parameters to assign as default values of pkmod
+#' @export
 assign_pars <- function(pkmod, pars){
 
   if(class(pkmod) != "pkmod")

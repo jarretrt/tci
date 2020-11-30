@@ -40,6 +40,8 @@ matrices for the logged parameter values.}
 
 \item{init0}{True initial concentrations}
 
+\item{init_p}{Predicted initial concentrations}
+
 \item{obs_tms}{Times at which observations are collected. If null, observations will be
 made at fixed intervals specified by 'dt'.}
 
@@ -48,8 +50,6 @@ made at fixed intervals specified by 'dt'.}
 \item{sim_starttm}{Start time of simulation}
 
 \item{tci_alg}{TCI algorithm used. Defaults to effect-site targeting.}
-
-\item{initp}{Predicted initial concentrations}
 }
 \description{
 Function to provide Bayesian closed-loop control to

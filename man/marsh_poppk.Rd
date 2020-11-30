@@ -18,7 +18,7 @@ of clearance parameters.}
 }
 \description{
 Takes in a vector of patient weights and returns a data frame of patient PK-PD parameters.
-KE0 parameter set to 1.2 in accordance with Base Primea system and recommendations
-from Absalom et al. (2009) "Pharmacokinetic models for propofol- Defining and
+KE0 parameter set to 1.2 in accordance with recommendations
+from Absalom et al., 2009 "Pharmacokinetic models for propofol- Defining and
 illuminating the devil in the detail"
 }

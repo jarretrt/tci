@@ -37,7 +37,7 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = 
     stop("object must contain argument 'init'")
 
   if(!("pars" %in% names(dot.args)) &
-     is.null(eval(formals(object)$pars)))
+     is.symbol(formals(object)$pars))
     stop("PK parameters must be passed as 'pars' within predict or set
          as defaults in PK model object")
 
