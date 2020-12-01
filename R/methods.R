@@ -293,8 +293,6 @@ plot.tciinf <- function(x, ..., title = NULL){
 #' concentrations and a PD model OR an infusion schedule with a PK-PD model
 
 #' @param x An object with class datasim, created by function `gen_data`.
-#' @param lpars_prior Logged prior parameters for plotting predicted concentrations
-#' alongside observed data.
 #' @param lpars_update Logged posterior parameters for plotting predicted concentrations
 #' alongside observed data.
 #' @param lpars_fixed Logged parameters that are used by PK-PD model but not updated.
@@ -305,8 +303,7 @@ plot.tciinf <- function(x, ..., title = NULL){
 #'
 #' @rdname plot
 #' @export
-plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
-                         lpars_fixed = NULL, pd_ix = 10, dt = 1/60, ...){
+plot.datasim <- function(x, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10, dt = 1/60, ...){
 
   datasim <- x
   datasim$sim <- as.data.frame(datasim$sim)
@@ -315,12 +312,6 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
   tms <- seq(r[1], r[2], dt)
 
   # predict concentrations at true parameter values
-  cp <- predict(datasim$pkmod,
-                inf = datasim$inf,
-                tms = tms,
-                pars = datasim$pars_pk0,
-                init = datasim$init)
-
   cp <- data.frame(predict(datasim$pkmod,
                            inf = datasim$inf,
                            tms = tms,
@@ -363,7 +354,9 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
                                       inf = datasim$inf,
                                       tms = tms,
                                       pars = exp(lpars_update),
-                                      init = unlist(head(datasim$inf[,c("c1_start","c2_start","c3_start","c4_start")],1))))
+                                      init = unlist(head(
+                                        datasim$inf[,c("c1_start","c2_start","c3_start","c4_start")],1))
+                                      ))
 
       cp_update$variable <- "Posterior"
       df <- rbind(df, cp_update[,c("time","variable","c1")])
@@ -383,13 +376,14 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
   } else{
 
     # plot for pd model
-    cp$pdp <- datasim$pdmod(ce = cp[,paste0("c",datasim$ecmpt)], pars = datasim$pars_pd)
+    cp$pdp <- datasim$pdmod(ce = cp[,paste0("c",datasim$ecmpt)], pars = datasim$pars_pd0)
 
     # prior
     tciinfm <- reshape::melt(as.data.frame(tciinf[,c("begin","pdt","pdresp_start")]),id.vars = "begin")
     names(tciinfm) <- c("time","variable","pdp")
     cp$variable <- as.factor("True response")
-    df <- rbind(cp[,c("time","variable","pdp")], tciinfm)
+    # df <- rbind(cp[,c("time","variable","pdp")], tciinfm)
+    df <- cp[,c("time","variable","pdp")]
     levels(df$variable) <- c("Observed","Target","Prior")
     df$variable <- factor(df$variable, levels = c("Target","Observed","Prior"))
     vord <- order(levels(df$variable))
@@ -465,3 +459,7 @@ plot.datasim <- function(x, lpars_prior = NULL, lpars_update = NULL,
 
   out
 }
+
+
+
+plot_datasim <- plot.datasim

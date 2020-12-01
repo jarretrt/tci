@@ -237,21 +237,24 @@ log_posterior_neg <- function(lpr, dat, mu, sig, ...) {
 #' @param dt Interval between measurements.
 #' @param sim_starttm Start time of simulation
 #' @param tci_alg TCI algorithm used. Defaults to effect-site targeting.
+#' @param print_progress Logical. Should current update times be printed to the console.
 #'
 #' @export
 bayes_control <- function(targets, updates, prior, true_pars,
                           pkmod = pkmod3cptm, pdmod = emax_eleveld,
                           pdinv = inv_emax_eleveld,
                           init0 = NULL, init_p = NULL, obs_tms = NULL,
-                          dt = 1/60, sim_starttm = 0, tci_alg = "effect"){
+                          dt_obs = 1/6, sim_starttm = 0, tci_alg = "effect",
+                          print_progress = FALSE){
 
   # set observation/measurement times
-  if(is.null(obs_tms)) obs_tms <- seq(dt, max(targets$time), dt)
+  if(is.null(obs_tms)) obs_tms <- seq(dt_obs, max(targets$time), dt_obs)
 
   # set true and predicted initial concentrations if not specified
   ncpt <- length(eval(formals(pkmod)$init))
   if(is.null(init0)) init0 <- rep(0,ncpt)
   if(is.null(init_p)) init_p <- rep(0,ncpt)
+  init_start <- init0
 
   if(is.vector(updates)) updates <- data.frame(time = updates)
   if(!("time" %in% names(updates))) stop("dataframe updates must have column named 'time'")
@@ -263,16 +266,17 @@ bayes_control <- function(targets, updates, prior, true_pars,
   update_full <- c(NA, updates$full_data)
   plot_progress <- c(NA, updates$plot_progress)
 
-  true_pk <- true_pars$pars_pkpd[true_pars$pk_ix]
-  true_pd <- true_pars$pars_pkpd[-true_pars$pk_ix]
+  true_pk <- unlist(true_pars$pars_pkpd[true_pars$pk_ix])
+  true_pd <- unlist(true_pars$pars_pkpd[-true_pars$pk_ix])
 
+  prior$pars_pkpd <- unlist(prior$pars_pkpd)
   prior0 <- prior
   dat0 <- NULL
   lpr_all <- NULL
 
   for(i in 2:length(update_tms)){
 
-    print(paste("Updating at time t =", update_tms[i]))
+    if(print_progress) print(paste("Updating at time t =", update_tms[i]))
 
     prior_pk <- prior$pars_pkpd[prior$pk_ix]
     prior_pd <- prior$pars_pkpd[-prior$pk_ix]
@@ -307,11 +311,6 @@ bayes_control <- function(targets, updates, prior, true_pars,
     # merge sampled dataset with prior observations
     dat0 <- combine_sim(dat0,dat)
 
-    # indicate if full dataset should be used for updates
-    if(update_full[i]){
-      dat_eval <- dat0
-    } else dat_eval <- dat
-
     # update parameters based on generated data
     # use prior parameter values as starting point - separate fixed parameters
     if(any(!is.null(prior$fixed_ix))){
@@ -324,17 +323,39 @@ bayes_control <- function(targets, updates, prior, true_pars,
 
     lpr_all <- rbind(lpr_all, lpr)
 
-    # update parameter estimates with data
-    post_est <- nlm(f = log_posterior_neg,
-                    p = lpr,
-                    dat = dat_eval,
-                    mu = lpr,
-                    sig = prior$sig,
-                    fixed_lpr = lpr_fixed,
-                    hessian = T)
+    # indicate if full dataset should be used for updates
+    if(update_full[i]){
+      dat_eval <- dat0
+
+      # use full dataset and original vcov matrix
+      post_est <- nlm(f = log_posterior_neg,
+                      p = lpr,
+                      dat = dat_eval,
+                      mu = lpr,
+                      sig = prior0$sig,
+                      fixed_lpr = lpr_fixed,
+                      hessian = FALSE,
+                      steptol=1e-6, gradtol=1e-6, stepmax = 5,
+                      iterlim = 2000)
+    } else{
+      dat_eval <- dat
+      post_est <- nlm(f = log_posterior_neg,
+                      p = lpr,
+                      dat = dat_eval,
+                      mu = lpr,
+                      sig = prior$sig,
+                      fixed_lpr = lpr_fixed,
+                      hessian = TRUE,
+                      steptol=1e-6, gradtol=1e-6, stepmax = 5,
+                      iterlim = 2000)
+
+     # update vcov matrix
+     prior$sig <- solve(post_est$hessian)
+    }
 
     if(plot_progress[i]){
-      print(plot(dat0, lpars_update = post_est$estimate))
+      print(plot(dat0, lpars_update = post_est$estimate,
+                         lpars_fixed = log(prior$pars_pkpd[prior$fixed_ix])))
     }
 
     # update prior values
@@ -346,17 +367,26 @@ bayes_control <- function(targets, updates, prior, true_pars,
       prior$err <- exp(tail(post_est$estimate,1))
     }
 
-    prior$sig <- solve(post_est$hessian)
-
     # update true and predicted initial values
     init0 <- dat0$sim[nrow(dat0$sim),grep("c[0-9]",colnames(dat0$sim))]
     init_p <- as.numeric(predict(pkmod,
-                                 inf = dat$inf,
+                                 inf = dat0$inf,
                                  tms = update_tms[i],
                                  pars = prior$pars_pkpd[prior$pk_ix],
-                                 init = init_p)[-1])
+                                 init = init_start)[-1])
 
   }
+
+  # save final posterior parameter values
+  if(any(!is.null(prior$fixed_ix))){
+    lpr <- log(c(prior$pars_pkpd[-prior$fixed_ix], err = prior$err))
+    lpr_fixed <- log(prior$pars_pkpd[prior$fixed_ix])
+  } else{
+    lpr <- log(c(prior$pars_pkpd, err = prior$err))
+    lpk_fixed <- NULL
+  }
+
+  lpr_all <- rbind(lpr_all, lpr)
 
   return(list(dat = dat0,
               lpr = lpr_all,
