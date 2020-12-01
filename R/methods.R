@@ -230,12 +230,13 @@ plot.pdmod <- function(x, ..., pkmod, inf, pars_pd, pars_pk = NULL, npts = 1000,
 # plot <- function(tciinf, ...) UseMethod("plot")
 #' @param x Object with class "tciinf" created by functions
 #' `iterate_tci_grid` or `tci_pd`
-#' @param title Title of plot.
 #' @param ... \dots
+#' @param title Title of plot.
+#' @param display Logical. Should plots be printed or returned as an arrangeGrob object?
 #'
 #' @rdname plot
 #' @export
-plot.tciinf <- function(x, ..., title = NULL){
+plot.tciinf <- function(x, ..., title = NULL, display = FALSE){
 
   begin <- value <- variable <- NULL
 
@@ -288,11 +289,18 @@ plot.tciinf <- function(x, ..., title = NULL){
   }
 
   if("pdresp_start" %in% names(tciinf)){
-    gridExtra::grid.arrange(ppd, ppk, nrow = 2, top = title)
+    # gridExtra::grid.arrange(ppd, ppk, nrow = 2, top = title)
+    gb <- gridExtra::arrangeGrob(ppd, ppk, nrow = 2, top = title)
   } else{
-    gridExtra::grid.arrange(ppk, top = title)
+    # gridExtra::grid.arrange(ppk, top = title)
+    gb <- gridExtra::arrangeGrob(ppk, top = title)
   }
 
+  if(display){
+    print(gb)
+  } else{
+    gb
+  }
 }
 
 

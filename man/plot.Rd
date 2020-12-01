@@ -22,7 +22,7 @@
   ecmpt = NULL
 )
 
-\method{plot}{tciinf}(x, ..., title = NULL)
+\method{plot}{tciinf}(x, ..., title = NULL, display = FALSE)
 
 \method{plot}{datasim}(x, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10, dt = 1/60, ...)
 }
@@ -48,6 +48,8 @@ the PD response. Defaults to TRUE.}
 
 \item{ecmpt}{Effect-site compartment number. Defaults to the last
 compartment concentration returned by pkmod.}
+
+\item{display}{Logical. Should plots be printed or returned as an arrangeGrob object?}
 
 \item{lpars_update}{Logged posterior parameters for plotting predicted concentrations
 alongside observed data.}
