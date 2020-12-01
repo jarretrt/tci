@@ -320,7 +320,7 @@ plot.tciinf <- function(x, ..., title = NULL, display = FALSE){
 #' @importFrom utils head tail
 #' @importFrom ggplot2 aes
 #' @export
-plot.datasim <- function(x, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10, dt = 1/60, ...){
+plot.datasim <- function(x, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10, dt = 1/60, plot_prior = TRUE, ...){
 
   c1 <- variable <- cobs <- pdp <- pdobs <- NULL
 
@@ -401,8 +401,13 @@ plot.datasim <- function(x, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10,
     tciinfm <- reshape::melt(as.data.frame(tciinf[,c("begin","pdt","pdresp_start")]),id.vars = "begin")
     names(tciinfm) <- c("time","variable","pdp")
     cp$variable <- as.factor("True response")
-    # df <- rbind(cp[,c("time","variable","pdp")], tciinfm)
-    df <- cp[,c("time","variable","pdp")]
+
+    if(plot_prior){
+      df <- rbind(cp[,c("time","variable","pdp")], tciinfm)
+    } else{
+      df <- cp[,c("time","variable","pdp")]
+    }
+
     levels(df$variable) <- c("Observed","Target","Prior")
     df$variable <- factor(df$variable, levels = c("Target","Observed","Prior"))
     vord <- order(levels(df$variable))
