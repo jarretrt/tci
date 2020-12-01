@@ -102,6 +102,8 @@ poppk_cov <- function(poppk = c("Schnider","Eleveld"), pd = TRUE){
 #' Generate the variance-covariance matrix for Eleveld PK-PD model for an observation
 #' via Monte Carlo sampling.
 #'
+#' @name eleveld_vcov
+#' @title eleveld_vcov
 #' @param dat Data frame of observed patient covariates
 #' @param N Number of Monte Carlo samples
 #' @param rates Logical. Should rate constants be calculated
