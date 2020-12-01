@@ -2,9 +2,7 @@
 % Please edit documentation in R/pd_mods.R
 \name{emax}
 \alias{emax}
-\title{Emax function. c50 is the concentration eliciting a 50% effect, gamma is the hill parameter
-identifying the slope of the Emax curve at c50, E0 is the response value with no drug present,
-Emx is the maximum effect size.}
+\title{Emax function}
 \usage{
 emax(ce, pars)
 }
@@ -17,4 +15,10 @@ emax(ce, pars)
 Emax function. c50 is the concentration eliciting a 50% effect, gamma is the hill parameter
 identifying the slope of the Emax curve at c50, E0 is the response value with no drug present,
 Emx is the maximum effect size.
+}
+\examples{
+pars_emax <- c(c50 = 1.5, gamma = 1.47, e0 = 100, emx = 100)
+ce_seq <- seq(0,4,0.1)
+plot(ce_seq, emax(ce_seq, pars_emax), type = "l",
+xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS")
 }

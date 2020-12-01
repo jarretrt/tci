@@ -129,6 +129,9 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dt = 1/6, return_init = 
 #' @rdname plot
 #' @export
 plot.pkmod <- function(x, ..., inf, npts = 1000, title = NULL){
+
+  value <- variable <- NULL
+
   # set dt based on range between points
   dt <- diff(range(inf[,"begin"], inf[,"end"])) / npts
   # predict concentrations
@@ -171,6 +174,8 @@ plot.pkmod <- function(x, ..., inf, npts = 1000, title = NULL){
 #' @export
 plot.pdmod <- function(x, ..., pkmod, inf, pars_pd, pars_pk = NULL, npts = 1000,
                        plot_pk = TRUE, title = NULL, ecmpt = NULL){
+
+  value <- variable <- pdresp <- NULL
 
   # set dt based on range between points
   dt <- diff(range(inf[,"begin"], inf[,"end"])) / npts
@@ -231,6 +236,8 @@ plot.pdmod <- function(x, ..., pkmod, inf, pars_pd, pars_pk = NULL, npts = 1000,
 #' @rdname plot
 #' @export
 plot.tciinf <- function(x, ..., title = NULL){
+
+  begin <- value <- variable <- NULL
 
   tciinf <- as.data.frame(x)
   # move end of last row to start column for plotting
@@ -302,8 +309,12 @@ plot.tciinf <- function(x, ..., title = NULL){
 #' @param ... \dots
 #'
 #' @rdname plot
+#' @importFrom utils head tail
+#' @importFrom ggplot2 aes
 #' @export
 plot.datasim <- function(x, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10, dt = 1/60, ...){
+
+  c1 <- variable <- cobs <- pdp <- pdobs <- NULL
 
   datasim <- x
   datasim$sim <- as.data.frame(datasim$sim)
@@ -461,5 +472,3 @@ plot.datasim <- function(x, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10,
 }
 
 
-
-plot_datasim <- plot.datasim

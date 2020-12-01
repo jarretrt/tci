@@ -53,3 +53,26 @@ central compartment (i.e. k41). The rate of absorption into the effect-site comp
 The function returns a set of functions that calculate the concentration in each of the four compartments as a function of
 time.
 }
+\examples{
+data(eleveld_pk)
+data(eleveld_pd)
+pk_vars <- c("V1","V2","V3","CL","Q2","Q3")
+pd_vars <- c("E50","KE0","EMAX","GAM","GAM1","RESD")
+pk_pars <- subset(eleveld_pk, ID == 403, select = pk_vars)
+pd_pars <- subset(eleveld_pd, ID == 403, select = pd_vars)
+
+sol <- pk_basic_solution_3cpt_metab(kR = 1,
+                                    k10 = pk_pars$CL / pk_pars$V1,
+                                    k12 = pk_pars$Q2 / pk_pars$V1,
+                                    k21 = pk_pars$Q2 / pk_pars$V2,
+                                    k13 = pk_pars$Q3 / pk_pars$V1,
+                                    k31 = pk_pars$Q3 / pk_pars$V3,
+                                    v1 = pk_pars$V1,
+                                    v2 = pk_pars$V2,
+                                    v3 = pk_pars$V3,
+                                    ke0 = pd_pars$KE0,
+                                    c0 = c(0,0,0,0))
+# concentration in central and effect site compartments
+tms <- seq(0,1,0.1)
+cbind(sol$c_1(tms), sol$c_4(tms))
+}

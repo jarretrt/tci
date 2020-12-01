@@ -2,7 +2,7 @@
 % Please edit documentation in R/pk_mods.R
 \name{pk_solution_3cpt_metab_singleinf}
 \alias{pk_solution_3cpt_metab_singleinf}
-\title{pk_solution_3cpt_metab_singleinf}
+\title{Single infusion 3-compartment PK solution}
 \usage{
 pk_solution_3cpt_metab_singleinf(pars, ivt, init, ce_only = FALSE)
 }
@@ -18,11 +18,17 @@ pk_solution_3cpt_metab_singleinf(pars, ivt, init, ce_only = FALSE)
 Defaults to FALSE}
 }
 \description{
-pk_solution_3cpt_metab_singleinf
+Piece-wise solution for a single infusion followed by a period with no infusion.
+This function is similar to pk_solution_3cpt_metab, except that it accepts and
+implements only the first infusion. This function exists primarily for
+reducing computational speed when searching for time until maximum concentration.
 }
 \examples{
-pk_pars <- eleveld_pk[eleveld_pk$ID == 403,c("V1","V2","V3","CL","Q2","Q3")]
-pd_pars <- eleveld_pd[eleveld_pd$ID == 403,c("E50","KE0","EMAX","GAM","GAM1","RESD")]
+data(eleveld_pk)
+data(eleveld_pd)
+pk_pars <- subset(eleveld_pk, ID == 403, select = c("V1","V2","V3","CL","Q2","Q3"))
+pd_pars <- subset(eleveld_pd, ID == 403, select = c("E50","KE0","EMAX","GAM","GAM1","RESD"))
+
 pars <- c(k10 = pk_pars$CL / pk_pars$V1,
           k12 = pk_pars$Q2 / pk_pars$V1,
           k21 = pk_pars$Q2 / pk_pars$V2,
@@ -32,22 +38,8 @@ pars <- c(k10 = pk_pars$CL / pk_pars$V1,
           v2 = pk_pars$V2,
           v3 = pk_pars$V3,
           ke0 = pd_pars$KE0)
-ivt <- list(list(begin=0.0, end=0.5, k_R=6),
-            list(begin=8.0, end=8.5, k_R=6),
-            list(begin=16.0, end=16.5, k_R=6),
-            list(begin=24.0, end=24.5, k_R=6),
-            list(begin=32.0, end=32.5, k_R=6))
+ivt <- list(begin = 0, end = 0.5, k_R = 1)
 init <- c(0,0,0,0)
-sol <- pk_solution_3cpt_metab(pars, ivt, init)
-tms <- seq(0,32,0.1)
-plot(tms, sol(tms)[1,], type = "l", xlab = "Minutes", ylab = "Concentration")
-lines(tms, sol(tms)[4,], col = 2)
-legend("bottomright", c("Central concentration", "Effect-site concentration"), col = c(1,2), lty = c(1,1))
-Single infusion 3-compartment PK solution
-
-Piece-wise solution for a single infusion followed by a period with no infusion.
-This function is similar to pk_solution_3cpt_metab, except that it accepts and
-implements only the first infusion. This function exists primarily for
-reducing computational speed when searching for time until maximum concentration.
-
+sol <- pk_solution_3cpt_metab_singleinf(pars, ivt, init)
+sol(seq(0,5,0.1))
 }

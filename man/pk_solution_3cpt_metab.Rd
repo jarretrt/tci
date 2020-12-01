@@ -2,7 +2,7 @@
 % Please edit documentation in R/pk_mods.R
 \name{pk_solution_3cpt_metab}
 \alias{pk_solution_3cpt_metab}
-\title{pk_solution_3cpt_metab}
+\title{Iterate solution to three-compartment model}
 \usage{
 pk_solution_3cpt_metab(pars, ivt, init)
 }
@@ -15,31 +15,28 @@ pk_solution_3cpt_metab(pars, ivt, init)
 \item{init}{inital concentrations for the 4 compartments.}
 }
 \description{
-pk_solution_3cpt_metab
-}
-\examples{
-pk_vars <- c("V1","V2","V3","CL","Q2","Q3")
-pd_vars <- c("E50","KE0","EMAX","GAM","GAM1","RESD")
-pk_pars <- subset(pk_pars, ID == 403, select = pk_vars)
-pd_pars <- subset(pk_pars, ID == 403, select = pd_vars)
-
-sol <- pk_basic_solution_3cpt_metab(kR = 1,
-                                    k10 = pk_pars$CL / pk_pars$V1,
-                                    k12 = pk_pars$Q2 / pk_pars$V1,
-                                    k21 = pk_pars$Q2 / pk_pars$V2,
-                                    k13 = pk_pars$Q3 / pk_pars$V1,
-                                    k31 = pk_pars$Q3 / pk_pars$V3,
-                                    v1 = pk_pars$V1,
-                                    v2 = pk_pars$V2,
-                                    v3 = pk_pars$V3,
-                                    ke0 = pd_pars$KE0,
-                                    c0 = c(0,0,0,0))
-# concentration in central and effect site compartments
-tms <- seq(0,1,0.1)
-cbind(sol$c_1(tms), sol$c_4(tms))
-Iterate solution to three-compartment model
-
 This function extends the function pk_basic_solution_3cpt_metab to a specified infusion schedule, rather than a single
 infusion.
-
+}
+\examples{
+data(eleveld_pk)
+pk_pars <- subset(eleveld_pk, ID == 403, c("V1","V2","V3","CL","Q2","Q3"))
+pd_pars <- subset(eleveld_pd, ID == 403, c("E50","KE0","EMAX","GAM","GAM1","RESD"))
+pars <- c(k10 = pk_pars$CL / pk_pars$V1,
+          k12 = pk_pars$Q2 / pk_pars$V1,
+          k21 = pk_pars$Q2 / pk_pars$V2,
+          k13 = pk_pars$Q3 / pk_pars$V1,
+          k31 = pk_pars$Q3 / pk_pars$V3,
+          v1 = pk_pars$V1,
+          v2 = pk_pars$V2,
+          v3 = pk_pars$V3,
+          ke0 = pd_pars$KE0)
+ivt <- list(list(begin=0.0, end=0.5, k_R=6),
+            list(begin=8.0, end=8.5, k_R=6),
+            list(begin=16.0, end=16.5, k_R=6),
+            list(begin=24.0, end=24.5, k_R=6),
+            list(begin=32.0, end=32.5, k_R=6))
+init <- c(0,0,0,0)
+sol <- pk_solution_3cpt_metab(pars, ivt, init)
+sol(seq(0,32))
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/pkpd_assist.R
 \name{restrict_sigmoid}
 \alias{restrict_sigmoid}
-\title{restrict_sigmoid}
+\title{Restrict target sigmoid values}
 \usage{
 restrict_sigmoid(t50, tfinal = 10, eps = 1, BIS0 = 100, BISfinal = 50 - eps)
 }
@@ -18,14 +18,10 @@ restrict_sigmoid(t50, tfinal = 10, eps = 1, BIS0 = 100, BISfinal = 50 - eps)
 \item{BISfinal}{asymptote of Emax model}
 }
 \description{
-restrict_sigmoid
+Function to place restriction on gamma and E50 parameters of target sigmoid
+such that it passes through point (tfinal, BISfinal+eps)
 }
 \examples{
 dose <- data.frame(time = c(0.5,4,4.5,10), infrt = c(100,0,100,0))
 create_intvl(dose)
-Restrict target sigmoid values
-
-Function to place restriction on gamma and E50 parameters of target sigmoid
-such that it passes through point (tfinal, BISfinal+eps)
-
 }

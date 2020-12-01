@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulations.R
 \name{bayes_control}
 \alias{bayes_control}
-\title{Function to provide Bayesian closed-loop control to}
+\title{Bayesian closed-loop control}
 \usage{
 bayes_control(
   targets,
@@ -15,9 +15,10 @@ bayes_control(
   init0 = NULL,
   init_p = NULL,
   obs_tms = NULL,
-  dt = 1/60,
+  dt_obs = 1/6,
   sim_starttm = 0,
-  tci_alg = "effect"
+  tci_alg = "effect",
+  print_progress = FALSE
 )
 }
 \arguments{
@@ -45,12 +46,14 @@ matrices for the logged parameter values.}
 \item{obs_tms}{Times at which observations are collected. If null, observations will be
 made at fixed intervals specified by 'dt'.}
 
-\item{dt}{Interval between measurements.}
+\item{dt_obs}{Interval between measurements.}
 
 \item{sim_starttm}{Start time of simulation}
 
 \item{tci_alg}{TCI algorithm used. Defaults to effect-site targeting.}
+
+\item{print_progress}{Logical. Should current update times be printed to the console.}
 }
 \description{
-Function to provide Bayesian closed-loop control to
+Function to provide Bayesian closed-loop control.
 }

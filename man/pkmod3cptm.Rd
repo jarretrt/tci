@@ -39,3 +39,7 @@ central compartment (i.e. k41). The rate of absorption into the effect-site comp
 The function returns a set of functions that calculate the concentration in each of the four compartments as a function of
 time.
 }
+\examples{
+pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,k31=0.8,v1=10,v2=15,v3=100,ke0=1)
+pkmod3cptm(1,1,pars_3cpt)
+}

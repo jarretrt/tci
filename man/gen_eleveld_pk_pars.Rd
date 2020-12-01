@@ -2,7 +2,7 @@
 % Please edit documentation in R/pk_mods.R
 \name{gen_eleveld_pk_pars}
 \alias{gen_eleveld_pk_pars}
-\title{gen_eleveld_pk_pars}
+\title{Eleveld model PK parameters}
 \usage{
 gen_eleveld_pk_pars(theta, eta, patient_vars, returnQ = FALSE)
 }
@@ -16,29 +16,20 @@ gen_eleveld_pk_pars(theta, eta, patient_vars, returnQ = FALSE)
 \item{returnQ}{Logical. Should clearance be returned instead of rates}
 }
 \description{
-gen_eleveld_pk_pars
+Function to generate PK parameters for Eleveld model.
 }
 \examples{
-pk_pars <- eleveld_pk[eleveld_pk$ID == 403,c("V1","V2","V3","CL","Q2","Q3")]
-pd_pars <- eleveld_pd[eleveld_pd$ID == 403,c("E50","KE0","EMAX","GAM","GAM1","RESD")]
-pars <- c(k10 = pk_pars$CL / pk_pars$V1,
-          k12 = pk_pars$Q2 / pk_pars$V1,
-          k21 = pk_pars$Q2 / pk_pars$V2,
-          k13 = pk_pars$Q3 / pk_pars$V1,
-          k31 = pk_pars$Q3 / pk_pars$V3,
-          v1 = pk_pars$V1,
-          v2 = pk_pars$V2,
-          v3 = pk_pars$V3,
-          ke0 = pd_pars$KE0)
-ivt <- list(begin = 0, end = 0.5, k_R = 1)
-init <- c(0,0,0,0)
-sol <- pk_solution_3cpt_metab_singleinf(pars, ivt, init)
-tms <- seq(0,20,0.1)
-plot(tms, sol(tms)[1,], type = "l", xlab = "Minutes", ylab = "Concentration")
-lines(tms, sol(tms)[4,], col = 2)
-legend("bottomright", c("Central concentration", "Effect-site concentration"), col = c(1,2), lty = c(1,1))
-Eleveld model PK parameters
+data(eleveld_pk)
+# PK fixed effect values and random effect variances from Eleveld et al. (2018)
+eleveld_theta_pk_est <- c(6.28,25.5,273,1.79,1.75,1.11,0.191,42.3,9.06,-0.0156,
+-0.00286,33.6,-0.0138,68.3,2.10,1.30,1.42,0.68)
+eleveld_eta_pk_var <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463)
 
-Function to generate PK parameters for Eleveld model.
-
+# Example patient covariate values, fixed effects, and random effects
+vars <- c("AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")
+patient_covariates <- subset(eleveld_pk, ID == 403, select = vars)
+eta_obs <- c(mvtnorm::rmvnorm(1,sigma = diag(eleveld_eta_pk_var)))
+gen_eleveld_pk_pars(theta = eleveld_theta_pk_est,
+                    eta = eta_obs,
+                    patient_vars = patient_covariates)
 }

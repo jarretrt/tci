@@ -2,7 +2,7 @@
 % Please edit documentation in R/misc_functions.R
 \name{seqby}
 \alias{seqby}
-\title{Modified seq function to include bounds}
+\title{Sequence including bounds}
 \usage{
 seqby(from, to, by)
 }
@@ -14,5 +14,9 @@ seqby(from, to, by)
 \item{by}{increment of the sequence}
 }
 \description{
-Modified seq function to include bounds
+Create a sequence between two values at regular intervals and include bounds in output.
+}
+\examples{
+tail_vec(1:8)
+tail_vec(matrix(1:8,2,4))
 }

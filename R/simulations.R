@@ -219,7 +219,10 @@ log_posterior_neg <- function(lpr, dat, mu, sig, ...) {
 }
 
 
-#' Function to provide Bayesian closed-loop control to
+#' Bayesian closed-loop control
+#'
+#' Function to provide Bayesian closed-loop control.
+#'
 #' @param targets Data frame with columns ("time","target")
 #' @param updates Data frame of times at which closed-loop updates should be conducted and
 #' optional variable with logical values named 'full_data' indicating if full updates should
@@ -234,11 +237,12 @@ log_posterior_neg <- function(lpr, dat, mu, sig, ...) {
 #' @param init_p Predicted initial concentrations
 #' @param obs_tms Times at which observations are collected. If null, observations will be
 #' made at fixed intervals specified by 'dt'.
-#' @param dt Interval between measurements.
+#' @param dt_obs Interval between measurements.
 #' @param sim_starttm Start time of simulation
 #' @param tci_alg TCI algorithm used. Defaults to effect-site targeting.
 #' @param print_progress Logical. Should current update times be printed to the console.
 #'
+#' @importFrom utils head tail
 #' @export
 bayes_control <- function(targets, updates, prior, true_pars,
                           pkmod = pkmod3cptm, pdmod = emax_eleveld,

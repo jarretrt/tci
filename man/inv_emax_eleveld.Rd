@@ -2,7 +2,7 @@
 % Please edit documentation in R/pd_mods.R
 \name{inv_emax_eleveld}
 \alias{inv_emax_eleveld}
-\title{inv_emax_eleveld}
+\title{Inverse Emax function}
 \usage{
 inv_emax_eleveld(pdresp, pars)
 }
@@ -12,12 +12,10 @@ inv_emax_eleveld(pdresp, pars)
 \item{pars}{Named vector of parameter values with names (c50,gamma,E0,Emx).}
 }
 \description{
-inv_emax_eleveld
+Inverse of Emax function used by Eleveld population PK model.
 }
 \examples{
 pars_emax_eleveld <- c(c50 = 1.5, gamma = 1.47, gamma2 = 1.89, e0 = 100, emx = 100)
 ce_seq <- seq(0,4,0.1)
-plot(ce_seq, emax_eleveld(ce_seq, pars_emax_eleveld), type = "l", xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS")
-Inverse Emax function
-
+all.equal(inv_emax_eleveld(emax_eleveld(ce_seq, pars_emax_eleveld), pars_emax_eleveld), ce_seq)
 }

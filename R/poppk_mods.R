@@ -50,8 +50,9 @@ marsh_poppk <- function(df, rate = TRUE){
 #' marsh_poppk(data.frame(TBM = c(50,70,90)))
 
 
-#' Schnider population PK model
-#'
+#' @name schnider_poppk
+#' @title Schnider population PK model
+#' @description Evaluate Schnider population PK model at patient covariate values.
 #' @param df data frame with variable names "AGE","TBM","HGT","MALE"
 #' @param rate Logical. Should rate parameters be returned rather than clearance.
 #' Defaults to FALSE
@@ -115,11 +116,9 @@ schnider_poppk <- function(df, rate = FALSE, rand = FALSE){
 #' schnider_poppk(dat, rand = TRUE, rate = TRUE)
 
 
-#' Eleveld et al. population PK model.
-#'
-#' Function takes a data frame of patient covariate values with variable names
-#' "AGE","TBM","HGT","MALE" and returns PK parameter values.
-#'
+#' @name eleveld_poppk
+#' @title Eleveld population PK model
+#' @description Function takes a data frame of patient covariate values with variable names "AGE","TBM","HGT","MALE" and returns PK parameter values.
 #' @param df Data frame with variable names "AGE","TBM","HGT","MALE"
 #' @param PD Logical. Should PD parameters be returned in addition to PK parameters.
 #' Defaults to TRUE.
@@ -128,7 +127,6 @@ schnider_poppk <- function(df, rate = FALSE, rand = FALSE){
 #' @param rand Logical. Should a vector of Monte Carlo samples be returned instead
 #' of point estimates at patient covariate values. Defaults to FALSE.
 #' @export
-#'
 eleveld_poppk <- function(df, PD = TRUE, rate = FALSE, rand = FALSE){
 
   # fixed effect estimates
@@ -239,7 +237,7 @@ eleveld_poppk <- function(df, PD = TRUE, rate = FALSE, rand = FALSE){
 }
 #' @examples
 #' data(eleveld_pk)
-#' df <- eleveld_pk[1:10,c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2")]
+#' df <- subset(eleveld_pk, ID == 1, select = c("ID","AGE","WGT","HGT","M1F2","PMA","TECH","BMI","FFM","A1V2"))
 #' eleveld_poppk(df, rate = TRUE)
 #' eleveld_poppk(df, rate = FALSE, PD = TRUE, rand = TRUE)
 

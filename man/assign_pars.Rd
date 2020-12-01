@@ -2,7 +2,8 @@
 % Please edit documentation in R/pkpd_assist.R
 \name{assign_pars}
 \alias{assign_pars}
-\title{assign_pars}
+\title{Set default PK parameter values
+Set default PK parameter values for a pkmod object.}
 \usage{
 assign_pars(pkmod, pars)
 }
@@ -13,7 +14,5 @@ assign_pars(pkmod, pars)
 }
 \description{
 Set default PK parameter values
-}
-\details{
 Set default PK parameter values for a pkmod object.
 }

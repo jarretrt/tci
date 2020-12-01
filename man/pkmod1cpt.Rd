@@ -20,3 +20,6 @@ pkmod1cpt(tm, kR, pars, init = 0, inittm = 0)
 \description{
 One compartment IV infusion with first-order elimination.
 }
+\examples{
+pkmod1cpt(1,1,c(ke = 0.5, v = 1))
+}

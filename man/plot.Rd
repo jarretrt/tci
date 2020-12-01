@@ -24,15 +24,7 @@
 
 \method{plot}{tciinf}(x, ..., title = NULL)
 
-\method{plot}{datasim}(
-  x,
-  lpars_prior = NULL,
-  lpars_update = NULL,
-  lpars_fixed = NULL,
-  pd_ix = 10,
-  dt = 1/60,
-  ...
-)
+\method{plot}{datasim}(x, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10, dt = 1/60, ...)
 }
 \arguments{
 \item{x}{An object with class datasim, created by function `gen_data`.}
@@ -56,9 +48,6 @@ the PD response. Defaults to TRUE.}
 
 \item{ecmpt}{Effect-site compartment number. Defaults to the last
 compartment concentration returned by pkmod.}
-
-\item{lpars_prior}{Logged prior parameters for plotting predicted concentrations
-alongside observed data.}
 
 \item{lpars_update}{Logged posterior parameters for plotting predicted concentrations
 alongside observed data.}

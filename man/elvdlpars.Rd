@@ -2,7 +2,7 @@
 % Please edit documentation in R/pkpd_assist.R
 \name{elvdlpars}
 \alias{elvdlpars}
-\title{elvdlpars}
+\title{Get logged parameters updated in Eleveld model}
 \usage{
 elvdlpars(x, pd = TRUE)
 }
@@ -12,13 +12,6 @@ elvdlpars(x, pd = TRUE)
 \item{pd}{Logical. Should PD parameters be returned in addition to PK parameters.}
 }
 \description{
-elvdlpars
-}
-\examples{
-poppk_cov("Eleveld", pd = TRUE)
-Get logged parameters updated in Eleveld model
-
 Extract the logged parameter values to be updated within the Eleveld model
 from a data frame of patient PK-PD values.
-
 }

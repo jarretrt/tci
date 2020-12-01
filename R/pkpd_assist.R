@@ -36,19 +36,16 @@ create_intvl <- function(dose, inittm = 0){
 
 
 
-#' Restrict target sigmoid values
-#'
-#' Function to place restriction on gamma and E50 parameters of target sigmoid
+#' @name restrict_sigmoid
+#' @title Restrict target sigmoid values
+#' @description Function to place restriction on gamma and E50 parameters of target sigmoid
 #' such that it passes through point (tfinal, BISfinal+eps)
 #'
-#' @name restrict_sigmoid
-#' @title restrict_sigmoid
 #' @param t50 parameter of Emax model
 #' @param tfinal end of the induction period
 #' @param eps distance between BISfinal and the target function at tfinal
 #' @param BIS0 starting BIS value
 #' @param BISfinal asymptote of Emax model
-#'
 #' @export
 restrict_sigmoid <- function(t50, tfinal =10, eps = 1, BIS0 = 100, BISfinal = 50-eps){
   gamma <- log((BIS0-BISfinal)/eps - 1, base = tfinal/t50)
@@ -56,54 +53,11 @@ restrict_sigmoid <- function(t50, tfinal =10, eps = 1, BIS0 = 100, BISfinal = 50
 }
 
 
-#' Get variance-covariance matrix for population PK-PD models
-#'
-#' NOTE: This needs to be modified. There are correlations between parameters
-#' induced by patient covariates.
-#'
-#' Function to extract covariance from population pk or pk-pd models
-#' This gives the covariance for the random effects about the fixed effect estimates.
-#' The variance estimates for the residual error terms give the variance of error terms
-#' within the population about the logged
-#'
-#' @param poppk Selection of Schnnider PK model or Eleveld PK-PD model
-#' @param pd Logical. Should PD parameters be returned for Eleveld model
-#'
-#' @export
-poppk_cov <- function(poppk = c("Schnider","Eleveld"), pd = TRUE){
-  warning("This function isn't working properly. Covariance terms should be non-zero
-          for some parameters.")
-
-  poppk <- match.arg(poppk)
-  if(poppk == "Schnider") out <- diag(c(0.278,2.330,34.900,0.059,0.112,0.044,0.070,0.009,0.017,0.009,0.005))
-
-  if(poppk == "Eleveld"){
-    warning("Eleveld v")
-    lvars <- c(0.610,0.565,0.597,0.265,0.346,0.209,0.463,0.242,0.702,0.230)
-    names(lvars) <- c("v1","v2","v3","cl","q2","q3","resid_pk","ce50","ke0","resid_pd")
-    lvars <- c(lvars, c(k10 = unname(lvars["cl"] + lvars["v1"]),
-                        k12 = unname(lvars["q2"] + lvars["v1"]),
-                        k21 = unname(lvars["q2"] + lvars["v2"]),
-                        k13 = unname(lvars["q3"] + lvars["v1"]),
-                        k31 = unname(lvars["q3"] + lvars["v3"])))
-    if(pd){
-      return(diag(lvars[c("k10","k12","k21","k13","k31","v1","v2","v3","ke0","ce50","resid_pd")]))
-    } else{
-      return(diag(lvars[c("k10","k12","k21","k13","k31","v1","v2","v3","ke0","resid_pk")]))
-    }
-  }
-}
-#' @examples poppk_cov("Eleveld", pd = TRUE)
-
-
-
 #' Generate variance-covariance matrix for Eleveld PK-PD model
 #'
 #' Generate the variance-covariance matrix for Eleveld PK-PD model for an observation
 #' via Monte Carlo sampling.
 #'
-#' @name eleveld_vcov
-#' @title eleveld_vcov
 #' @param dat Data frame of observed patient covariates
 #' @param N Number of Monte Carlo samples
 #' @param rates Logical. Should rate constants be calculated
@@ -114,7 +68,6 @@ eleveld_vcov <- function(dat,
                          N = 1000,
                          rates = TRUE,
                          varnames = c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")){
-
 
   vcv_list <- lapply(1:nrow(dat), function(i){
     mc_samples <- replicate(N, log(unlist(
@@ -141,8 +94,6 @@ eleveld_vcov <- function(dat,
 #' Extract the logged parameter values to be updated within the Eleveld model
 #' from a data frame of patient PK-PD values.
 #'
-#' @name elvdlpars
-#' @title elvdlpars
 #' @param x Vector or data frame with Eleveld PK-PD model parameters
 #' @param pd Logical. Should PD parameters be returned in addition to PK parameters.
 #' @export
@@ -164,10 +115,7 @@ elvdlpars <- function(x, pd = TRUE){
 
 
 #' Set default PK parameter values
-#'
 #' Set default PK parameter values for a pkmod object.
-#' @name assign_pars
-#' @title assign_pars
 #' @param pkmod pkmod object
 #' @param pars PK parameters to assign as default values of pkmod
 #' @export
