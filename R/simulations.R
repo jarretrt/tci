@@ -332,43 +332,42 @@ bayes_control <- function(targets, updates, prior, true_pars,
       dat_eval <- dat0
 
       # use full dataset and original vcov matrix
-      post_est <- nlm(f = log_posterior_neg,
-                      p = lpr,
-                      dat = dat_eval,
-                      mu = lpr,
-                      sig = prior0$sig,
-                      fixed_lpr = lpr_fixed,
-                      hessian = FALSE,
-                      steptol=1e-6, gradtol=1e-6, stepmax = 5,
-                      iterlim = 2000)
+      post_est <- optim(par = lpr,
+                        fn = log_posterior_neg,
+                        dat = dat_eval,
+                        mu = lpr,
+                        sig = prior0$sig,
+                        fixed_lpr = lpr_fixed,
+                        method = "Nelder-Mead",
+                        hessian = FALSE)
+
     } else{
       dat_eval <- dat
-      post_est <- nlm(f = log_posterior_neg,
-                      p = lpr,
-                      dat = dat_eval,
-                      mu = lpr,
-                      sig = prior$sig,
-                      fixed_lpr = lpr_fixed,
-                      hessian = TRUE,
-                      steptol=1e-6, gradtol=1e-6, stepmax = 5,
-                      iterlim = 2000)
+      post_est <- optim(par = lpr,
+                        fn = log_posterior_neg,
+                        dat = dat_eval,
+                        mu = lpr,
+                        sig = prior$sig,
+                        fixed_lpr = lpr_fixed,
+                        method = "Nelder-Mead",
+                        hessian = TRUE)
 
      # update vcov matrix
      prior$sig <- solve(post_est$hessian)
     }
 
     if(plot_progress[i]){
-      print(plot(dat0, lpars_update = post_est$estimate,
+      print(plot(dat0, lpars_update = post_est$par,
                          lpars_fixed = log(prior$pars_pkpd[prior$fixed_ix])))
     }
 
     # update prior values
     if(any(!is.null(prior$fixed_ix))){
-      prior$pars_pkpd[-prior$fixed_ix] <- exp(head(post_est$estimate,-1))
-      prior$err <- exp(tail(post_est$estimate,1))
+      prior$pars_pkpd[-prior$fixed_ix] <- exp(head(post_est$par,-1))
+      prior$err <- exp(tail(post_est$par,1))
     } else{
-      prior$pars_pkpd <- exp(head(post_est$estimate,-1))
-      prior$err <- exp(tail(post_est$estimate,1))
+      prior$pars_pkpd <- exp(head(post_est$par,-1))
+      prior$err <- exp(tail(post_est$par,1))
     }
 
     # update true and predicted initial values
