@@ -137,6 +137,7 @@ plot.pkmod <- function(x, ..., inf, npts = 1000, title = NULL){
   # predict concentrations
   con <- data.frame(predict(x, inf = inf, dt = dt, return_init = TRUE, ...))
 
+  colnames(con) <- gsub("^c", "Cmpt", colnames(con))
   ggplot2::ggplot(reshape::melt(con, id = "time"),
                   ggplot2::aes(x = time,
                                y = value,
