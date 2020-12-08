@@ -72,6 +72,12 @@ plot(pkmod3cptm, inf = dose, pars = pars_3cpt,
 
 <img src="README_files/figure-gfm/dose-object-1.png" style="display: block; margin: auto;" />
 
+Closed-form PK model solutions for 1-, 2-, and 3-compartment models are
+provided by the `tci` package based on solutions and code in Abuhelwa,
+Foster, and Upton (2015). Custom user-defined PK models, potentially
+using ODE solvers available in other packages, can be specified and
+used. See the vignette on user-defined PK functions for an example.
+
 ### TCI algorithms
 
 TCI algorithms are iteratively applied through the function ‘tci’. Times
@@ -191,3 +197,18 @@ head(tci_patient1)
 models provided that they return parameters with either elimination
 rate-constants named “k10”, “k12”, etc. (capitalization optional), or as
 clearance parameters “CL”, “Q2”, etc.
+
+## References
+
+<div id="refs" class="references hanging-indent">
+
+<div id="ref-Abuhelwa2015">
+
+Abuhelwa, Ahmad Y., David J R Foster, and Richard N. Upton. 2015.
+“ADVAN-style analytical solutions for common pharmacokinetic models.”
+*Journal of Pharmacological and Toxicological Methods* 73: 42–48.
+<https://doi.org/10.1016/j.vascn.2015.03.004>.
+
+</div>
+
+</div>

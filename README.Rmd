@@ -1,7 +1,7 @@
 ---
 title: "README"
 output: github_document
-bibliography: ../bibfile.bib
+bibliography: bibfile.bib
 ---
 
 ```{r, setup, echo = FALSE, message=FALSE, warning=FALSE}
@@ -130,7 +130,7 @@ head(tci_patient1)
 `tci` functions are compatible with other user-specified population PK models provided that they return parameters with either elimination rate-constants named "k10", "k12", etc. (capitalization optional), or as clearance parameters "CL", "Q2", etc.
 
 
-
+## References
 
 
 
