@@ -61,10 +61,7 @@ marsh_poppk <- function(df, rate = TRUE){
 #' @export
 schnider_poppk <- function(df, rate = FALSE, rand = FALSE){
 
-  covar_names <- c("AGE","TBM","HGT","MALE")
-  if(!all(covar_names %in% names(df))) stop(
-    paste('The data frame must have a columns named',
-          paste(covar_names, collapse = ", ")))
+  if(!all(c("AGE","TBM","HGT","MALE") %in% names(df))) stop("df must have columns named ('AGE','TBM','HGT','MALE')")
 
   # fixed effect estimates
   theta0 <- c(4.27,18.9,238,1.89,1.29,0.836,-0.391,0.0456,-0.0681,0.0264,0.024)
