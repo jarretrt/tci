@@ -298,7 +298,7 @@ plot.tciinf <- function(x, ..., title = NULL, display = TRUE){
   }
 
   if(display){
-    print(gb)
+    plot(gb)
   } else{
     gb
   }
