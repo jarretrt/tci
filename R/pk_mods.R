@@ -99,7 +99,7 @@ class(pkmod2cpt) <- "pkmod"
 #' @param k20 Elimination rate constant for second compartment. Defaults to 0.
 #' @param k30 Elimination rate constant for second compartment. Defaults to 0.
 #' @examples
-#' pkmod3cpt(1,1,c(CL = 15, Q12 = 10, Q13 = 5, V1 = 10, V2 = 20, V3 = 50))
+#' pkmod3cpt(1,1,c(CL = 15, Q2 = 10, Q3 = 5, V1 = 10, V2 = 20, V3 = 50))
 #' @export
 pkmod3cpt <- function(tm, kR, pars, init = c(0,0,0), inittm = 0, k20 = 0, k30 = 0){
 

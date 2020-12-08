@@ -1,5 +1,10 @@
 # user-specific files
 .Rproj.user
 inst/doc
+
+# README files
+README.Rmd
+README_files
+
 # references for vignettes
-bibfile.bib 
+vignettes/bibfile.bib 

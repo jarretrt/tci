@@ -2,7 +2,7 @@
 % Please edit documentation in R/pk_mods.R
 \name{pkmod3cptm}
 \alias{pkmod3cptm}
-\title{Solution to three-compartment IV model}
+\title{Solution to three-compartment IV model with effect-site}
 \usage{
 pkmod3cptm(
   tm,

@@ -1,2 +1,6 @@
 ^tci\.Rproj$
 ^\.Rproj\.user$
+
+# generate README.md
+README.Rmd
+README_files

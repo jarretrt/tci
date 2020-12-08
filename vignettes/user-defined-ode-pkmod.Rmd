@@ -5,7 +5,7 @@ vignette: >
   %\VignetteIndexEntry{Simulation from a user-specified, ODE-based PK model}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-bibliography: ../bibfile.bib  
+bibliography: bibfile.bib  
 ---
 
 ```{r, include = FALSE}

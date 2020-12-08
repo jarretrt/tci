@@ -1,7 +1,7 @@
 ---
 title: "README"
 output: github_document
-bibliography: bibfile.bib
+bibliography: vignettes/bibfile.bib
 ---
 
 ```{r, setup, echo = FALSE, message=FALSE, warning=FALSE}

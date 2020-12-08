@@ -22,9 +22,17 @@
   ecmpt = NULL
 )
 
-\method{plot}{tciinf}(x, ..., title = NULL, display = FALSE)
+\method{plot}{tciinf}(x, ..., title = NULL, display = TRUE)
 
-\method{plot}{datasim}(x, lpars_update = NULL, lpars_fixed = NULL, pd_ix = 10, dt = 1/60, ...)
+\method{plot}{datasim}(
+  x,
+  lpars_update = NULL,
+  lpars_fixed = NULL,
+  pd_ix = 10,
+  dt = 1/60,
+  plot_prior = TRUE,
+  ...
+)
 }
 \arguments{
 \item{x}{An object with class datasim, created by function `gen_data`.}
@@ -60,6 +68,8 @@ alongside observed data.}
 lpars_update.}
 
 \item{dt}{Time interval used to predict PK-PD values.}
+
+\item{plot_prior}{Logical. Should predictions from prior distribution be plotted?}
 }
 \description{
 Will show predicted concentrations in compartments associated with an infusion schedule.

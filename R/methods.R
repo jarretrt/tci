@@ -315,6 +315,7 @@ plot.tciinf <- function(x, ..., title = NULL, display = TRUE){
 #' @param pd_ix Parameter vector of indices for PD parameters in arguments lpars_prior,
 #' lpars_update.
 #' @param dt Time interval used to predict PK-PD values.
+#' @param plot_prior Logical. Should predictions from prior distribution be plotted?
 #' @param ... \dots
 #'
 #' @rdname plot
