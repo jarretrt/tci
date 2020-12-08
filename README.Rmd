@@ -1,6 +1,7 @@
 ---
 title: "README"
 output: github_document
+bibliography: ../bibfile.bib
 ---
 
 ```{r, setup, echo = FALSE, message=FALSE, warning=FALSE}
@@ -57,12 +58,15 @@ plot(pkmod3cptm, inf = dose, pars = pars_3cpt,
      title = "Concentrations for a 3 compartment model with an effect site")
 ```
 
+Closed-form PK model solutions for 1-, 2-, and 3-compartment models are provided by the `tci` package based on solutions and code in @Abuhelwa2015. Custom user-defined PK models, potentially using ODE solvers available in other packages, can be specified and used. See the vignette on user-defined PK functions for an example.
+
+
 
 ### TCI algorithms
 
 TCI algorithms are iteratively applied through the function 'tci'. Times and target concentrations are passed as arguments along with a PK model, PK model parameters, and (optional) initial concentrations. Times and targets should include the time/concentration associated with the end of the infusion schedule. Plasma or effect-site targeting is specified through the "tci_alg" argument, or a custom TCI algorithm is provided through the argument "tci_custom." 
 
-```{r, tci-algs, fig.height=10}
+```{r, tci-algs}
 # target concentrations of 2 for 0-5 minutes and 3 for 5-10 minutes.
 tci_times <- c(0,5,10,10)
 tci_targets <- c(2,3,3,3)
@@ -87,7 +91,7 @@ head(inf_3cpt_effect)
 
 Infusion schedules are provided in the output of 'tci' along with predicted concentrations and can be plotted with the "plot.tciinf" method.
 
-```{r, plot-tci}
+```{r, plot-tci, fig.height=10}
 ptci_2ug_plasma <- plot(inf_3cpt_plasma, 
                         title = "Plasma targeting for three-compartment model",
                         display = FALSE)
