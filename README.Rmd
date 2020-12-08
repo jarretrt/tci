@@ -1,0 +1,96 @@
+---
+title: "README"
+output: github_document
+---
+
+```{r, setup, echo = FALSE, message=FALSE, warning=FALSE}
+# load packages
+library(tci)
+library(knitr)
+library(gridExtra)
+
+opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align="center")
+```
+
+# tci
+
+The `tci` package can be used to apply target-controlled infusion (TCI) algorithms to 1-, 2-, and 3-compartment pharmacokinetic (PK) models with intravenous drug administration. Three-compartment PK models with an effect-site compartment are also supported. TCI algorithms incorporated in the package permit plasma or effect-site targeting and incorporation of closed-form pharmacodynamic (PD) models. Alternate user-defined PK models, population PK models, or TCI algorithms can additionally be specified. 
+
+## Installation
+
+The `tci` package can be installed from GitHub using the `devtools` package and loaded as follows. 
+
+```{r, eval = FALSE}
+devtools::install_github("jarretrt/tci")
+library(tci)
+```
+
+
+## Examples
+
+PK models can be evaluated by the `predict.pkmod` method in combination with a dosing schedule. Dosing schedules should indicate infusion starting times and rates, with the infusion termination time specified with rate 0. 
+
+
+```{r, dose-object}
+# e.g. infusion rates of 100 mg/hr for 30 sec intervals at 0, 4 minutes.
+dose <- create_intvl(
+  as.matrix(cbind(time = c(0.5,4,4.5,10), 
+                  infrt = c(100,0,100,0)))
+)
+dose
+
+# model parameters 
+pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,
+               k31=0.8,v1=10,v2=15,v3=100,ke0=1)
+
+# predict concentrations of a three-compartment model with effect-site at
+# times 1, 2, 8 minutes
+predict(pkmod3cptm, 
+        pars = pars_3cpt,
+        inf = dose, 
+        tms = c(1,2,8))
+
+# plot concentrations
+plot(pkmod3cptm, inf = dose, pars = pars_3cpt,
+     title = "Concentrations for a 3 compartment model with an effect site")
+```
+
+
+TCI algorithms are iteratively applied through the function 'tci'. Times and target concentrations are passed as arguments along with a PK model, PK model parameters, and (optional) initial concentrations. Times and targets should include the time/concentration associated with the end of the infusion schedule. Plasma or effect-site targeting is specified through the "tci_alg" argument, or a custom TCI algorithm is provided through the argument "tci_custom." 
+
+```{r, tci-algs, fig.height=8}
+# target concentrations of 2 for 0-5 minutes and 3 for 5-10 minutes.
+tci_times <- c(0,5,10,10)
+tci_targets <- c(2,3,3,3)
+
+# plasma-targeting
+inf_3cpt_plasma <- tci(Ct = tci_targets, 
+                       tms = tci_times, 
+                       pkmod = pkmod3cptm, 
+                       pars = pars_3cpt, 
+                       tci_alg = "plasma")
+
+# infusions for effect-site targeting
+inf_3cpt_effect <- tci(Ct = tci_targets, 
+                       tms = tci_times, 
+                       pkmod = pkmod3cptm, 
+                       pars = pars_3cpt, 
+                       tci_alg = "effect", 
+                       cptol = 0.2)
+
+ptci_2ug_plasma <- plot(inf_3cpt_plasma, 
+                        title = "Plasma targeting for three-compartment model",
+                        display = FALSE)
+
+ptci_2ug_effect <- plot(inf_3cpt_effect, 
+                        title = "Effect-site targeting for three-compartment model",
+                        display = FALSE)
+
+grid.arrange(ptci_2ug_plasma, ptci_2ug_effect)
+```
+
+
+
+
+
+

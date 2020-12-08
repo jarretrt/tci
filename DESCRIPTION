@@ -2,7 +2,7 @@ Package: tci
 Title: Target Controlled Infusion (TCI)
 Version: 0.0.0.9000
 Authors@R: person("Ryan", "Jarrett", email = "ryan.t.jarrett@vanderbilt.edu", role = c("aut", "cre"))
-Description: This package implements target controlled infusion (TCI) algorithms for compartment pharmacokinetic (PK) models.
+Description: This package implements target controlled infusion (TCI) algorithms for compartment pharmacokinetic and pharmacokinetic-pharmacodynamic models.
 Depends: R (>= 3.6.0)
 License: GPL-2
 Encoding: UTF-8
