@@ -185,6 +185,7 @@ tci <- function(Ct, tms, pkmod, pars, init = NULL,
                              tci_custom = NULL, dt = 1/6, ...){
 
   tci_alg <- match.arg(tci_alg)
+  if(is.list(pars)) pars <- unlist(pars)
 
   if(!is.null(tci_custom)){
     tci_alg <- tci_custom
