@@ -28,6 +28,8 @@ library(tci)
 
 ## Examples
 
+### PK Models
+
 PK models can be evaluated by the `predict.pkmod` method in combination with a dosing schedule. Dosing schedules should indicate infusion starting times and rates, with the infusion termination time specified with rate 0. 
 
 
@@ -56,9 +58,11 @@ plot(pkmod3cptm, inf = dose, pars = pars_3cpt,
 ```
 
 
+### TCI algorithms
+
 TCI algorithms are iteratively applied through the function 'tci'. Times and target concentrations are passed as arguments along with a PK model, PK model parameters, and (optional) initial concentrations. Times and targets should include the time/concentration associated with the end of the infusion schedule. Plasma or effect-site targeting is specified through the "tci_alg" argument, or a custom TCI algorithm is provided through the argument "tci_custom." 
 
-```{r, tci-algs, fig.height=8}
+```{r, tci-algs, fig.height=10}
 # target concentrations of 2 for 0-5 minutes and 3 for 5-10 minutes.
 tci_times <- c(0,5,10,10)
 tci_targets <- c(2,3,3,3)
@@ -78,6 +82,12 @@ inf_3cpt_effect <- tci(Ct = tci_targets,
                        tci_alg = "effect", 
                        cptol = 0.2)
 
+head(inf_3cpt_effect)
+```
+
+Infusion schedules are provided in the output of 'tci' along with predicted concentrations and can be plotted with the "plot.tciinf" method.
+
+```{r, plot-tci}
 ptci_2ug_plasma <- plot(inf_3cpt_plasma, 
                         title = "Plasma targeting for three-compartment model",
                         display = FALSE)
@@ -88,6 +98,35 @@ ptci_2ug_effect <- plot(inf_3cpt_effect,
 
 grid.arrange(ptci_2ug_plasma, ptci_2ug_effect)
 ```
+
+
+### Population PK models
+
+Functions implementing the Marsh, Schnider, and Eleveld population PK models for propofol (PK-PD for Eleveld model) are currently provided and can be used to calculate PK and PK-PD parameters at patient covariates or to simulate parameters for new patients given inter-patient parameter variability. 
+
+```{r, poppk}
+patient_dat <- data.frame(AGE  = c(20,40,65),
+                          TBM  = c(50,70,90),
+                          HGT  = c(150,170,200),
+                          MALE = c(TRUE,FALSE,TRUE))
+
+# evaluate at covariate values and return clearance parameters
+patient_pk <- schnider_poppk(patient_dat, rand = FALSE, rate = FALSE)
+patient_pk
+
+# evaluate TCI for patient 1
+tci_patient1 <- tci(Ct = tci_targets, 
+                    tms = tci_times, 
+                    pkmod = pkmod3cptm, 
+                    pars = patient_pk[1,], 
+                    tci_alg = "effect")
+head(tci_patient1)
+```
+
+`tci` functions are compatible with other user-specified population PK models provided that they return parameters with either elimination rate-constants named "k10", "k12", etc. (capitalization optional), or as clearance parameters "CL", "Q2", etc.
+
+
+
 
 
 
