@@ -31,7 +31,7 @@ pkmod1cpt <- function(tm, kR, pars, init = 0, inittm = 0){
 class(pkmod1cpt) <- "pkmod"
 
 
-#' Solution to three-compartment IV model
+#' Solution to three-compartment IV model with effect-site
 #'
 #' 3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.
 #' The analytical solutions implemented in this function are provided in "ADVAN-style analytical solutions for common pharmacokinetic models" by
