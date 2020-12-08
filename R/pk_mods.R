@@ -208,18 +208,28 @@ pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0,
 
   names(pars) <- tolower(names(pars))
 
-  if(any(!(c("k10","k12","k21","k13","k31","v1","v2","v3","ke0") %in% names(pars))))
-    stop("pars must include names ('k10','k12','k21','k13','k31','v1','v2','v3','ke0')")
+  if(any(!(c("k10","k12","k21","k13","k31","ke0","v1","v2","v3") %in% names(pars))) &
+     any(!(c("cl","q12","q13","ke0","v1","v2","v3") %in% names(pars))))
+    stop("pars must have names ('k10','k12','k21','k13','k31','v1','v2','v3','ke0') or ('cl','q12','q21','v1','v2','v3','ke0')")
 
-  k10 <- pars["k10"]
-  k12 <- pars["k12"]
-  k21 <- pars["k21"]
-  k13 <- pars["k13"]
-  k31 <- pars["k31"]
-  v1  <- pars["v1"]
-  v2  <- pars["v1"]
-  v3  <- pars["v1"]
-  kme <- pars["ke0"]
+  v1 <- pars["v1"]
+  v2 <- pars["v2"]
+  v3 <- pars["v3"]
+  kme <- ke0 <- pars["ke0"]
+
+  if(all(c("cl","q12","q13") %in% names(pars))){
+    k10 <- pars["cl"]  / v1
+    k12 <- pars["q12"] / v1
+    k21 <- pars["q12"] / v2
+    k13 <- pars["q13"] / v1
+    k31 <- pars["q13"] / v3
+  } else{
+    k10 <- pars["k10"]
+    k12 <- pars["k12"]
+    k21 <- pars["k21"]
+    k13 <- pars["k13"]
+    k31 <- pars["k31"]
+  }
 
   if(!("k20" %in% names(pars))){
     k20 <- 0
