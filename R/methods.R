@@ -237,7 +237,7 @@ plot.pdmod <- function(x, ..., pkmod, inf, pars_pd, pars_pk = NULL, npts = 1000,
 #'
 #' @rdname plot
 #' @export
-plot.tciinf <- function(x, ..., title = NULL, display = FALSE){
+plot.tciinf <- function(x, ..., title = NULL, display = TRUE){
 
   begin <- value <- variable <- NULL
 
@@ -290,11 +290,11 @@ plot.tciinf <- function(x, ..., title = NULL, display = FALSE){
   }
 
   if("pdresp_start" %in% names(tciinf)){
-    gridExtra::grid.arrange(ppd, ppk, nrow = 2, top = title)
-    # gb <- gridExtra::arrangeGrob(ppd, ppk, nrow = 2, top = title)
+    # gridExtra::grid.arrange(ppd, ppk, nrow = 2, top = title)
+    gb <- gridExtra::arrangeGrob(ppd, ppk, nrow = 2, top = title)
   } else{
-    gridExtra::grid.arrange(ppk, top = title)
-    # gb <- gridExtra::arrangeGrob(ppk, top = title)
+    # gridExtra::grid.arrange(ppk, top = title)
+    gb <- gridExtra::arrangeGrob(ppk, top = title)
   }
 
   if(display){
