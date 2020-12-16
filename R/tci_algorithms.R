@@ -57,7 +57,7 @@ tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
 #' Can be increased for more precision.
 #' @param ... Arguments used by pkmod.
 #' @export
-tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20,
+tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 10,
                         maxrt = 1200, grid_len = 1200, ...){
 
   list2env(list(...), envir = environment())
@@ -86,7 +86,16 @@ tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20,
   # this will always be shorter when any prior drug has been infused
   grid_tmax <- seq(0,tmax_search,length.out = grid_len)
   con_proj <- E(grid_tmax)
-  peak_ix <- which.max(con_proj)
+  con_dif <- diff(con_proj)
+  while(all(con_dif > 0)){
+    tmax_search <- tmax_search*2
+    grid_tmax <- seq(0,tmax_search,length.out = grid_len)
+    con_proj <- E(grid_tmax)
+    con_dif <- diff(con_proj)
+  }
+
+  peak_ix <- min(which(diff(con_proj) < 0))
+# peak_ix <- which.max(con_proj)
 
   if(all(init == 0)){
     kR <- Cet / con_proj[peak_ix]
