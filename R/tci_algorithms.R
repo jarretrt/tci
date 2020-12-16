@@ -58,54 +58,55 @@ tci_plasma <- function(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...){
 #' @param ... Arguments used by pkmod.
 #' @export
 tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20,
-                       maxrt = 1200, grid_len = 1200, ...){
+                        maxrt = 1200, grid_len = 1200, ...){
 
   list2env(list(...), envir = environment())
   if(is.null(init)) init <- eval(formals(pkmod)$init)
   if(is.null(pars)) pars <- try(eval(formals(pkmod)$pars),
                                 silent = TRUE)
   if(is.null(ecmpt)) ecmpt <- length(init)
-  if(class(pars) == "try-error") stop("PK parameters must either be provided as arguments to the TCI algorithm or as defaults to the PK model.")
+  if(class(pars) == "try-error")
+    stop("PK parameters must either be provided as arguments to the TCI algorithm or as defaults to the PK model.")
 
   ecmpt_name <- paste0("c",ecmpt)
 
-  # infusions corresponding to unit infusion for duration and a null infusion
+  # infusions corresponding to unit infusion for duration dt and a null infusion
   unit_inf <- create_intvl(data.frame(time = c(dt, tmax_search), infrt = c(1,0)))
   null_inf <- create_intvl(data.frame(time = tmax_search, infrt = 0))
 
-  # predict concentrations with no additional infusions
+  # predict concentrations with no additional infusions and starting concentrations
   B <- function(tm)
     predict(pkmod, inf = null_inf, pars = pars, init = init, tms = tm)[,ecmpt_name]
 
-  # predict concentrations with no additional infusions
+  # predict concentrations with unit infusion and no starting concentrations
   E <- function(tm)
     predict(pkmod, inf = unit_inf, pars = pars, init = rep(0,length(init)), tms = tm)[,ecmpt_name]
 
-  # predict to find the longest time of maximum concentration -- will always be shorter when any prior drug has been infused.
+  # predict to find the longest time of maximum concentration
+  # this will always be shorter when any prior drug has been infused
   grid_tmax <- seq(0,tmax_search,length.out = grid_len)
   con_proj <- E(grid_tmax)
   peak_ix <- which.max(con_proj)
-  con_peak <- con_proj[peak_ix]
-  tpeak <- grid_tmax[peak_ix]
 
   if(all(init == 0)){
-    kR <- Cet / con_peak
+    kR <- Cet / con_proj[peak_ix]
   } else{
-    tms <- seq(0, tpeak+0.5, length.out = grid_len)
-    jpeak0 = tpeak - 0.1
-    jpeak1 = jpeak0 + 0.1
+    tms <- seq(0, grid_tmax[peak_ix]+0.5, length.out = grid_len)
+    Bpred <- B(tms)
+    Epred <- E(tms)
+    peak_ix <- which.max(Epred)
+    jpeak1 <- tms[peak_ix]
+    jpeak0 <- tms[peak_ix-1]
     iter = 0
 
     while(jpeak0 != jpeak1){
       if(iter > 100) stop("Effect-site TCI algorithm did not converge.")
       jpeak0 = jpeak1
-      I0 = (Cet - B(jpeak0)) / E(jpeak0)
-      ceproj = B(tms) + E(tms)*I0
-      jpeak1 = tms[which.max(ceproj)]
+      I0 = (Cet - Bpred[which(tms == jpeak0)]) / Epred[which(tms == jpeak0)]
+      jpeak1 = tms[which.max(Bpred + Epred*I0)]
       iter = iter + 1
     }
-
-    kR = unname((Cet-B(jpeak1)) / E(jpeak1))
+    kR = unname((Cet-Bpred[which(tms == jpeak1)]) / Epred[which(tms == jpeak1)])
   }
 
   if(kR < 0) kR = 0
@@ -113,7 +114,6 @@ tci_effect <- function(Cet, pkmod, dt = 1/6, ecmpt = NULL, tmax_search = 20,
 
   return(c(kR = kR))
 }
-
 
 
 #' Effect-site TCI algorithm with plasma targeting within small range of target
