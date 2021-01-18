@@ -7,9 +7,9 @@
 tci_effect(
   Cet,
   pkmod,
-  dt = 1/6,
+  dtm = 1/6,
   ecmpt = NULL,
-  tmax_search = 20,
+  tmax_search = 10,
   maxrt = 1200,
   grid_len = 1200,
   ...
@@ -20,12 +20,12 @@ tci_effect(
 
 \item{pkmod}{PK model}
 
-\item{dt}{Frequency of TCI updates. Default is 1/6 minutes = 10 seconds.}
+\item{dtm}{Frequency of TCI updates. Default is 1/6 minutes = 10 seconds.}
 
 \item{ecmpt}{Effect site compartment number}
 
 \item{tmax_search}{Outer bound on times searched to find a maximum concentration
-following an infusion of duration dt. Defaults to 20 minutes. May need to be increased
+following an infusion of duration dtm. Defaults to 20 minutes. May need to be increased
 if a drug has a slow elimination rate.}
 
 \item{maxrt}{Maximum infusion rate of TCI pump. Defaults to 1200.}

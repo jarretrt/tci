@@ -4,7 +4,7 @@
 \alias{tci_comb}
 \title{Effect-site TCI algorithm with plasma targeting within small range of target}
 \usage{
-tci_comb(Ct, pkmod, cptol = 0.1, cetol = 0.05, cp_cmpt = 1, ce_cmpt = 4, ...)
+tci_comb(Ct, pkmod, cptol = 0.2, cetol = 0.05, cp_cmpt = 1, ce_cmpt = 4, ...)
 }
 \arguments{
 \item{Ct}{Numeric vector of target effect-site concentrations.}
@@ -24,8 +24,8 @@ to plasma targeting.}
 \item{...}{Arguments passed on to 'tci_plasma' and 'tci_effect' functions.}
 }
 \description{
-Modified effect-site TCI algorithm that follows Jacobs (1993) suggestion of
-switching to plasma-targeting when the plasma concentration is within 10\%
+Modified effect-site TCI algorithm that switches to plasma-targeting when the
+plasma concentration is within 20\%
 of the target and the effect-site concentration is within 0.5\% of the target.
 The modification decreases computation time and prevents oscillatory behavior
 in the effect-site concentrations.

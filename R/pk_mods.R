@@ -140,7 +140,7 @@ pkmod3cpt <- function(tm, kR, pars, init = c(0,0,0), inittm = 0, k20 = 0, k30 = 
   n <- (2*a^3 - 9*a*b + 27*c)/27
   Q <- (n^2)/4 + (m^3)/27
 
-  alpha <- sqrt(-1*Q)
+  alpha <- sqrt(pmax(0,-1*Q))
   beta <- -1*n/2
   gamma <- sqrt(beta^2+alpha^2)
   theta <- atan2(alpha,beta)
@@ -267,7 +267,7 @@ pkmod3cptm <- function(tm, kR, pars, init = c(0,0,0,0), inittm = 0,
   n <- (2*a^3 - 9*a*b + 27*c)/27
   Q <- (n^2)/4 + (m^3)/27
 
-  alpha <- sqrt(-1*Q)
+  alpha <- sqrt(pmax(0,-1*Q))
   beta <- -1*n/2
   gamma <- sqrt(beta^2+alpha^2)
   theta <- atan2(alpha,beta)
@@ -393,7 +393,7 @@ pk_basic_solution_3cpt_metab <- function(kR,k10,k12,k21,k13,k31,v1,v2,v3,ke0,
   n <- (2*a^3 - 9*a*b + 27*c)/27
   Q <- (n^2)/4 + (m^3)/27
 
-  alpha <- sqrt(-1*Q)
+  alpha <- sqrt(pmax(0,-1*Q))
   beta <- -1*n/2
   gamma <- sqrt(beta^2+alpha^2)
   theta <- atan2(alpha,beta)

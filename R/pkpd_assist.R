@@ -69,6 +69,11 @@ eleveld_vcov <- function(dat,
                          rates = TRUE,
                          varnames = c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")){
 
+  if(rates){
+    varnames <- c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")
+  } else{
+    varnames <- c("CL","Q2","Q3","V1","V2","V3","KE0","CE50","SIGMA")
+  }
   vcv_list <- lapply(1:nrow(dat), function(i){
     mc_samples <- replicate(N, log(unlist(
       eleveld_poppk(dat[i,], rate = rates, PD = TRUE, rand = TRUE)[,varnames])

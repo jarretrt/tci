@@ -2,22 +2,26 @@
 % Please edit documentation in R/simulations.R
 \name{log_likelihood}
 \alias{log_likelihood}
-\title{Function to evaluate the log likelihood given a set of logged parameter values and a set of observed BIS values.}
+\title{Evaluate log-likelihood}
 \usage{
-log_likelihood(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11)
+log_likelihood(lpr, dat, pk_ix, pd_ix, fixed_ix = NULL, fixed_lpr = NULL)
 }
 \arguments{
-\item{lpr}{logged PK-PD-error parameter values}
+\item{lpr}{Set of logged PK-PD-error parameter values to be updated. The final value of lpr is
+assumed to be the residual error term.}
 
 \item{dat}{data frame with columns c("time","bis") corresponding to observed time and bis values}
 
-\item{fixed_lpr}{values used by PD function that are not updated.
-These are concatenated to lpr[pd_ix] and the ordering may be important for use of the PD function.}
+\item{pk_ix}{indices of (pars_pk,pars_pd) corresponding to PK function values}
 
-\item{pd_ix}{indices for PD function values to be updated.}
+\item{pd_ix}{indices of (pars_pk,pars_pd) corresponding to PD function values}
 
-\item{err_ix}{index for standard deviation of residual error term}
+\item{fixed_ix}{indices of (pars_pk,pars_pd) corresponding to PD function values}
+
+\item{fixed_lpr}{values used by PD function that are not updated.}
 }
 \description{
 Function to evaluate the log likelihood given a set of logged parameter values and a set of observed BIS values.
+It is assumed that the full set of parameters are given by indices (pk_ix, pd_ix), of which a subset may be
+fixed (i.e. not updated, but still used to evaluate PK-PD functions).
 }

@@ -12,7 +12,7 @@ tci(
   init = NULL,
   tci_alg = c("effect", "plasma"),
   tci_custom = NULL,
-  dt = 1/6,
+  dtm = 1/6,
   ...
 )
 }
@@ -36,7 +36,7 @@ through the 'tci_custom' argument.}
 specifying target concentration, PK model, and duration of infusion to
 reach the target.}
 
-\item{dt}{Time difference between infusion rate updates.}
+\item{dtm}{Time difference between infusion rate updates.}
 
 \item{...}{Arguments passed on to TCI algorithm.}
 }

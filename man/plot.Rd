@@ -5,6 +5,7 @@
 \alias{plot.pdmod}
 \alias{plot.tciinf}
 \alias{plot.datasim}
+\alias{plot.bayessim}
 \title{Plot object with class 'pkmod'}
 \usage{
 \method{plot}{pkmod}(x, ..., inf, npts = 1000, title = NULL)
@@ -24,18 +25,12 @@
 
 \method{plot}{tciinf}(x, ..., title = NULL, display = TRUE)
 
-\method{plot}{datasim}(
-  x,
-  lpars_update = NULL,
-  lpars_fixed = NULL,
-  pd_ix = 10,
-  dt = 1/60,
-  plot_prior = TRUE,
-  ...
-)
+\method{plot}{datasim}(x, ..., pars_prior = NULL, pars_post = NULL, pk_ix = NULL, pd_ix = NULL)
+
+\method{plot}{bayessim}(x, ...)
 }
 \arguments{
-\item{x}{An object with class datasim, created by function `gen_data`.}
+\item{x}{Object returned from "bayes_control" function}
 
 \item{...}{\dots}
 
@@ -59,21 +54,19 @@ compartment concentration returned by pkmod.}
 
 \item{display}{Logical. Should plots be printed or returned as an arrangeGrob object?}
 
-\item{lpars_update}{Logged posterior parameters for plotting predicted concentrations
-alongside observed data.}
+\item{pars_prior}{Named vector of prior PK or PK-PD parameters}
 
-\item{lpars_fixed}{Logged parameters that are used by PK-PD model but not updated.}
+\item{pars_post}{Named vector of posterior PK or PK-PD parameters}
 
-\item{pd_ix}{Parameter vector of indices for PD parameters in arguments lpars_prior,
-lpars_update.}
+\item{pk_ix}{Indicies of parameter vector(s) corresponding to PK parameters}
 
-\item{dt}{Time interval used to predict PK-PD values.}
-
-\item{plot_prior}{Logical. Should predictions from prior distribution be plotted?}
+\item{pd_ix}{Indicies of parameter vector(s) corresponding to PD parameters}
 }
 \description{
 Will show predicted concentrations in compartments associated with an infusion schedule.
 
 User can provide a series of effect-site concentrations and a PD model or
  an infusion schedule with a PK-PD model.
+
+Plot output returned by "bayes_control" function.
 }

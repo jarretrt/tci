@@ -115,8 +115,8 @@ schnider_poppk <- function(df, rate = FALSE, rand = FALSE){
 
 #' @name eleveld_poppk
 #' @title Eleveld population PK model
-#' @description Function takes a data frame of patient covariate values with variable names "AGE","TBM","HGT","MALE" and returns PK parameter values.
-#' @param df Data frame with variable names "AGE","TBM","HGT","MALE"
+#' @description Function takes a data frame of patient covariate values with variable names "AGE","PMA","WGT","HGT","M1F2","TECH",and "A1V2" and returns PK parameter values.
+#' @param df Data frame with variable names "AGE","PMA","WGT","HGT","M1F2","TECH",and "A1V2"
 #' @param PD Logical. Should PD parameters be returned in addition to PK parameters.
 #' Defaults to TRUE.
 #' @param rate Logical. Should rate parameters be returned rather than clearance.

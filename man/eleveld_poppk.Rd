@@ -7,7 +7,7 @@
 eleveld_poppk(df, PD = TRUE, rate = FALSE, rand = FALSE)
 }
 \arguments{
-\item{df}{Data frame with variable names "AGE","TBM","HGT","MALE"}
+\item{df}{Data frame with variable names "AGE","PMA","WGT","HGT","M1F2","TECH",and "A1V2"}
 
 \item{PD}{Logical. Should PD parameters be returned in addition to PK parameters.
 Defaults to TRUE.}
@@ -19,7 +19,7 @@ Defaults to FALSE}
 of point estimates at patient covariate values. Defaults to FALSE.}
 }
 \description{
-Function takes a data frame of patient covariate values with variable names "AGE","TBM","HGT","MALE" and returns PK parameter values.
+Function takes a data frame of patient covariate values with variable names "AGE","PMA","WGT","HGT","M1F2","TECH",and "A1V2" and returns PK parameter values.
 }
 \examples{
 dat <- data.frame(AGE  = c(20,40,65),

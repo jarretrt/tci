@@ -159,17 +159,32 @@ log_prior <- function(lpr, mu, sig){
 }
 
 
+
+#' Evaluate log-likelihood
+#'
 #' Function to evaluate the log likelihood given a set of logged parameter values and a set of observed BIS values.
-#' @param lpr logged PK-PD-error parameter values
+#' It is assumed that the full set of parameters are given by indices (pk_ix, pd_ix), of which a subset may be
+#' fixed (i.e. not updated, but still used to evaluate PK-PD functions).
+#'
+#' @param lpr Set of logged PK-PD-error parameter values to be updated. The final value of lpr is
+#' assumed to be the residual error term.
 #' @param dat data frame with columns c("time","bis") corresponding to observed time and bis values
+#' @param pk_ix indices of (pars_pk,pars_pd) corresponding to PK function values
+#' @param pd_ix indices of (pars_pk,pars_pd) corresponding to PD function values
+#' @param fixed_ix indices of (pars_pk,pars_pd) corresponding to PD function values
 #' @param fixed_lpr values used by PD function that are not updated.
-#' These are concatenated to lpr[pd_ix] and the ordering may be important for use of the PD function.
-#' @param pd_ix indices for PD function values to be updated.
-#' @param err_ix index for standard deviation of residual error term
 #' @importFrom truncnorm dtruncnorm
 #'
 #' @export
-log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
+log_likelihood <- function(lpr, dat, pk_ix, pd_ix, fixed_ix = NULL, fixed_lpr = NULL){
+
+  # reconstruct vector of PK-PD parameters
+  err <- exp(lpr[length(lpr)])
+  epars <- rep(NA, length(c(pk_ix,pd_ix)))
+  epars[fixed_ix] <- exp(fixed_lpr)
+  epars[is.na(epars)] <- exp(lpr[-length(lpr)])
+  names(epars)[fixed_ix] <- names(fixed_lpr)
+  names(epars)[-fixed_ix] <- names(lpr)[-length(lpr)]
 
   # restrict times to allow for time lag
   if("timeobs" %in% colnames(dat$sim)){
@@ -191,19 +206,56 @@ log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
   cp <- predict(dat$pkmod,
                 inf = dat$inf,
                 tms = tms,
-                pars = exp(lpr),
+                pars = epars[pk_ix],
                 init = ini)
 
   # if pd model isn't given, evaluate likelihood at pk observations
   if(is.null(dat$pdmod)){
-    return(sum(log(truncnorm::dtruncnorm(x = val_obs, mean = cp[,"c1"], sd = exp(lpr[err_ix]), a = 0))))
+    return(sum(log(truncnorm::dtruncnorm(x = val_obs, mean = cp[,"c1"], sd = err, a = 0))))
   } else{
     # apply function to lpr if applicable - e.g. have parameters change based on predicted concentration
     econ <- cp[,paste0("c",dat$ecmpt)]
-    bisp <- dat$pdmod(ce = econ, pars = exp(c(lpr[pd_ix],fixed_lpr)))
-    return(sum(log(truncnorm::dtruncnorm(x = val_obs, mean = bisp, sd = exp(lpr[err_ix]), a = 0, b = 100))))
+    bisp <- dat$pdmod(ce = econ, pars = epars[pd_ix])
+    return(sum(log(truncnorm::dtruncnorm(x = val_obs, mean = bisp, sd = err, a = 0, b = 100))))
   }
 }
+
+
+# log_likelihood <- function(lpr, dat, pk_ix, pd_ix, err_ix){
+#
+#   # restrict times to allow for time lag
+#   if("timeobs" %in% colnames(dat$sim)){
+#     tm_all <- dat$sim[,"time"]
+#     tm_obs <- dat$sim[,"timeobs"]
+#     tms <- tm_all[tm_obs <= max(tm_all)]
+#     val_obs <- dat$sim[tm_obs <= max(tm_all),"pdobs"]
+#   } else{
+#     tms <- dat$sim[,"time"]
+#     if("pdobs" %in% colnames(dat$sim))
+#       val_obs <- dat$sim[,"pdobs"]
+#     else val_obs <- dat$sim[,"cobs"]
+#   }
+#
+#   # predicted initial concentrations from data
+#   ini <- dat$inf[1,grep("c[0-9]_start",colnames(dat$inf))]
+#
+#   # predict concentrations at lpr
+#   cp <- predict(dat$pkmod,
+#                 inf = dat$inf,
+#                 tms = tms,
+#                 pars = exp(lpr[pk_ix]),
+#                 init = ini)
+#
+#   # if pd model isn't given, evaluate likelihood at pk observations
+#   if(is.null(dat$pdmod)){
+#     return(sum(log(truncnorm::dtruncnorm(x = val_obs, mean = cp[,"c1"], sd = exp(lpr[err_ix]), a = 0))))
+#   } else{
+#     # apply function to lpr if applicable - e.g. have parameters change based on predicted concentration
+#     econ <- cp[,paste0("c",dat$ecmpt)]
+#     bisp <- dat$pdmod(ce = econ, pars = exp(c(lpr[pd_ix],fixed_lpr)))
+#     return(sum(log(truncnorm::dtruncnorm(x = val_obs, mean = bisp, sd = exp(lpr[err_ix]), a = 0, b = 100))))
+#   }
+# }
 
 
 #' Function to evaluate the negative log posterior given a set of logged parameter values and observed BIS values.
@@ -216,6 +268,35 @@ log_likelihood <- function(lpr, dat, fixed_lpr = NULL, pd_ix = 10, err_ix = 11){
 #' @export
 log_posterior_neg <- function(lpr, dat, mu, sig, ...) {
     -1*(log_prior(lpr,mu,sig) + log_likelihood(lpr, dat, ...))
+}
+
+
+#' Closed-loop targets
+#'
+#' Format data frame of closed-loop targets.
+#' @param time Times at which target values are set
+#' @param target Response target values
+#'
+#' @export
+cl_targets <- function(time, target){
+  data.frame(time = time, target = target)
+}
+
+
+#' Closed-loop updates
+#'
+#' Set parameters for closed-loop updates.
+#'
+#' @param time Times at which PK or PK-PD parameters should be updated
+#' @param full_data Vector of logical values indicating if all data should be used at update
+#' or only data since last update. Once first "FALSE" value is observed, the prior variance-
+#' covariance matrix is overwritten. Consequently, any "TRUE" updates will only use data since
+#' the last "FALSE" update.
+#' @param plot_progress Vector of logical values. Should values be plotted at each update?
+#'
+#' @export
+cl_updates <- function(time, full_data = TRUE, plot_progress = FALSE){
+  data.frame(time = time, full_data = full_data, plot_progress = plot_progress)
 }
 
 
@@ -236,7 +317,7 @@ log_posterior_neg <- function(lpr, dat, mu, sig, ...) {
 #' @param init0 True initial concentrations
 #' @param init_p Predicted initial concentrations
 #' @param obs_tms Times at which observations are collected. If null, observations will be
-#' made at fixed intervals specified by 'dt'.
+#' made at fixed intervals specified by 'dtm'.
 #' @param dt_obs Interval between measurements.
 #' @param sim_starttm Start time of simulation
 #' @param tci_alg TCI algorithm used. Defaults to effect-site targeting.
@@ -283,7 +364,7 @@ bayes_control <- function(targets, updates, prior, true_pars,
     if(print_progress) print(paste("Updating at time t =", update_tms[i]))
 
     prior_pk <- prior$pars_pkpd[prior$pk_ix]
-    prior_pd <- prior$pars_pkpd[-prior$pk_ix]
+    prior_pd <- prior$pars_pkpd[prior$pd_ix]
 
     # subset targets and observation times to period being updated
     targets_sub <- targets[targets$time <= update_tms[i] & targets$time >= update_tms[i-1],]
@@ -337,8 +418,11 @@ bayes_control <- function(targets, updates, prior, true_pars,
                         dat = dat_eval,
                         mu = lpr,
                         sig = prior0$sig,
+                        pk_ix = prior$pk_ix,
+                        pd_ix = prior$pd_ix,
+                        fixed_ix = prior$fixed_ix,
                         fixed_lpr = lpr_fixed,
-                        method = "Nelder-Mead",
+                        method = "BFGS",
                         hessian = FALSE)
 
     } else{
@@ -349,7 +433,7 @@ bayes_control <- function(targets, updates, prior, true_pars,
                         mu = lpr,
                         sig = prior$sig,
                         fixed_lpr = lpr_fixed,
-                        method = "Nelder-Mead",
+                        method = "BFGS",
                         hessian = TRUE)
 
      # update vcov matrix
@@ -391,11 +475,13 @@ bayes_control <- function(targets, updates, prior, true_pars,
 
   lpr_all <- rbind(lpr_all, lpr)
 
-  return(list(dat = dat0,
+  out <- list(dat = dat0,
               lpr = lpr_all,
               posterior = prior,
               prior = prior0,
-              true_pars = true_pars))
+              true_pars = true_pars)
+  class(out) <- "bayessim"
+  return(out)
 }
 
 
@@ -465,7 +551,7 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 #                              pars_pd0,
 #                              alpha = 0.2,
 #                              target = 50,
-#                              dt = 1/20,
+#                              dtm = 1/20,
 #                              init = NULL,
 #                              pkmod = pkmod3cptm,
 #                              pdmod = emax_eleveld,
@@ -481,14 +567,14 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 #   # inf <- as.data.frame(inf)
 #
 #   rng <- range(inf[,c("begin","end")])
-#   tms <- seq(dt,rng[2],dt)
+#   tms <- seq(dtm,rng[2],dtm)
 #
 #   # predict concentrations and responses
 #   con0 <- predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
 #   pd_pred <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
 #
-#   phi1 <- sum((pd_pred[pd_pred>target] - target))*dt # integral above target
-#   phi2 <- sum((target - pd_pred[pd_pred<target]))*dt # integral below target
+#   phi1 <- sum((pd_pred[pd_pred>target] - target))*dtm # integral above target
+#   phi2 <- sum((target - pd_pred[pd_pred<target]))*dtm # integral below target
 #
 #   return(alpha*phi1 + (1-alpha)*phi2)
 # }
@@ -500,7 +586,7 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 #                              alpha = 0.2,
 #                              ub = 60,
 #                              lb = 40,
-#                              dt = 1/20,
+#                              dtm = 1/20,
 #                              init = NULL,
 #                              pkmod = pkmod3cptm,
 #                              pdmod = emax_eleveld,
@@ -514,15 +600,15 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 #     ecmpt <- length(eval(formals(pkmod)$init))
 #
 #   rng <- range(inf[,c("begin","end")])
-#   tms <- seq(dt,rng[2],dt)
+#   tms <- seq(dtm,rng[2],dtm)
 #
 #   # predict concentrations and responses
 #   con0 <- predict(pkmod = pkmod, inf = inf, tms = tms,
 #                   pars = pars_pk0, init = init)[,paste0("c",ecmpt)]
 #   pd_pred <- pdmod(con0, pars_pd0)
 #
-#   phi1 <- sum((pd_pred[pd_pred>ub] - ub))*dt # integral above target
-#   phi2 <- sum((lb - pd_pred[pd_pred<lb]))*dt # integral below target
+#   phi1 <- sum((pd_pred[pd_pred>ub] - ub))*dtm # integral above target
+#   phi2 <- sum((lb - pd_pred[pd_pred<lb]))*dtm # integral below target
 #
 #   return(alpha*phi1 + (1-alpha)*phi2)
 # }
@@ -561,7 +647,7 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 #         alpha = alpha,
 #         pars_pk0 = unlist(eb_pars_pk[i,]),
 #         pars_pd0 = unlist(eb_pars_pd[i,]),
-#         dt = 1/200)
+#         dtm = 1/200)
 #   })
 #
 #   return(mean(unlist(phi_i)))
@@ -605,15 +691,15 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 # #' @param alpha Weight associated with the integral above the target BIS value and below the time-BIS curve.
 # #' @param bist Target BIS, used to set the maximum effect value of the target sigmoid curve.
 # #' @param tfinal Final time to evaluate infusion schedule to.
-# #' @param dt Resolution of integral
+# #' @param dtm Resolution of integral
 # #' @export
-# Phi <- function(kR, theta, E0, gamma, t0, alpha = 0.01, bist = 50, tfinal = 10, dt = 1e-2, log = F){
-#   tms <- seq(0,tfinal,length.out = 1/dt)
+# Phi <- function(kR, theta, E0, gamma, t0, alpha = 0.01, bist = 50, tfinal = 10, dtm = 1e-2, log = F){
+#   tms <- seq(0,tfinal,length.out = 1/dtm)
 #   ce <- pk_solution_3cpt_metab(pars = theta[1:9], ivt = kR, init = c(0,0,0,0))(tms)[4,]
 #   ce[ce < 0] <- 0
 #   bisp <- Emax1(theta[10],ce = ce, gamma = gamma, E0 = E0)
-#   phi1 <- sum((bisp[bisp>bist] - bist))*dt*tfinal # integral above target
-#   phi2 <- sum((bist - bisp[bisp<bist]))*dt*tfinal # integral below target
+#   phi1 <- sum((bisp[bisp>bist] - bist))*dtm*tfinal # integral above target
+#   phi2 <- sum((bist - bisp[bisp<bist]))*dtm*tfinal # integral below target
 #   if(log) return(log(alpha*phi1 + (1-alpha)*phi2))
 #   else return(alpha*phi1 + (1-alpha)*phi2)
 # }
@@ -702,7 +788,7 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 # }
 #
 #
-# sig_ED <- function(lbeta, ltheta_hat, Theta_samples, weights, gamma, E0, sig, ivt0, t0, t1 = NULL, init_p, p = NULL, alpha = 0.01, epsilon = 0.1, bis_target = 50, nmin = 10, dt = 1e-2){
+# sig_ED <- function(lbeta, ltheta_hat, Theta_samples, weights, gamma, E0, sig, ivt0, t0, t1 = NULL, init_p, p = NULL, alpha = 0.01, epsilon = 0.1, bis_target = 50, nmin = 10, dtm = 1e-2){
 #   if(is.null(t1)) t1 <- nmin
 #   kR_all <- c(ivt0, sig_inf(beta =exp(lbeta), theta = exp(ltheta_hat), ini = init_p, t0 = t0, tmx = t1, E0 = E0, gamma = gamma))
 #
@@ -711,14 +797,14 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 #     obj_fn_val <- c(t(vapply(1:nrow(Theta_samples), function(l){
 #       Phi(kR = kR_all, theta = Theta_samples[l,], alpha = alpha, bist = bis_target, tfinal = nmin,
 #           t0 = t0,
-#           dt = dt, gamma = gamma, E0 = E0)
+#           dtm = dtm, gamma = gamma, E0 = E0)
 #     }, FUN.VALUE = numeric(1))) %*% weights)
 #   } else{
 #     # evaluate quadrature points at infusion schedule
 #     obj_fn_val <- quantile(vapply(1:nrow(Theta_samples), function(l){
 #       Phi(kR = kR_all, theta = Theta_samples[l,], alpha = alpha, bist = bis_target, tfinal = nmin,
 #           t0 = t0,
-#           dt = dt, gamma = gamma, E0 = E0)
+#           dtm = dtm, gamma = gamma, E0 = E0)
 #     }, FUN.VALUE = numeric(1)), probs = p)
 #   }
 #   return(obj_fn_val)

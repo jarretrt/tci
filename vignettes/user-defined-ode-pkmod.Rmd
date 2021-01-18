@@ -19,30 +19,24 @@ knitr::opts_chunk$set(
 
 The `tci` package provides closed-form solutions for 1-, 2-, 3-, and 3-compartment with effect-site PK models based on solutions described and code provided in @Abuhelwa2015. It does not, however, include an ordinary differential equation (ODE) solver as many other R packages do, including [mrgsolve](https://mrgsolve.github.io/), [PKPDsim](http://pkpdsim.ronkeizer.com/), and [RxODE](https://github.com/nlmixrdevelopment/RxODE). `tci` package functions can nonetheless be applied to models from these packages through the creation of user-defined PK functions.
  
-User-defined PK functions should be created to return concentrations at a vector of time points under a continuous infusion and should be assigned S3 class "pkmod." 
-
-To illustrate, we create an example two-compartment model based on ODEs is illustrated using the `PKPDsim` R package[@PKPDsim] which can be installed from GitHub.
-
-```{r, install-PKPDsim, eval = FALSE}
-devtools::install_github("ronkeizer/PKPDsim") # install PKPDsim
-```
-
-Using `PKPDsim` syntax, a model can be specified. 
+User-defined PK functions should be created to return concentrations at a vector of time points under a continuous infusion and should be assigned S3 class "pkmod." To illustrate, we create an example two-compartment model based on ODEs is illustrated using the `mrgsolve` R package[@mrgsolve]. Using `mrgsolve` syntax, a model can be specified as a character string and compiled using the `mcode` function.
 
 ```{r, mrgsolve-example, warning=FALSE}
 library(tci)
-library(PKPDsim)
+library(mrgsolve)
 
-# define custom two-compartment model from PKPDsim
-pk2 <- new_ode_model(code = "
-  dAdt[1] = -(CL/V)*A[1] - (Q/V)*A[1] + (Q/V2)*A[2]
-  dAdt[2] = -(Q/V2)*A[2] + (Q/V)*A[1]
-  
-", parameters = c("CL","V","Q","V2")
-)
+# define two-compartment model based on ODEs
+code <- '
+$PARAM CL=10, V=10, Q = 10, V2=10
+$CMT A1 A2
+$ODE
+dxdt_A1 = -(CL/V)*A1 - (Q/V)*A1 + (Q/V2)*A2;
+dxdt_A2 = -(Q/V2)*A2 + (Q/V)*A1;
+'
+mod2cpt <- mcode("example", code)
 ```
 
-A wrapper function is then created to take as arguments a time at which to evaluate the PK model (`tm`), an infusion rate (`kR`), PK model parameters (`pars`), initial concentrations (`init`), and an infusion starting time (`inittm`). The starting time is used by functions in `tci` that iteratively calculate concentrations from a series of infusions. Within this function, the `PKPDsim` functions "new_regimen" and "sim" are used to specify and predict from an infusion schedule. 
+Initial parameter values are required by `mrgsolve` but can be updated as needed using the `mrgsolve::update` function. We now need to write a wrapper that takes as arguments a time at which to evaluate the PK model (`tm`), an infusion rate (`kR`), PK model parameters (`pars`), initial concentrations (`init`), and an infusion starting time (`inittm`). The starting time is used by functions in `tci` that iteratively calculate concentrations from a series of infusions. The function should return a matrix with concentrations for each compartment in the rows and evaluation times as columns.
 
 ```{r}
 # wrapper function to evaluate pk2 in format used by tci
@@ -50,39 +44,35 @@ pkmod2cpt_ode <- function(tm, kR, pars,
                           pkm = pk2, 
                           init = c(0,0), 
                           inittm = 0){
-  
-  # start times at 0 and use uppercase names for PKPDsim functions
+
+  # begin times at 0 and end at last time evaluated
   tm <- tm - inittm
+  end_inf <- max(tm)
+  
+  # name parameter/initial concentrations
   names(pars) <- toupper(names(pars))
+  names(init) <- c("A1","A2")
+  
   # pass parameters as list
   pars <- sapply(pars, as.list)
-  
-  # dosing regimen - PKPDsim function
-  reg <- new_regimen(
-    amt = kR,
-    times = 0,
-    type = "infusion",
-    t_inf = max(tm)
-  )
-  
   vols <- unlist(pars[c("V","V2")])
   
-  # predict amounts
-  dat <- sim(
-    ode = pk2,              
-    parameters = pars,
-    regimen = reg,
-    A_init = init*vols, # init specifies concentrations
-    t_obs = tm
-  )
+  # update parameters and initial values (as amounts)
+  mod2cpt <- update(mod2cpt, param = pars, init = init*vols)
+  
+  # dosing regimen - mrgsolve function in terms of amount infused
+  event <- ev(amt =  kR*end_inf, time = 0, tinf = end_inf)
+  
+  # simulate responses (skip tm=0 unless specified)
+  dat <- mrgsim_q(x = mod2cpt, # pk model
+                  data = event, # dosing event
+                  stime = tm) # evaluation times
+  
+  # skip tm=0 unless specified in tm
+  dat <- dat@data[-1,]
   
   # return concentrations with compartments in rows and times in columns
-  datw <-reshape(dat[dat$comp %in% c(1,2),], idvar = "t", 
-                 v.names = "y", 
-                 timevar = "comp",
-          direction = "wide")
-  
-  cons <- t(datw[,c("y.1","y.2")]) / vols
+  cons <- t(dat[,c("A1","A2")]) / vols
   
   rownames(cons) <- colnames(cons) <- NULL
   return(cons)

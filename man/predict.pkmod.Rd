@@ -9,10 +9,9 @@
   ...,
   inf,
   tms = NULL,
-  dt = 1/6,
+  dtm = 1/6,
   return_init = FALSE,
-  remove_bounds = TRUE,
-  tm_digits = 7
+  remove_bounds = TRUE
 )
 }
 \arguments{
@@ -23,9 +22,9 @@
 \item{inf}{An infusion schedule object with columns "begin","end","infrt".}
 
 \item{tms}{Times to evaluate predictions at. Will default to a sequence
-spanning the infusions at intervals of dt.}
+spanning the infusions at intervals of dtm.}
 
-\item{dt}{Interval used for prediction if argument tms is unspecified.}
+\item{dtm}{Interval used for prediction if argument tms is unspecified.}
 
 \item{return_init}{Logical indicating if concentrations at time 0 should
 be returned. Defaults to FALSE.}
@@ -34,9 +33,6 @@ be returned. Defaults to FALSE.}
 changes in infusion rates should be returned if not included in prediction
 times. Defaults to TRUE, so that only concentrations at specified times
 are returned.}
-
-\item{tm_digits}{Number of digits used to identify unique times. Only
-modify if the same time point receives multiple concentration records.}
 }
 \description{
 predict method to apply pk model piecewise to infusion schedule

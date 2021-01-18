@@ -4,14 +4,14 @@
 \alias{tci_plasma}
 \title{TCI algorithm for plasma targeting}
 \usage{
-tci_plasma(Cpt, pkmod, dt, maxrt = 1200, cmpt = 1, ...)
+tci_plasma(Cpt, pkmod, dtm, maxrt = 1200, cmpt = 1, ...)
 }
 \arguments{
 \item{Cpt}{Target plasma concentration}
 
 \item{pkmod}{PK model}
 
-\item{dt}{Duration of the infusion}
+\item{dtm}{Duration of the infusion}
 
 \item{maxrt}{Maximum infusion rate. Defaults to 200 ml/min in reference to the
 maximum infusion rate of 1200 ml/h permitted by

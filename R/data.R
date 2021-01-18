@@ -1,6 +1,10 @@
 #' Eleveld et al. pharmacokinetic data
 #'
-#' Empirical Bayes (EB) estimates of PK parameters made by the Eleveld et al (2018) PK-PD model.
+#' Empirical Bayes (EB) estimates of PK parameters for the Eleveld et al. (2018) PK-PD model. EB estimates were calculated
+#' using the PK-PD datasets and NONMEM files provided by Eleveled et al. (2018). The original datasets were obtained through
+#' the Open TCI Initiative website (opentci.org) and based on contributions from a number of researchers who made their
+#' datasets publically available.
+
 #'
 #' @docType data
 #'
@@ -35,7 +39,10 @@
 
 #' Eleveld et al. pharmacodynamic data
 #'
-#' Empirical Bayes (EB) estimates of PD parameters made by the Eleveld et al (2018) PK-PD model.
+#' Empirical Bayes (EB) estimates of PD parameters made by the Eleveld et al (2018) PK-PD model. EB estimates were calculated
+#' using the PK-PD datasets and NONMEM files provided by Eleveled et al. (2018). The original datasets were obtained through
+#' the Open TCI Initiative website (opentci.org) and based on contributions from a number of researchers who made their
+#' datasets publically available.
 #'
 #' @docType data
 #'

@@ -28,7 +28,10 @@ A data frame with 122 rows and 15 variables:
 data(eleveld_pd)
 }
 \description{
-Empirical Bayes (EB) estimates of PD parameters made by the Eleveld et al (2018) PK-PD model.
+Empirical Bayes (EB) estimates of PD parameters made by the Eleveld et al (2018) PK-PD model. EB estimates were calculated
+using the PK-PD datasets and NONMEM files provided by Eleveled et al. (2018). The original datasets were obtained through
+the Open TCI Initiative website (opentci.org) and based on contributions from a number of researchers who made their
+datasets publically available.
 }
 \references{
 Eleveld et al. (2018) British Journal of Anesthesia Vol. 120, 5:942-959

@@ -44,7 +44,7 @@ matrices for the logged parameter values.}
 \item{init_p}{Predicted initial concentrations}
 
 \item{obs_tms}{Times at which observations are collected. If null, observations will be
-made at fixed intervals specified by 'dt'.}
+made at fixed intervals specified by 'dtm'.}
 
 \item{dt_obs}{Interval between measurements.}
 
