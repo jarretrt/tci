@@ -351,6 +351,15 @@ bayes_control <- function(targets, updates, prior, true_pars,
   update_full <- c(NA, updates$full_data)
   plot_progress <- c(NA, updates$plot_progress)
 
+  # combine update times into set of target times
+  na.locf <- function(x) {
+    v <- !is.na(x)
+    c(NA, x[v])[cumsum(v)+1]
+  }
+  targets_new <- data.frame(time = sort(union(targets$time, update_tms)))
+  targets_new <- merge(targets_new, targets, all.x = TRUE)
+  targets_new$target <- na.locf(targets_new$target)
+
   true_pk <- unlist(true_pars$pars_pkpd[true_pars$pk_ix])
   true_pd <- unlist(true_pars$pars_pkpd[-true_pars$pk_ix])
 
@@ -367,7 +376,7 @@ bayes_control <- function(targets, updates, prior, true_pars,
     prior_pd <- prior$pars_pkpd[prior$pd_ix]
 
     # subset targets and observation times to period being updated
-    targets_sub <- targets[targets$time <= update_tms[i] & targets$time >= update_tms[i-1],]
+    targets_sub <- targets_new[targets_new$time <= update_tms[i] & targets_new$time >= update_tms[i-1],]
     obs_tms_sub <- obs_tms[obs_tms <= update_tms[i] & obs_tms > update_tms[i-1]]
 
     # calculate tci infusions at prior parameter estimates for update period
@@ -432,6 +441,9 @@ bayes_control <- function(targets, updates, prior, true_pars,
                         dat = dat_eval,
                         mu = lpr,
                         sig = prior$sig,
+                        pk_ix = prior$pk_ix,
+                        pd_ix = prior$pd_ix,
+                        fixed_ix = prior$fixed_ix,
                         fixed_lpr = lpr_fixed,
                         method = "BFGS",
                         hessian = TRUE)
