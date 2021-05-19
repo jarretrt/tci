@@ -34,7 +34,7 @@ tci_plasma <- function(Cpt, pkmod, dtm, maxrt = 1200, cmpt = 1, ...){
     infrt <- 0
   if(infrt > maxrt)
     infrt <- maxrt
-  return(c(kR = infrt))
+  return(unname(infrt))
 }
 
 
@@ -121,7 +121,7 @@ tci_effect <- function(Cet, pkmod, dtm = 1/6, ecmpt = NULL, tmax_search = 10,
   if(kR < 0) kR = 0
   if(kR > maxrt) kR = maxrt
 
-  return(c(kR = kR))
+  return(unname(kR))
 }
 
 

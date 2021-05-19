@@ -16,8 +16,11 @@
 #' plot(ce_seq, emax(ce_seq, pars_emax), type = "l",
 #' xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS")
 #' @export
-emax <- function(ce, pars)
+emax <- function(ce, pars){
+  names(pars) <- tolower(names(pars))
+  if("ce50" %in% names(pars)) names(pars)[names(pars) == "ce50"] <- "c50"
   pars["e0"] - pars["emx"]*(ce^pars["gamma"] / (ce^pars["gamma"] + pars["c50"]^pars["gamma"]))
+}
 class(emax) <- "pdmod"
 
 
@@ -32,6 +35,8 @@ class(emax) <- "pdmod"
 #' all.equal(inv_emax(emax(ce_seq, pars_emax), pars_emax), ce_seq)
 #' @export
 inv_emax <- function(pdresp, pars){
+  names(pars) <- tolower(names(pars))
+  if("ce50" %in% names(pars)) names(pars)[names(pars) == "ce50"] <- "c50"
   eff <- abs(pdresp - pars["e0"])
   (eff*(pars["c50"]^pars["gamma"])/(pars["emx"]*(1-eff/pars["emx"])))^(1/pars["gamma"])
 }
