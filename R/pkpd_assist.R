@@ -35,8 +35,8 @@ create_intvl <- function(dose, inittm = 0){
 #' create_intvl(dose)
 
 
-
-#' Format parameters for use in Rcpp functions
+#' @name format_pars
+#' @title Format parameters for use in Rcpp functions
 #'
 #' Order parameters for 1-4 compartment models to be used in Rcpp functions in
 #' predict.pkmod method.

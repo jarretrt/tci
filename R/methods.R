@@ -117,6 +117,89 @@ predict.pkmod <- function(object, ..., inf, tms = NULL, dtm = 1/6, return_init =
 }
 
 
+
+#' Predict concentrations from a pkmod object - test version for Rcpp functions
+#'
+#' Predict method to apply pk model piecewise to infusion schedule
+#' @param object An object with class pkmod.
+#' @param ... Arguments passed on to pkmod
+#' @param inf An infusion schedule object with columns "begin","end","infrt".
+#' @param tms Times to evaluate predictions at. Will default to a sequence
+#' spanning the infusions at intervals of dtm.
+#' @param dtm Interval used for prediction if argument tms is unspecified.
+#' @param return_init Logical indicating if concentrations at time 0 should
+#' be returned. Defaults to FALSE.
+#' @param remove_bounds Logical, indicating if concentrations calculated at
+#' changes in infusion rates should be returned if not included in prediction
+#' times. Defaults to TRUE, so that only concentrations at specified times
+#' are returned.
+#'
+#' @export
+predict_pkmod <- function(object, ..., inf, tms = NULL, dtm = 1/6, return_init = FALSE,
+                          remove_bounds = TRUE){
+
+  ncmpt <- NA
+  if(!all(c("infrt","begin","end") %in% colnames(inf)))
+    stop("inf must include 'infrt','begin','end' as column names")
+
+  dot.args <- list(...)
+
+  if(!("init" %in% names(formals(object))))
+    stop("object must contain argument 'init'")
+
+  if(!("pars" %in% names(dot.args)) &
+     is.symbol(formals(object)$pars))
+    stop("PK parameters must be passed as 'pars' within predict or set
+         as defaults in PK model object")
+
+  if("init" %in% names(dot.args)){
+    init <- unlist(dot.args$init)
+  } else {
+    init <- eval(formals(object)$init)
+  }
+  if("pars" %in% names(dot.args)){
+    pars <- unlist(dot.args$pars)
+    dot.args$pars <- NULL
+  } else {
+    pars <- eval(formals(object)$pars)
+  }
+
+  begin <- inf[,"begin"]
+  end <- inf[,"end"]
+  infs <- inf[,"infrt"]
+  ncmpt <- length(init)
+
+  if(is.null(tms)){
+    tms <- seq(min(begin)+dtm, max(end), by = dtm)
+  }
+
+  pars_eval <- format_pars(pars, ncmpt = ncmpt)
+  if(ncmpt == 4){
+    pred <- pksol3cptm(tms, pars_eval, begin, end, infs, init)
+  }
+
+  # Return predicted concentrations
+  if(dim(pred)[1] == 1) {
+    predtms <- cbind(tms, c(pred))
+  } else{
+    predtms <- cbind(tms, t.default(pred))
+  }
+
+  # Add on t=0 concentrations
+  if(return_init) predtms <- rbind(c(inf[1,"begin"], init), predtms)
+
+  # # remove transition concentrations
+  if(!is.null(tms) & remove_bounds){
+    predtms <- matrix(predtms[which(predtms[,1] %in% tms),],
+                      nrow = length(tms), byrow = FALSE)
+  }
+
+  colnames(predtms) <- c("time",paste0("c",1:length(init)))
+  return(predtms)
+}
+
+
+
 #' Plot object with class 'pkmod'
 #'
 #' Will show predicted concentrations in compartments associated with an infusion schedule.
@@ -288,11 +371,9 @@ plot.tciinf <- function(x, ..., title = NULL, display = TRUE){
   }
 
   if("pdresp_start" %in% names(tciinf)){
-    # gridExtra::grid.arrange(ppd, ppk, nrow = 2, top = title)
     gb <- gridExtra::arrangeGrob(ppd, ppk, nrow = 2, top = title)
   } else{
-    # gridExtra::grid.arrange(ppk, top = title)
-    gb <- gridExtra::arrangeGrob(ppk, top = title)
+    gb <- ppk + ggtitle(title)
   }
 
   if(display){
