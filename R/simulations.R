@@ -417,53 +417,60 @@ bayes_control <- function(targets, updates, prior, true_pars,
 
     lpr_all <- rbind(lpr_all, lpr)
 
-    # indicate if full dataset should be used for updates
-    if(update_full[i]){
-      dat_eval <- dat0
+    # check if any observations are available
+    if(any(dat0$sim[,"timeobs"] <= update_tms[i])){
 
-      # use full dataset and original vcov matrix
-      post_est <- optim(par = lpr,
-                        fn = log_posterior_neg,
-                        dat = dat_eval,
-                        mu = lpr,
-                        sig = prior0$sig,
-                        pk_ix = prior$pk_ix,
-                        pd_ix = prior$pd_ix,
-                        fixed_ix = prior$fixed_ix,
-                        fixed_lpr = lpr_fixed,
-                        method = "BFGS",
-                        hessian = FALSE)
+      # indicate if full dataset should be used for updates
+      if(update_full[i]){
+        dat_eval <- dat0
 
-    } else{
-      dat_eval <- dat
-      post_est <- optim(par = lpr,
-                        fn = log_posterior_neg,
-                        dat = dat_eval,
-                        mu = lpr,
-                        sig = prior$sig,
-                        pk_ix = prior$pk_ix,
-                        pd_ix = prior$pd_ix,
-                        fixed_ix = prior$fixed_ix,
-                        fixed_lpr = lpr_fixed,
-                        method = "BFGS",
-                        hessian = TRUE)
+        # use full dataset and original vcov matrix
+        post_est <- optim(par = lpr,
+                          fn = log_posterior_neg,
+                          dat = dat_eval,
+                          mu = lpr,
+                          sig = prior0$sig,
+                          pk_ix = prior$pk_ix,
+                          pd_ix = prior$pd_ix,
+                          fixed_ix = prior$fixed_ix,
+                          fixed_lpr = lpr_fixed,
+                          method = "BFGS",
+                          hessian = FALSE)
 
-     # update vcov matrix
-     prior$sig <- solve(post_est$hessian)
-    }
+      } else{
+        dat_eval <- dat
+        post_est <- optim(par = lpr,
+                          fn = log_posterior_neg,
+                          dat = dat_eval,
+                          mu = lpr,
+                          sig = prior$sig,
+                          pk_ix = prior$pk_ix,
+                          pd_ix = prior$pd_ix,
+                          fixed_ix = prior$fixed_ix,
+                          fixed_lpr = lpr_fixed,
+                          method = "BFGS",
+                          hessian = TRUE)
 
-    if(plot_progress[i]){
-      print(plot(dat0, lpars_update = post_est$par,
-                         lpars_fixed = log(prior$pars_pkpd[prior$fixed_ix])))
-    }
+        # update vcov matrix
+        prior$sig <- solve(post_est$hessian)
+      }
+      if(post_est$convergence != 0)
+        warning(paste("Posterior failed to converge on update",i,"with code",post_est$convergence))
 
-    # update prior values
-    if(any(!is.null(prior$fixed_ix))){
-      prior$pars_pkpd[-prior$fixed_ix] <- exp(head(post_est$par,-1))
-      prior$err <- exp(tail(post_est$par,1))
-    } else{
-      prior$pars_pkpd <- exp(head(post_est$par,-1))
-      prior$err <- exp(tail(post_est$par,1))
+
+      if(plot_progress[i]){
+        print(plot(dat0, lpars_update = post_est$par,
+                   lpars_fixed = log(prior$pars_pkpd[prior$fixed_ix])))
+      }
+
+      # update prior values
+      if(any(!is.null(prior$fixed_ix))){
+        prior$pars_pkpd[-prior$fixed_ix] <- exp(head(post_est$par,-1))
+        prior$err <- exp(tail(post_est$par,1))
+      } else{
+        prior$pars_pkpd <- exp(head(post_est$par,-1))
+        prior$err <- exp(tail(post_est$par,1))
+      }
     }
 
     # update true and predicted initial values
