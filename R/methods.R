@@ -373,7 +373,7 @@ plot.tciinf <- function(x, ..., title = NULL, display = TRUE){
   if("pdresp_start" %in% names(tciinf)){
     gb <- gridExtra::arrangeGrob(ppd, ppk, nrow = 2, top = title)
   } else{
-    gb <- ppk + ggtitle(title)
+    gb <- ppk + ggplot2::ggtitle(title)
   }
 
   if(display){
@@ -507,7 +507,6 @@ plot.datasim <- function(x, ..., pars_prior = NULL, pars_post = NULL, pk_ix = NU
       ggplot2::labs(x = "Time", y = "PD response") +
       ggplot2::theme(legend.position="bottom")
   }
-
 
   return(out)
 }
