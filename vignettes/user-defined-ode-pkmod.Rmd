@@ -17,7 +17,7 @@ knitr::opts_chunk$set(
 
 ### User-defined PK functions using the tci package
 
-The `tci` package provides closed-form solutions for 1-, 2-, 3-, and 3-compartment with effect-site PK models based on solutions described and code provided in @Abuhelwa2015. It does not, however, include an ordinary differential equation (ODE) solver as many other R packages do, including [mrgsolve](https://mrgsolve.github.io/), [PKPDsim](http://pkpdsim.ronkeizer.com/), and [RxODE](https://github.com/nlmixrdevelopment/RxODE). `tci` package functions can nonetheless be applied to models from these packages through the creation of user-defined PK functions.
+The `tci` package provides closed-form solutions for 1-, 2-, 3-, and 3-compartment with effect-site PK models based on solutions described and code provided in @Abuhelwa2015. It does not, however, include an ordinary differential equation (ODE) solver as many other R packages do, including [mrgsolve](https://mrgsolve.github.io/), [PKPDsim](https://github.com/InsightRX/PKPDsim), and [RxODE](https://github.com/nlmixrdevelopment/RxODE). `tci` package functions can nonetheless be applied to models from these packages through the creation of user-defined PK functions.
  
 User-defined PK functions should be created to return concentrations at a vector of time points under a continuous infusion and should be assigned S3 class "pkmod." To illustrate, we create an example two-compartment model based on ODEs is illustrated using the `mrgsolve` R package[@mrgsolve]. Using `mrgsolve` syntax, a model can be specified as a character string and compiled using the `mcode` function.
 
