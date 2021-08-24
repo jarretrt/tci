@@ -35,7 +35,7 @@ gen_data <- function(inf, pkmod, pars_pk0,
   if(is.null(init))
     init <- eval(formals(pkmod)$init)
 
-  con0 <- predict(object = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
+  con0 <- predict_pkmod(object = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
 
   # additive and multiplicative errors
   eadd  <- rnorm(nrow(con0),0,sigma_add)
@@ -203,7 +203,7 @@ log_likelihood <- function(lpr, dat, pk_ix, pd_ix, fixed_ix = NULL, fixed_lpr = 
   ini <- dat$inf[1,grep("c[0-9]_start",colnames(dat$inf))]
 
   # predict concentrations at lpr
-  cp <- predict(dat$pkmod,
+  cp <- predict_pkmod(dat$pkmod,
                 inf = dat$inf,
                 tms = tms,
                 pars = epars[pk_ix],
@@ -240,7 +240,7 @@ log_likelihood <- function(lpr, dat, pk_ix, pd_ix, fixed_ix = NULL, fixed_lpr = 
 #   ini <- dat$inf[1,grep("c[0-9]_start",colnames(dat$inf))]
 #
 #   # predict concentrations at lpr
-#   cp <- predict(dat$pkmod,
+#   cp <- predict_pkmod(dat$pkmod,
 #                 inf = dat$inf,
 #                 tms = tms,
 #                 pars = exp(lpr[pk_ix]),
@@ -475,7 +475,7 @@ bayes_control <- function(targets, updates, prior, true_pars,
 
     # update true and predicted initial values
     init0 <- dat0$sim[nrow(dat0$sim),grep("c[0-9]",colnames(dat0$sim))]
-    init_p <- as.numeric(predict(pkmod,
+    init_p <- as.numeric(predict_pkmod(pkmod,
                                  inf = dat0$inf,
                                  tms = update_tms[i],
                                  pars = prior$pars_pkpd[prior$pk_ix],
@@ -589,7 +589,7 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 #   tms <- seq(dtm,rng[2],dtm)
 #
 #   # predict concentrations and responses
-#   con0 <- predict(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
+#   con0 <- predict_pkmod(pkmod = pkmod, inf = inf, tms = tms, pars = pars_pk0, init = init)
 #   pd_pred <- pdmod(con0[,paste0("c",ecmpt)], pars_pd0)
 #
 #   phi1 <- sum((pd_pred[pd_pred>target] - target))*dtm # integral above target
@@ -622,7 +622,7 @@ apply_targetfn <- function(lp, tm, targetfn, prior_pk, prior_pd,
 #   tms <- seq(dtm,rng[2],dtm)
 #
 #   # predict concentrations and responses
-#   con0 <- predict(pkmod = pkmod, inf = inf, tms = tms,
+#   con0 <- predict_pkmod(pkmod = pkmod, inf = inf, tms = tms,
 #                   pars = pars_pk0, init = init)[,paste0("c",ecmpt)]
 #   pd_pred <- pdmod(con0, pars_pd0)
 #

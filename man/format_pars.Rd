@@ -5,7 +5,7 @@
 \title{Format parameters for use in Rcpp functions
 
 Order parameters for 1-4 compartment models to be used in Rcpp functions in
-predict.pkmod method.}
+predict_pkmod method.}
 \usage{
 format_pars(pars, ncmpt = 3)
 }
@@ -22,7 +22,7 @@ effect-site without a corresponding volume parameter.}
 Format parameters for use in Rcpp functions
 
 Order parameters for 1-4 compartment models to be used in Rcpp functions in
-predict.pkmod method.
+predict_pkmod method.
 }
 \examples{
 dose <- data.frame(time = c(0.5,4,4.5,10), infrt = c(100,0,100,0))

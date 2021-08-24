@@ -23,5 +23,5 @@ pkmod2cpt(tm, kR, pars, init = c(0, 0), inittm = 0, k20 = 0)
 Two compartment IV infusion with first-order elimination.
 }
 \examples{
-pkmod2cpt(1,1,c(CL = 15, V1 = 10, Q = 10, V2 = 20))
+pkmod2cpt(1,1,c(CL = 15, V1 = 10, Q2 = 10, V2 = 20))
 }

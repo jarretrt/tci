@@ -11,7 +11,7 @@ pkmod1cpt(tm, kR, pars, init = 0, inittm = 0)
 
 \item{kR}{Infusion rate (e.g. ml/min).}
 
-\item{pars}{Named vector of parameters with names ('ke','v') or ('cl').}
+\item{pars}{Named vector of parameters with names ('k10','v1') or ('cl','v1').}
 
 \item{init}{Initial concentration. Defaults to 0.}
 
@@ -21,5 +21,5 @@ pkmod1cpt(tm, kR, pars, init = 0, inittm = 0)
 One compartment IV infusion with first-order elimination.
 }
 \examples{
-pkmod1cpt(1,1,c(ke = 0.5, v = 1))
+pkmod1cpt(1,1,c(k10 = 0.5, v1 = 1))
 }

@@ -75,7 +75,7 @@ dose <- create_intvl(
 dose
 ```
 
-PK models are defined to have S3 class "pkmod" and can be evaluated through the `predict.pkmod` method in combination with a dosing schedule. Evaluation of a model additionally requires a set of PK model parameters. Starting concentrations, if unspecified, will be set to zero in each compartment. The units of measurement used for infusion rates and concentrations are not inherent to any structural PK model and may change depending on the drug and application. For the examples below, we will consider the intravenous anesthetic propofol, which is commonly described by a three-compartment model and used in TCI applications. Population models of propofol describe volumes in terms of liters (L), clearance parameters in terms of milliliters per minute (mL/min), and amounts of drug in terms of milligrams (mg). The infusion rate describes the quantity of propofol administered per unit of time on the same scale as the rest of the parameters in the PK model, and is therefore given in terms of mg/min.  
+PK models are defined to have S3 class "pkmod" and can be evaluated through the `predict_pkmod` function in combination with a dosing schedule. Evaluation of a model additionally requires a set of PK model parameters. Starting concentrations, if unspecified, will be set to zero in each compartment. The units of measurement used for infusion rates and concentrations are not inherent to any structural PK model and may change depending on the drug and application. For the examples below, we will consider the intravenous anesthetic propofol, which is commonly described by a three-compartment model and used in TCI applications. Population models of propofol describe volumes in terms of liters (L), clearance parameters in terms of milliliters per minute (mL/min), and amounts of drug in terms of milligrams (mg). The infusion rate describes the quantity of propofol administered per unit of time on the same scale as the rest of the parameters in the PK model, and is therefore given in terms of mg/min.  
 
 
 ```{r, predict-mod}
@@ -85,10 +85,10 @@ pars_3cpt <- c(k10=1.5,k12=0.15,k21=0.09,k13=0.8,
 
 # predict concentrations of a three-compartment model with effect-site at
 # times 1, 2, 8 minutes
-predict(pkmod3cptm, 
-        pars = pars_3cpt,
-        inf = dose, 
-        tms = c(1,2,8))
+predict_pkmod(pkmod3cptm, 
+              pars = pars_3cpt,
+              inf = dose, 
+              tms = c(1,2,8))
 ```
 
 The same arguments can similarly be passed to a `plot.pkmod` method to display the patient responses over time.

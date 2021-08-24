@@ -39,7 +39,7 @@ create_intvl <- function(dose, inittm = 0){
 #' @title Format parameters for use in Rcpp functions
 #'
 #' Order parameters for 1-4 compartment models to be used in Rcpp functions in
-#' predict.pkmod method.
+#' predict_pkmod method.
 #'
 #' @param pars Vector of named parameters. Names can be capitalized or lowercase
 #' and can include variations of "V1" as "V" or clearance terms rather than
@@ -84,11 +84,14 @@ format_pars <- function(pars, ncmpt = 3){
   }
 
   if(ncmpt >= 3){
-    pars_out <- c(k10,k12,k21,k13,k31,v1,v2,v3)
+    pars_out <- unname(c(k10,k12,k21,k13,k31,v1,v2,v3))
+    names(pars_out) <- c("k10","k12","k21","k13","k31","v1","v2","v3")
   } else if(ncmpt == 2){
-    pars_out <- c(k10,k12,k21,v1,v2)
+    pars_out <- unname(c(k10,k12,k21,v1,v2))
+    names(pars_out) <- c("k10","k12","k21","v1","v2")
   } else{
-    pars_out <- c(k10,v1)
+    pars_out <- unname(c(k10,v1))
+    names(pars_out) <- c("k10","v1")
   }
 
   if("ke0" %in% names(pars)){

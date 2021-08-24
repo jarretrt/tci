@@ -76,11 +76,11 @@ tci_effect <- function(Cet, pkmod, dtm = 1/6, ecmpt = NULL, tmax_search = 10,
 
   # predict concentrations with no additional infusions and starting concentrations
   B <- function(tm)
-    predict(pkmod, inf = null_inf, pars = pars, init = init, tms = tm)[,ecmpt_name]
+    predict_pkmod(pkmod, inf = null_inf, pars = pars, init = init, tms = tm)[,ecmpt_name]
 
   # predict concentrations with unit infusion and no starting concentrations
   E <- function(tm)
-    predict(pkmod, inf = unit_inf, pars = pars, init = rep(0,length(init)), tms = tm)[,ecmpt_name]
+    predict_pkmod(pkmod, inf = unit_inf, pars = pars, init = rep(0,length(init)), tms = tm)[,ecmpt_name]
 
   # predict to find the longest time of maximum concentration
   # this will always be shorter when any prior drug has been infused

@@ -93,10 +93,10 @@ dose <- create_intvl(
 pars_2cpt <- c(CL = 15, V = 10, Q = 10, V2 = 20)
 
 # predict concentrations
-predict(pkmod2cpt_ode, 
-        pars = pars_2cpt, 
-        inf = dose, 
-        tms = c(1,2,3))
+predict_pkmod(pkmod2cpt_ode, 
+              pars = pars_2cpt, 
+              inf = dose, 
+              tms = c(1,2,3))
 
 # plot concentrations
 plot(pkmod2cpt_ode, 
