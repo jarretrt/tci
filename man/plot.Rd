@@ -8,7 +8,15 @@
 \alias{plot.bayessim}
 \title{Plot object with class 'pkmod'}
 \usage{
-\method{plot}{pkmod}(x, ..., inf, npts = 1000, title = NULL)
+\method{plot}{pkmod}(
+  x,
+  ...,
+  inf,
+  npts = 1000,
+  title = NULL,
+  xlab = "Time",
+  ylab = "Concentration"
+)
 
 \method{plot}{pdmod}(
   x,
@@ -20,14 +28,35 @@
   npts = 1000,
   plot_pk = TRUE,
   title = NULL,
-  ecmpt = NULL
+  ecmpt = NULL,
+  xlab = "Time",
+  ylab_con = "Concentration",
+  ylab_resp = "Response"
 )
 
-\method{plot}{tciinf}(x, ..., title = NULL, display = TRUE)
+\method{plot}{tciinf}(
+  x,
+  ...,
+  title = NULL,
+  display = TRUE,
+  xlab = "Time",
+  ylab_con = "Concentration",
+  ylab_resp = "Response"
+)
 
-\method{plot}{datasim}(x, ..., pars_prior = NULL, pars_post = NULL, pk_ix = NULL, pd_ix = NULL)
+\method{plot}{datasim}(
+  x,
+  ...,
+  pars_prior = NULL,
+  pars_post = NULL,
+  pk_ix = NULL,
+  pd_ix = NULL,
+  xlab = "Time",
+  ylab_con = "Concentration",
+  ylab_resp = "Response"
+)
 
-\method{plot}{bayessim}(x, ...)
+\method{plot}{bayessim}(x, ..., xlab = "Time", ylab_con = "Concentration", ylab_resp = "Response")
 }
 \arguments{
 \item{x}{Object returned from "bayes_control" function}
@@ -40,6 +69,10 @@
 
 \item{title}{Title of plot.}
 
+\item{xlab}{x-axis label}
+
+\item{ylab}{y-axis label}
+
 \item{pkmod}{PK model}
 
 \item{pars_pd}{Parameters used by pdmod.}
@@ -51,6 +84,10 @@ the PD response. Defaults to TRUE.}
 
 \item{ecmpt}{Effect-site compartment number. Defaults to the last
 compartment concentration returned by pkmod.}
+
+\item{ylab_con}{y-axis label for concentration-time plot}
+
+\item{ylab_resp}{y-axis label for response-time plot}
 
 \item{display}{Logical. Should plots be printed or returned as an arrangeGrob object?}
 
