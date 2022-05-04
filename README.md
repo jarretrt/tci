@@ -115,8 +115,8 @@ list_pkmods()
 By default, calling population PK model functions will return a model
 with parameter values corresponding to the point estimates for the set
 of covariates. Parameter values can be sampled, however, by calling the
-function `sample_pkmod` on any `pkmod` object with an *O**m**e**g**a*
-matrix describing inter-individual variability.
+function `sample_pkmod` on any `pkmod` object with an `Omega` matrix
+describing inter-individual variability.
 
 ``` r
 # pkmod at point estimates for Eleveld propofol model
@@ -161,7 +161,6 @@ has a effect-site equilibrium parameter, *k*<sub>*e*0</sub>, defined.
 plasma_targets <- cbind(value = c(2,3,4,4), time = c(0,2,3,10))
 
 # set ignore_pd = TRUE to indicate that targets are PK, not PD, values
-# effect-site t
 inf_pkvals <- apply_tci(plasma_targets, pkmod = mod_elvd_sample, ignore_pd = TRUE)
 
 # target response using effect-site algorithm

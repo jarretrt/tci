@@ -97,7 +97,6 @@ Typically, the `apply_tci` will be used to calculate infusion rates required to 
 plasma_targets <- cbind(value = c(2,3,4,4), time = c(0,2,3,10))
 
 # set ignore_pd = TRUE to indicate that targets are PK, not PD, values
-# effect-site t
 inf_pkvals <- apply_tci(plasma_targets, pkmod = mod_elvd_sample, ignore_pd = TRUE)
 
 # target response using effect-site algorithm
