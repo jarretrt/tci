@@ -9,24 +9,24 @@ pksol1cpt <- function(tms, pars, begin, end, infs, init) {
     .Call(`_tci_pksol1cpt`, tms, pars, begin, end, infs, init)
 }
 
-basicsolution2cpt <- function(tm, kR, k10, k12, k21, v1, v2, c0) {
-    .Call(`_tci_basicsolution2cpt`, tm, kR, k10, k12, k21, v1, v2, c0)
+basicsolution2cpt <- function(tm, kR, k10, k20, k12, k21, v1, v2, c0) {
+    .Call(`_tci_basicsolution2cpt`, tm, kR, k10, k20, k12, k21, v1, v2, c0)
 }
 
 pksol2cpt <- function(tms, pars, begin, end, infs, init) {
     .Call(`_tci_pksol2cpt`, tms, pars, begin, end, infs, init)
 }
 
-basicsolution3cpt <- function(tm, kR, k10, k12, k21, k13, k31, v1, v2, v3, c0) {
-    .Call(`_tci_basicsolution3cpt`, tm, kR, k10, k12, k21, k13, k31, v1, v2, v3, c0)
+basicsolution3cpt <- function(tm, kR, k10, k20, k30, k12, k21, k13, k31, v1, v2, v3, c0) {
+    .Call(`_tci_basicsolution3cpt`, tm, kR, k10, k20, k30, k12, k21, k13, k31, v1, v2, v3, c0)
 }
 
 pksol3cpt <- function(tms, pars, begin, end, infs, init) {
     .Call(`_tci_pksol3cpt`, tms, pars, begin, end, infs, init)
 }
 
-basicsolution3cptm <- function(tm, kR, k10, k12, k21, k13, k31, v1, v2, v3, ke0, c0) {
-    .Call(`_tci_basicsolution3cptm`, tm, kR, k10, k12, k21, k13, k31, v1, v2, v3, ke0, c0)
+basicsolution3cptm <- function(tm, kR, k10, k20, k30, k12, k21, k13, k31, v1, v2, v3, ke0, c0) {
+    .Call(`_tci_basicsolution3cptm`, tm, kR, k10, k20, k30, k12, k21, k13, k31, v1, v2, v3, ke0, c0)
 }
 
 pksol3cptm <- function(tms, pars, begin, end, infs, init) {

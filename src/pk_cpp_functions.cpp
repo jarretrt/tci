@@ -94,10 +94,9 @@ arma::mat pksol1cpt(arma::vec& tms, arma::vec& pars, arma::vec& begin,
 
 
 // [[Rcpp::export]]
-arma::mat basicsolution2cpt(arma::vec tm, double kR, double k10, double k12, double k21, double v1,
+arma::mat basicsolution2cpt(arma::vec tm, double kR, double k10, double k20, double k12, double k21, double v1,
                             double v2, arma::vec c0) {
 
-  double k20 = 0.0;
   double E1 = k10+k12;
   double E2 = k21+k20;
   double E1E2 = E1+E2;
@@ -132,10 +131,11 @@ arma::mat pksol2cpt(arma::vec& tms, arma::vec& pars, arma::vec& begin,
                     arma::vec& end, arma::vec& infs, arma::vec& init) {
 
   double k_10 = pars[0];
-  double k_12 = pars[1];
-  double k_21 = pars[2];
-  double v_1  = pars[3];
-  double v_2  = pars[4];
+  double k_20 = pars[1];
+  double k_12 = pars[2];
+  double k_21 = pars[3];
+  double v_1  = pars[4];
+  double v_2  = pars[5];
 
   // append values 0 and infinity to begin/end sequences
   // arma::vec vec_0(1, arma::fill::zeros);
@@ -188,7 +188,7 @@ arma::mat pksol2cpt(arma::vec& tms, arma::vec& pars, arma::vec& begin,
     arma::vec tmsi = arma::join_cols(tmsix, val_prd); // joint set of times
 
     // Evaluate piecewise PK solution
-    arma::mat consi = basicsolution2cpt(tmsi - prd[ii], infi[ii], k_10, k_12, k_21, v_1, v_2, inits(arma::span(0,1),ii));
+    arma::mat consi = basicsolution2cpt(tmsi - prd[ii], infi[ii], k_10, k_20, k_12, k_21, v_1, v_2, inits(arma::span(0,1),ii));
 
     // Update initial values
     inits(arma::span(0,1),ii+1) = consi(arma::span(0,1),consi.n_cols-1);
@@ -211,11 +211,8 @@ arma::mat pksol2cpt(arma::vec& tms, arma::vec& pars, arma::vec& begin,
 
 
 // [[Rcpp::export]]
-arma::mat basicsolution3cpt(arma::vec tm, double kR, double k10, double k12, double k21, double k13, double k31, double v1,
+arma::mat basicsolution3cpt(arma::vec tm, double kR, double k10, double k20, double k30, double k12, double k21, double k13, double k31, double v1,
                             double v2, double v3, arma::vec c0) {
-
-  double k20 = 0.0;
-  double k30 = 0.0;
 
   double E1 = k10+k12+k13;
   double E2 = k21+k20;
@@ -277,13 +274,15 @@ arma::mat pksol3cpt(arma::vec& tms, arma::vec& pars, arma::vec& begin,
                     arma::vec& end, arma::vec& infs, arma::vec& init) {
 
   double k_10 = pars[0];
-  double k_12 = pars[1];
-  double k_21 = pars[2];
-  double k_13 = pars[3];
-  double k_31 = pars[4];
-  double v_1  = pars[5];
-  double v_2  = pars[6];
-  double v_3  = pars[7];
+  double k_20 = pars[1];
+  double k_30 = pars[2];
+  double k_12 = pars[3];
+  double k_21 = pars[4];
+  double k_13 = pars[5];
+  double k_31 = pars[6];
+  double v_1  = pars[7];
+  double v_2  = pars[8];
+  double v_3  = pars[9];
 
   // append values 0 and infinity to begin/end sequences
   // arma::vec vec_0(1, arma::fill::zeros);
@@ -336,7 +335,7 @@ arma::mat pksol3cpt(arma::vec& tms, arma::vec& pars, arma::vec& begin,
     arma::vec tmsi = arma::join_cols(tmsix, val_prd); // joint set of times
 
     // Evaluate piecewise PK solution
-    arma::mat consi = basicsolution3cpt(tmsi - prd[ii], infi[ii], k_10, k_12, k_21,k_13, k_31, v_1, v_2, v_3, inits(arma::span(0,2),ii));
+    arma::mat consi = basicsolution3cpt(tmsi - prd[ii], infi[ii], k_10, k_20, k_30, k_12, k_21,k_13, k_31, v_1, v_2, v_3, inits(arma::span(0,2),ii));
 
     // Update initial values
     inits(arma::span(0,2),ii+1) = consi(arma::span(0,2),consi.n_cols-1);
@@ -345,7 +344,6 @@ arma::mat pksol3cpt(arma::vec& tms, arma::vec& pars, arma::vec& begin,
       // Store values
       cons.submat(0, min(ix_tms), 2, max(ix_tms)) = consi.submat(0,0,2,consi.n_cols-2); // Store concentrations in rows
     }
-    // std::cout << "cons: " << cons;
 
   }
 
@@ -358,14 +356,12 @@ arma::mat pksol3cpt(arma::vec& tms, arma::vec& pars, arma::vec& begin,
 
 
 // [[Rcpp::export]]
-arma::mat basicsolution3cptm(arma::vec tm, double kR, double k10, double k12, double k21, double k13, double k31, double v1,
+arma::mat basicsolution3cptm(arma::vec tm, double kR, double k10, double k20, double k30, double k12, double k21, double k13, double k31, double v1,
                                            double v2, double v3, double ke0, arma::vec c0) {
 
   double kme = ke0;
   double km = ke0 / 100000.0;
   double v4 = v1 / 100000.0;
-  double k20 = 0.0;
-  double k30 = 0.0;
   double E1 = k10+k12+k13+km;
   double E2 = k21+k20;
   double E3 = k31+k30;
@@ -433,14 +429,16 @@ arma::mat pksol3cptm(arma::vec& tms, arma::vec& pars, arma::vec& begin,
                                      arma::vec& end, arma::vec& infs, arma::vec& init) {
 
   double k_10 = pars[0];
-  double k_12 = pars[1];
-  double k_21 = pars[2];
-  double k_13 = pars[3];
-  double k_31 = pars[4];
-  double v_1  = pars[5];
-  double v_2  = pars[6];
-  double v_3  = pars[7];
-  double k_e0 = pars[8];
+  double k_20 = pars[1];
+  double k_30 = pars[2];
+  double k_12 = pars[3];
+  double k_21 = pars[4];
+  double k_13 = pars[5];
+  double k_31 = pars[6];
+  double v_1  = pars[7];
+  double v_2  = pars[8];
+  double v_3  = pars[9];
+  double k_e0 = pars[10];
 
   // append values 0 and infinity to begin/end sequences
   // arma::vec vec_0(1, arma::fill::zeros);
@@ -493,7 +491,7 @@ arma::mat pksol3cptm(arma::vec& tms, arma::vec& pars, arma::vec& begin,
     arma::vec tmsi = arma::join_cols(tmsix, val_prd); // joint set of times
 
     // Evaluate piecewise PK solution
-    arma::mat consi = basicsolution3cptm(tmsi - prd[ii], infi[ii], k_10, k_12, k_21,k_13, k_31, v_1, v_2, v_3, k_e0, inits(arma::span(0,3),ii));
+    arma::mat consi = basicsolution3cptm(tmsi - prd[ii], infi[ii], k_10, k_20, k_30, k_12, k_21,k_13, k_31, v_1, v_2, v_3, k_e0, inits(arma::span(0,3),ii));
 
     // Update initial values
     inits(arma::span(0,3),ii+1) = consi(arma::span(0,3),consi.n_cols-1);

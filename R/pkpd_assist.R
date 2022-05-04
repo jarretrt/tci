@@ -1,39 +1,113 @@
 # --------------------------------------------------------------------------------------------------------------------------------
 # - PK-PD model helper functions and methods -------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
-
-#' dosing schedule
-# create_intvl <- function(dose, inittm = 0){
-#   b <- cut2(dose$time +inittm, breaks = c(inittm,dose$time+inittm), include.lowest = TRUE, right = FALSE)
-#   ss <- t(sapply(stringr::str_extract_all(levels(b),"-?[0-9.]+"), as.numeric))
-#   setNames(data.frame(levels(b), dose$infrt, ss), c("intvl","infrt","begin","end"))
-#   # infm <- cbind(dose$infrt, ss)
-#   # dimnames(infm) = list(rep(NULL,nrow(ss)), c("infrt","begin","end"))
-#   # infm
+# #' Create dosing schedule
+# #'
+# #' Returns a data frame describing a set of infusions to be administered. Output
+# #' can be used as argument "inf" in predict_pkmod.
+# #'
+# #' @param times Vector of time to begin infusions. If duration is NULL, times
+# #' expected to include both infusion start and infusion end times.
+# #' @param infrt Vector of infusion rates. Must lave length equal to either
+# #' length(times) or 1. If length(infrt)=1, the same infusion rate will be
+# #' administered at each time.
+# #' @param duration Optional duration of infusions.
+# #' @return Matrix of infusion rates, start and end times.
+# #' @examples
+# #' # specify start and end times, as well as infusion rates (including 0).
+# #' dose(times = c(0,0.5,4,4.5,10), inf = c(100,0,80,0,0))
+# #' # specify start times, single infusion rate and single duration
+# #' dose(times = c(0,4), infrt = 100, duration = 0.5)
+# #' # multiple infusion rates, single duration
+# #' dose(times = c(0,4), infrt = c(100,80), duration = 0.5)
+# #' # multiple sequential infusion rates
+# #' dose(times = seq(0,1,1/6), infrt = 100, duration = 1/6)
+# #' # single infusion rate, multiple durations
+# #' dose(times = c(0,4), infrt = 100, duration = c(0.5,1))
+# #' # multiple infusion rates, multiple durations
+# #' dose(times = c(0,4), infrt = c(100,80), duration = c(0.5,1))
+# #' @export
+# dose <- function(times, infrt, duration = NULL)
+# {
+#
+#   if(!is.null(duration) & !(length(duration) %in% c(1, length(times))))
+#     stop("duration length must be equal to 1 or length of time vector")
+#   if(!(length(infrt) %in% c(1, length(times))))
+#     stop("infrt length must be equal to 1 or length of time vector")
+#   if(!(length(infrt) %in% c(1, length(times))) & tail(infrt,1)!=0 & !is.null(duration))
+#     stop("Final value of infrt must be zero or duration must be non-null")
+#
+#   if(!is.null(duration)){
+#     endtms <- times + duration
+#     alltms <- union(round(times,5), round(endtms,5))
+#     ord <- order(alltms)
+#     if(length(infrt) == 1) infrt <- c(rep(infrt,length(times)), rep(0,length(endtms)))
+#     out <- as.matrix(cbind(
+#       infrt = infrt[ord][-length(alltms)],
+#       begin = alltms[ord][-length(alltms)],
+#       end = alltms[ord][-1]))
+#     out[is.na(out[,"infrt"]),"infrt"] <- 0
+#   } else{
+#     out <- as.matrix(cbind(infrt = infrt[-length(infrt)],
+#                            begin = times[-length(times)],
+#                            end = times[-1]))
+#   }
+#   return(out)
 # }
-
 
 #' Create dosing schedule
 #'
-#' Create a dosing schedule object with columns "infrt", "begin", "end" from
-#' vectors of infusions and infusion end times. The argument "inittm" is used
-#' to specify the starting time of the first infusion.
+#' Returns a data frame describing a set of infusions to be administered. Output
+#' can be used as argument "inf" in predict_pkmod.
 #'
-#' @param dose Data frame with columns "time" and "infrt".
-#' @param inittm Starting time of initial infusion
-#' @export
-create_intvl <- function(dose, inittm = 0){
-  if(!all(c("time","infrt") %in% colnames(dose)))
-    stop("dose must include columnnames 'time','infrt'")
-  tms <- c(inittm,dose[,"time"])
-  as.matrix(cbind(infrt = dose[,"infrt"],
-                  begin = tms[-length(tms)],
-                  end = tms[-1]))
-}
+#' @param times Vector of time to begin infusions. If duration is NULL, times
+#' expected to include both infusion start and infusion end times.
+#' @param infrt Vector of infusion rates. Must lave length equal to either
+#' length(times) or 1. If length(infrt)=1, the same infusion rate will be
+#' administered at each time. Either infrt or target must be specified, but not both.
+#' @param duration Optional duration of infusions.
+#' @return Matrix of infusion rates, start and end times.
+#' @importFrom utils tail
 #' @examples
-#' dose <- data.frame(time = c(0.5,4,4.5,10), infrt = c(100,0,100,0))
-#' create_intvl(dose)
+#' # specify start and end times, as well as infusion rates (including 0).
+#' create_inf(times = c(0,0.5,4,4.5,10), infrt = c(100,0,80,0,0))
+#' # specify start times, single infusion rate and single duration
+#' create_inf(times = c(0,4), infrt = 100, duration = 0.5)
+#' # multiple infusion rates, single duration
+#' create_inf(times = c(0,4), infrt = c(100,80), duration = 0.5)
+#' # multiple sequential infusion rates
+#' create_inf(times = seq(0,1,1/6), infrt = 100, duration = 1/6)
+#' # single infusion rate, multiple durations
+#' create_inf(times = c(0,4), infrt = 100, duration = c(0.5,1))
+#' # multiple infusion rates, multiple durations
+#' create_inf(times = c(0,4), infrt = c(100,80), duration = c(0.5,1))
+#' @export
+create_inf <- function(times, infrt = NULL, duration = NULL)
+{
 
+ if(!is.null(duration) & !(length(duration) %in% c(1, length(times))))
+   stop("duration length must be equal to 1 or length of time vector")
+ if(!(length(infrt) %in% c(1, length(times))))
+   stop("infrt length must be equal to 1 or length of time vector")
+ if(!(length(infrt) %in% c(1, length(times))) & tail(infrt,1)!=0 & !is.null(duration))
+   stop("Final value of infrt must be zero or duration must be non-null")
+ if(!is.null(duration)){
+   endtms <- times + duration
+   alltms <- union(round(times,5), round(endtms,5))
+   ord <- order(alltms)
+   if(length(infrt) == 1) infrt <- c(rep(infrt,length(times)), rep(0,length(endtms)))
+   out <- as.matrix(cbind(
+     begin = alltms[ord][-length(alltms)],
+     end = alltms[ord][-1],
+     infrt = infrt[ord][-length(alltms)]))
+   out[is.na(out[,"infrt"]),"infrt"] <- 0
+ } else{
+   out <- as.matrix(cbind(begin = times[-length(times)],
+                          end = times[-1],
+                          infrt = infrt[-length(infrt)]))
+ }
+ return(out)
+}
 
 #' @name format_pars
 #' @title Format parameters for use in Rcpp functions
@@ -47,6 +121,10 @@ create_intvl <- function(dose, inittm = 0){
 #' @param ncmpt Number of compartments in the model. This should be a value
 #' between 1 and 4. If ncmpt = 4, it assumes that the fourth compartment is an
 #' effect-site without a corresponding volume parameter.
+#' @return Numeric vector of transformed parameter values.
+#' @examples
+#' format_pars(c(V1 = 8.9, CL = 1.4, q2 = 0.9, v2 = 18), ncmpt = 2)
+#' format_pars(c(V1 = 8.9, CL = 1.4, q2 = 0.9, v2 = 18, cl2 = 3), ncmpt = 2)
 #' @export
 format_pars <- function(pars, ncmpt = 3){
 
@@ -59,18 +137,33 @@ format_pars <- function(pars, ncmpt = 3){
   }
   if("cl" %in% names(pars)){
     k10 <- pars["cl"]/v1
-  } else{
+  } else if("cl1" %in% names(pars)){
+    k10 <- pars["cl1"]/v1
+  } else if("ke" %in% names(pars))
+    k10 <- pars["ke"]
+  else{
     k10 <- pars["k10"]
   }
   if(ncmpt >= 2){
     v2 <- pars["v2"]
-    if("q2" %in% names(pars)){
+    if("q" %in% names(pars)){
+      k12 = pars["q"]/v1
+      k21 = pars["q"]/v2
+    } else if("q2" %in% names(pars)){
       k12 = pars["q2"]/v1
       k21 = pars["q2"]/v2
     } else{
       k12 = pars["k12"]
       k21 = pars["k21"]
     }
+
+    if("cl2" %in% names(pars)){
+      k20 = pars["cl2"]/v2
+    } else if("k20" %in% names(pars))
+      k20 = pars["k20"]
+    else
+      k20 = 0
+
   }
   if(ncmpt >= 3){
     v3 <- pars["v3"]
@@ -81,14 +174,21 @@ format_pars <- function(pars, ncmpt = 3){
       k13 = pars["k13"]
       k31 = pars["k31"]
     }
+
+    if("cl3" %in% names(pars)){
+      k30 = pars["cl3"]/v3
+    } else if("k30" %in% names(pars))
+      k30 = pars["k30"]
+    else
+      k30 = 0
   }
 
   if(ncmpt >= 3){
-    pars_out <- unname(c(k10,k12,k21,k13,k31,v1,v2,v3))
-    names(pars_out) <- c("k10","k12","k21","k13","k31","v1","v2","v3")
+    pars_out <- unname(c(k10,k20,k30,k12,k21,k13,k31,v1,v2,v3))
+    names(pars_out) <- c("k10","k20","k30","k12","k21","k13","k31","v1","v2","v3")
   } else if(ncmpt == 2){
-    pars_out <- unname(c(k10,k12,k21,v1,v2))
-    names(pars_out) <- c("k10","k12","k21","v1","v2")
+    pars_out <- unname(c(k10,k20,k12,k21,v1,v2))
+    names(pars_out) <- c("k10","k20","k12","k21","v1","v2")
   } else{
     pars_out <- unname(c(k10,v1))
     names(pars_out) <- c("k10","v1")
@@ -99,10 +199,103 @@ format_pars <- function(pars, ncmpt = 3){
   }
   return(pars_out)
 }
-#' @examples
-#' pars <- c(V1 = 8.9, CL = 1.4, q2 = 0.9, v2 = 18)
-#' format_pars(pars, ncmpt = 2)
 
+
+#' @name infer_pkfn
+#' @title Identify pkfn from parameter names
+#' @description Identify structural PK model function (i.e., `pkfn`) from parameter names.
+#' Models available are 1-, 2-, and 3-compartment mammillary models, or 3-compartment with
+#' an effect site, corresponding to functions `pkmod1cpt`, `pkmod2cpt`, `pkmod3cpt`, and
+#' `pkmod3cptm`, respectively.
+#' @param parnms Vector of parameter names.
+#' @return Returns one of the following functions: `pkmod1cpt`, `pkmod2cpt`, `pkmod3cpt`,
+#' or `pkmod3cptm` based on the parameter names entered.
+#' @examples
+#' # 1-compartment
+#' infer_pkfn(c("CL","V"))
+#' infer_pkfn(c("Cl","v1"))
+#' # 2-compartment
+#' infer_pkfn(c("CL","v","v2","q"))
+#' # 3-compartment
+#' infer_pkfn(c("CL","v","v2","q","Q2","V3"))
+#' # 3-compartment with effect-site
+#' infer_pkfn(c("CL","v","v2","q","Q2","V3","ke0"))
+#' @export
+infer_pkfn <- function(parnms){
+
+  parnms <- tolower(parnms)
+
+  if("ke0" %in% parnms)
+    return(pkmod3cptm)
+
+  if(any(c("v3","q3") %in% parnms))
+    return(pkmod3cpt)
+
+  if(any(c("v2","q2","q") %in% parnms))
+    return(pkmod2cpt)
+
+  if(any(c("cl","v","v1") %in% parnms))
+    return(pkmod1cpt)
+
+  warning("Could not infer pkfn from parameter names.")
+}
+
+
+
+#' @name list_parnms
+#' @title Identify pkfn from parameter names
+#' @description Identify structural PK model function (i.e., `pkfn`) from parameter names.
+#' Models available are 1-, 2-, and 3-compartment mammillary models, or 3-compartment with
+#' an effect site, corresponding to functions `pkmod1cpt`, `pkmod2cpt`, `pkmod3cpt`, and
+#' `pkmod3cptm`, respectively.
+#' @return Returns one of the following functions: `pkmod1cpt`, `pkmod2cpt`, `pkmod3cpt`,
+#' or `pkmod3cptm` based on the parameter names entered.
+#' @examples
+#' list_parnms()
+#' @export
+list_parnms <- function(){
+  cat("Acceptable names for 'pars_pk' vector (case-insensitive)", "\n")
+  cat("--- First compartment options-------------", "\n")
+  cat("Central volume: 'v','v1'","\n")
+  cat("Elimination: 'cl','cl1','k10','ke'","\n")
+  cat("--- Second compartment options------------", "\n")
+  cat("Peripheral volume: 'v2'","\n")
+  cat("Transfer: 'q','q2','k12','k21'","\n")
+  cat("Elimination: 'cl2','k20'","\n")
+  cat("--- Third compartment options-------------", "\n")
+  cat("Second peripheral volume: 'v3'","\n")
+  cat("Transfer: 'q3','k13','k31'","\n")
+  cat("Elimination: 'cl3','k30'","\n")
+  cat("--- Effect-site---------------------------", "\n")
+  cat("Elimination: 'ke0'","\n")
+}
+
+
+#' @name list_pkmods
+#' @title Print population PK models available in `tci`
+#' @description Print population PK models available in `tci` for propofol (Marsh,
+#' Schnider, Eleveld) and remifentanil (Minto, Kim, Eleveld).
+#' @return Prints function names, model types, and required covariates for each
+#' model.
+#' @examples
+#' list_pkmods()
+#' @import knitr
+#' @export
+list_pkmods <- function(){
+  tab <- data.frame(`Population model` = c("Marsh","Schnider","Eleveld (propofol)",
+                              "Minto","Kim","Eleveld (remifentanil"),
+                    Function = c("pkmod_marsh()","pkmod_schnider()","pkmod_eleveld_ppf()",
+                                 "pkmod_minto()","pkmod_kim()","pkmod_eleveld_remi()"),
+                    Drug = rep(c("Propofol","Remifentanil"), each = 3),
+                    Type = c("PK","PK","PK/PKPD","PK/PKPD","PK","PK/PKPD"),
+                    `Required covariates` = c("TBW","AGE, HGT, LBM or (TBW and MALE)",
+                                   "AGE, HGT, MALE, TBW",
+                                   "AGE, LBM or (MALE, TBW, and HGT)",
+                                   "AGE, TBW, FFM or (MALE and BMI)",
+                                   "AGE, MALE, BMI or (TBW and HGT)"))
+
+  knitr::kable(tab, format = "pipe")
+}
 
 
 #' @name restrict_sigmoid
@@ -115,6 +308,7 @@ format_pars <- function(pars, ncmpt = 3){
 #' @param eps distance between BISfinal and the target function at tfinal
 #' @param BIS0 starting BIS value
 #' @param BISfinal asymptote of Emax model
+#' @return Numeric vector of PD parameter values
 #' @export
 restrict_sigmoid <- function(t50, tfinal =10, eps = 1, BIS0 = 100, BISfinal = 50-eps){
   gamma <- log((BIS0-BISfinal)/eps - 1, base = tfinal/t50)
@@ -122,39 +316,39 @@ restrict_sigmoid <- function(t50, tfinal =10, eps = 1, BIS0 = 100, BISfinal = 50
 }
 
 
-#' Generate variance-covariance matrix for Eleveld PK-PD model
-#'
-#' Generate the variance-covariance matrix for Eleveld PK-PD model for an observation
-#' via Monte Carlo sampling.
-#'
-#' @param dat Data frame of observed patient covariates
-#' @param N Number of Monte Carlo samples
-#' @param rates Logical. Should rate constants be calculated
-#' @param varnames Column names of variables used to calculate variance-covariance matrix
-#'
-#' @export
-eleveld_vcov <- function(dat,
-                         N = 1000,
-                         rates = TRUE,
-                         varnames = c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")){
-
-  if(rates){
-    varnames <- c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")
-  } else{
-    varnames <- c("CL","Q2","Q3","V1","V2","V3","KE0","CE50","SIGMA")
-  }
-  vcv_list <- lapply(1:nrow(dat), function(i){
-    mc_samples <- replicate(N, log(unlist(
-      eleveld_poppk(dat[i,], rate = rates, PD = TRUE, rand = TRUE)[,varnames])
-    ))
-    vcv <- cov(t(mc_samples))
-    if(rcond(vcv) < 1e-5)
-      diag(vcv) <- diag(vcv) + 1e-3
-    round(vcv,5)
-  })
-
-  vcv_list
-}
+# #' Generate variance-covariance matrix for Eleveld PK-PD model
+# #'
+# #' Generate the variance-covariance matrix for Eleveld PK-PD model for an observation
+# #' via Monte Carlo sampling.
+# #'
+# #' @param dat Data frame of observed patient covariates
+# #' @param N Number of Monte Carlo samples
+# #' @param rates Logical. Should rate constants be calculated
+# #' @param varnames Column names of variables used to calculate variance-covariance matrix
+# #' @return List of variance-covariance matrices with length equal to the number of rows in dat.
+# #' @export
+# eleveld_vcov <- function(dat,
+#                          N = 1000,
+#                          rates = TRUE,
+#                          varnames = c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")){
+#
+#   if(rates){
+#     varnames <- c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")
+#   } else{
+#     varnames <- c("CL","Q2","Q3","V1","V2","V3","KE0","CE50","SIGMA")
+#   }
+#   vcv_list <- lapply(1:nrow(dat), function(i){
+#     mc_samples <- replicate(N, log(unlist(
+#       eleveld_poppk(dat[i,], rate = rates, PD = TRUE, rand = TRUE)[,varnames])
+#     ))
+#     vcv <- cov(t(mc_samples))
+#     if(rcond(vcv) < 1e-5)
+#       diag(vcv) <- diag(vcv) + 1e-3
+#     round(vcv,5)
+#   })
+#
+#   vcv_list
+# }
 
 
 # All parameters in the Eleveld model are log-normally distributed or constant within the population.
@@ -170,6 +364,7 @@ eleveld_vcov <- function(dat,
 #'
 #' @param x Vector or data frame with Eleveld PK-PD model parameters
 #' @param pd Logical. Should PD parameters be returned in addition to PK parameters.
+#' @return List of parameters used by Eleveld PK-PD model.
 #' @export
 elvdlpars <- function(x, pd = TRUE){
 
@@ -192,6 +387,7 @@ elvdlpars <- function(x, pd = TRUE){
 #' Set default PK parameter values for a pkmod object.
 #' @param pkmod pkmod object
 #' @param pars PK parameters to assign as default values of pkmod
+#' @return pkmod object
 #' @export
 assign_pars <- function(pkmod, pars){
 

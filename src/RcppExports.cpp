@@ -43,20 +43,21 @@ BEGIN_RCPP
 END_RCPP
 }
 // basicsolution2cpt
-arma::mat basicsolution2cpt(arma::vec tm, double kR, double k10, double k12, double k21, double v1, double v2, arma::vec c0);
-RcppExport SEXP _tci_basicsolution2cpt(SEXP tmSEXP, SEXP kRSEXP, SEXP k10SEXP, SEXP k12SEXP, SEXP k21SEXP, SEXP v1SEXP, SEXP v2SEXP, SEXP c0SEXP) {
+arma::mat basicsolution2cpt(arma::vec tm, double kR, double k10, double k20, double k12, double k21, double v1, double v2, arma::vec c0);
+RcppExport SEXP _tci_basicsolution2cpt(SEXP tmSEXP, SEXP kRSEXP, SEXP k10SEXP, SEXP k20SEXP, SEXP k12SEXP, SEXP k21SEXP, SEXP v1SEXP, SEXP v2SEXP, SEXP c0SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type tm(tmSEXP);
     Rcpp::traits::input_parameter< double >::type kR(kRSEXP);
     Rcpp::traits::input_parameter< double >::type k10(k10SEXP);
+    Rcpp::traits::input_parameter< double >::type k20(k20SEXP);
     Rcpp::traits::input_parameter< double >::type k12(k12SEXP);
     Rcpp::traits::input_parameter< double >::type k21(k21SEXP);
     Rcpp::traits::input_parameter< double >::type v1(v1SEXP);
     Rcpp::traits::input_parameter< double >::type v2(v2SEXP);
     Rcpp::traits::input_parameter< arma::vec >::type c0(c0SEXP);
-    rcpp_result_gen = Rcpp::wrap(basicsolution2cpt(tm, kR, k10, k12, k21, v1, v2, c0));
+    rcpp_result_gen = Rcpp::wrap(basicsolution2cpt(tm, kR, k10, k20, k12, k21, v1, v2, c0));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -77,14 +78,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // basicsolution3cpt
-arma::mat basicsolution3cpt(arma::vec tm, double kR, double k10, double k12, double k21, double k13, double k31, double v1, double v2, double v3, arma::vec c0);
-RcppExport SEXP _tci_basicsolution3cpt(SEXP tmSEXP, SEXP kRSEXP, SEXP k10SEXP, SEXP k12SEXP, SEXP k21SEXP, SEXP k13SEXP, SEXP k31SEXP, SEXP v1SEXP, SEXP v2SEXP, SEXP v3SEXP, SEXP c0SEXP) {
+arma::mat basicsolution3cpt(arma::vec tm, double kR, double k10, double k20, double k30, double k12, double k21, double k13, double k31, double v1, double v2, double v3, arma::vec c0);
+RcppExport SEXP _tci_basicsolution3cpt(SEXP tmSEXP, SEXP kRSEXP, SEXP k10SEXP, SEXP k20SEXP, SEXP k30SEXP, SEXP k12SEXP, SEXP k21SEXP, SEXP k13SEXP, SEXP k31SEXP, SEXP v1SEXP, SEXP v2SEXP, SEXP v3SEXP, SEXP c0SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type tm(tmSEXP);
     Rcpp::traits::input_parameter< double >::type kR(kRSEXP);
     Rcpp::traits::input_parameter< double >::type k10(k10SEXP);
+    Rcpp::traits::input_parameter< double >::type k20(k20SEXP);
+    Rcpp::traits::input_parameter< double >::type k30(k30SEXP);
     Rcpp::traits::input_parameter< double >::type k12(k12SEXP);
     Rcpp::traits::input_parameter< double >::type k21(k21SEXP);
     Rcpp::traits::input_parameter< double >::type k13(k13SEXP);
@@ -93,7 +96,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type v2(v2SEXP);
     Rcpp::traits::input_parameter< double >::type v3(v3SEXP);
     Rcpp::traits::input_parameter< arma::vec >::type c0(c0SEXP);
-    rcpp_result_gen = Rcpp::wrap(basicsolution3cpt(tm, kR, k10, k12, k21, k13, k31, v1, v2, v3, c0));
+    rcpp_result_gen = Rcpp::wrap(basicsolution3cpt(tm, kR, k10, k20, k30, k12, k21, k13, k31, v1, v2, v3, c0));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -114,14 +117,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // basicsolution3cptm
-arma::mat basicsolution3cptm(arma::vec tm, double kR, double k10, double k12, double k21, double k13, double k31, double v1, double v2, double v3, double ke0, arma::vec c0);
-RcppExport SEXP _tci_basicsolution3cptm(SEXP tmSEXP, SEXP kRSEXP, SEXP k10SEXP, SEXP k12SEXP, SEXP k21SEXP, SEXP k13SEXP, SEXP k31SEXP, SEXP v1SEXP, SEXP v2SEXP, SEXP v3SEXP, SEXP ke0SEXP, SEXP c0SEXP) {
+arma::mat basicsolution3cptm(arma::vec tm, double kR, double k10, double k20, double k30, double k12, double k21, double k13, double k31, double v1, double v2, double v3, double ke0, arma::vec c0);
+RcppExport SEXP _tci_basicsolution3cptm(SEXP tmSEXP, SEXP kRSEXP, SEXP k10SEXP, SEXP k20SEXP, SEXP k30SEXP, SEXP k12SEXP, SEXP k21SEXP, SEXP k13SEXP, SEXP k31SEXP, SEXP v1SEXP, SEXP v2SEXP, SEXP v3SEXP, SEXP ke0SEXP, SEXP c0SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type tm(tmSEXP);
     Rcpp::traits::input_parameter< double >::type kR(kRSEXP);
     Rcpp::traits::input_parameter< double >::type k10(k10SEXP);
+    Rcpp::traits::input_parameter< double >::type k20(k20SEXP);
+    Rcpp::traits::input_parameter< double >::type k30(k30SEXP);
     Rcpp::traits::input_parameter< double >::type k12(k12SEXP);
     Rcpp::traits::input_parameter< double >::type k21(k21SEXP);
     Rcpp::traits::input_parameter< double >::type k13(k13SEXP);
@@ -131,7 +136,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type v3(v3SEXP);
     Rcpp::traits::input_parameter< double >::type ke0(ke0SEXP);
     Rcpp::traits::input_parameter< arma::vec >::type c0(c0SEXP);
-    rcpp_result_gen = Rcpp::wrap(basicsolution3cptm(tm, kR, k10, k12, k21, k13, k31, v1, v2, v3, ke0, c0));
+    rcpp_result_gen = Rcpp::wrap(basicsolution3cptm(tm, kR, k10, k20, k30, k12, k21, k13, k31, v1, v2, v3, ke0, c0));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -155,11 +160,11 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_tci_basicsolution1cpt", (DL_FUNC) &_tci_basicsolution1cpt, 5},
     {"_tci_pksol1cpt", (DL_FUNC) &_tci_pksol1cpt, 6},
-    {"_tci_basicsolution2cpt", (DL_FUNC) &_tci_basicsolution2cpt, 8},
+    {"_tci_basicsolution2cpt", (DL_FUNC) &_tci_basicsolution2cpt, 9},
     {"_tci_pksol2cpt", (DL_FUNC) &_tci_pksol2cpt, 6},
-    {"_tci_basicsolution3cpt", (DL_FUNC) &_tci_basicsolution3cpt, 11},
+    {"_tci_basicsolution3cpt", (DL_FUNC) &_tci_basicsolution3cpt, 13},
     {"_tci_pksol3cpt", (DL_FUNC) &_tci_pksol3cpt, 6},
-    {"_tci_basicsolution3cptm", (DL_FUNC) &_tci_basicsolution3cptm, 12},
+    {"_tci_basicsolution3cptm", (DL_FUNC) &_tci_basicsolution3cptm, 14},
     {"_tci_pksol3cptm", (DL_FUNC) &_tci_pksol3cptm, 6},
     {NULL, NULL, 0}
 };

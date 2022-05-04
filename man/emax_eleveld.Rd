@@ -11,11 +11,14 @@ emax_eleveld(ce, pars)
 
 \item{pars}{Vector of parameter values in order (c50,gamma,gamma2,e0,emx).}
 }
+\value{
+Numeric vector of same length as ce.
+}
 \description{
 The parameter gamma takes one of two values depending on whether ce <= c50.
 }
 \examples{
-pars_emax_eleveld <- c(c50 = 1.5, gamma = 1.47, gamma2 = 1.89, e0 = 100, emx = 100)
+pars_emax_eleveld <- c(c50 = 1.5, e0 = 100, gamma = 1.47, gamma2 = 1.89)
 ce_seq <- seq(0,4,0.1)
 plot(ce_seq, emax_eleveld(ce_seq, pars_emax_eleveld), type = "l",
 xlab = "Effect-site concentrtion (ug/mL)", ylab = "BIS")

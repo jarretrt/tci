@@ -2,7 +2,12 @@
 #' @title tci_documentation
 #' @name tci_documentation
 #' @description Functions to implement target-controlled infusion algorithms
-#' @details TCI algorithms for 1- to 4- compartment PK models with IV administration.
+#' @details This package contains functions to implement target-controlled
+#' infusion (TCI) algorithms for compartmental PK models under intravenous administration.
+#' TCI algorithms for plasma or effect-site targeting are included and can be
+#' extended to pharmacodynamic responses. Custom PK-PD models and custom TCI
+#' algorithms can be specified. Functions are provided to simulate responses from
+#' PK/PK-PD models under open- or closed-loop control.
 
 ## usethis namespace: start
 #' @useDynLib tci, .registration = TRUE

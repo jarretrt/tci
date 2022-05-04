@@ -4,7 +4,7 @@
 \alias{pkmod1cpt}
 \title{One compartment IV infusion with first-order elimination.}
 \usage{
-pkmod1cpt(tm, kR, pars, init = 0, inittm = 0)
+pkmod1cpt(tm, kR, pars, init = 0)
 }
 \arguments{
 \item{tm}{Vector of times to evaluate the PK function at}
@@ -14,12 +14,15 @@ pkmod1cpt(tm, kR, pars, init = 0, inittm = 0)
 \item{pars}{Named vector of parameters with names ('k10','v1') or ('cl','v1').}
 
 \item{init}{Initial concentration. Defaults to 0.}
-
-\item{inittm}{Time of initiation of infusion. Defaults to 0.}
+}
+\value{
+Numeric vector of concentrations for a constant infusion rate
 }
 \description{
 One compartment IV infusion with first-order elimination.
 }
 \examples{
 pkmod1cpt(1,1,c(k10 = 0.5, v1 = 1))
+pkmod1cpt(1,1,c(KE = 0.5, v1 = 1))
+pkmod1cpt(1,1,c(CL = 0.5, v1 = 1))
 }

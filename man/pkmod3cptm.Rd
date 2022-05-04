@@ -4,14 +4,7 @@
 \alias{pkmod3cptm}
 \title{Solution to three-compartment IV model with effect-site}
 \usage{
-pkmod3cptm(
-  tm,
-  kR,
-  pars,
-  init = c(0, 0, 0, 0),
-  inittm = 0,
-  returncpt = c("all", "cpt1", "cpt2", "cpt3", "cpt4")
-)
+pkmod3cptm(tm, kR, pars, init = c(0, 0, 0, 0))
 }
 \arguments{
 \item{tm}{Vector of times to evaluate the PK function at}
@@ -21,11 +14,9 @@ pkmod3cptm(
 \item{pars}{Named vector of parameters with names (k10,k12,k21,k13,k31,v1,v2,v3,ke0)}
 
 \item{init}{Initial concentration}
-
-\item{inittm}{Time of initiation of infusion}
-
-\item{returncpt}{Optionally specify a single compartment to return concentrations for.
-Defaults to returning all compartment concentrations.}
+}
+\value{
+Numeric matrix of concentrations for a constant infusion rate
 }
 \description{
 3 compartment IV infusion with first-order absorption between compartments and with an additional effect-site compartment.

@@ -18,6 +18,9 @@ elimination rate constants.}
 between 1 and 4. If ncmpt = 4, it assumes that the fourth compartment is an
 effect-site without a corresponding volume parameter.}
 }
+\value{
+Numeric vector of transformed parameter values.
+}
 \description{
 Format parameters for use in Rcpp functions
 
@@ -25,6 +28,6 @@ Order parameters for 1-4 compartment models to be used in Rcpp functions in
 predict_pkmod method.
 }
 \examples{
-dose <- data.frame(time = c(0.5,4,4.5,10), infrt = c(100,0,100,0))
-create_intvl(dose)
+format_pars(c(V1 = 8.9, CL = 1.4, q2 = 0.9, v2 = 18), ncmpt = 2)
+format_pars(c(V1 = 8.9, CL = 1.4, q2 = 0.9, v2 = 18, cl2 = 3), ncmpt = 2)
 }

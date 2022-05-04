@@ -12,6 +12,9 @@ assign_pars(pkmod, pars)
 
 \item{pars}{PK parameters to assign as default values of pkmod}
 }
+\value{
+pkmod object
+}
 \description{
 Set default PK parameter values
 Set default PK parameter values for a pkmod object.

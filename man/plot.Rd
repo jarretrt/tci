@@ -2,108 +2,60 @@
 % Please edit documentation in R/methods.R
 \name{plot.pkmod}
 \alias{plot.pkmod}
-\alias{plot.pdmod}
-\alias{plot.tciinf}
-\alias{plot.datasim}
-\alias{plot.bayessim}
-\title{Plot object with class 'pkmod'}
+\title{Plot method for 'pkmod'}
 \usage{
 \method{plot}{pkmod}(
   x,
   ...,
   inf,
-  npts = 1000,
+  endtm = NULL,
   title = NULL,
   xlab = "Time",
-  ylab = "Concentration"
-)
-
-\method{plot}{pdmod}(
-  x,
-  ...,
-  pkmod,
-  inf,
-  pars_pd,
-  pars_pk = NULL,
-  npts = 1000,
+  ylab = "Concentration",
   plot_pk = TRUE,
-  title = NULL,
-  ecmpt = NULL,
-  xlab = "Time",
-  ylab_con = "Concentration",
   ylab_resp = "Response"
 )
-
-\method{plot}{tciinf}(
-  x,
-  ...,
-  title = NULL,
-  display = TRUE,
-  xlab = "Time",
-  ylab_con = "Concentration",
-  ylab_resp = "Response"
-)
-
-\method{plot}{datasim}(
-  x,
-  ...,
-  pars_prior = NULL,
-  pars_post = NULL,
-  pk_ix = NULL,
-  pd_ix = NULL,
-  xlab = "Time",
-  ylab_con = "Concentration",
-  ylab_resp = "Response"
-)
-
-\method{plot}{bayessim}(x, ..., xlab = "Time", ylab_con = "Concentration", ylab_resp = "Response")
 }
 \arguments{
-\item{x}{Object returned from "bayes_control" function}
+\item{x}{An object with class pkmod.}
 
-\item{...}{\dots}
+\item{...}{Arguments passed on to predict.pkmod. Could include changing initial concentrations or parameter values through pkmod_update. See ?predict.pkmod}
 
 \item{inf}{An infusion schedule object with columns "begin","end","infrt".}
 
-\item{npts}{Number of points used to evaluate predicted concentrations.}
+\item{endtm}{Final time to evaluate predictions}
 
-\item{title}{Title of plot.}
+\item{title}{Plot title}
 
 \item{xlab}{x-axis label}
 
 \item{ylab}{y-axis label}
 
-\item{pkmod}{PK model}
+\item{plot_pk}{Logical. Should PK concentrations be displayed in addition to PD, when PD is present.}
 
-\item{pars_pd}{Parameters used by pdmod.}
-
-\item{pars_pk}{Parameters used by pkmod.}
-
-\item{plot_pk}{Logical. Should PK concentrations be plotted alongside
-the PD response. Defaults to TRUE.}
-
-\item{ecmpt}{Effect-site compartment number. Defaults to the last
-compartment concentration returned by pkmod.}
-
-\item{ylab_con}{y-axis label for concentration-time plot}
-
-\item{ylab_resp}{y-axis label for response-time plot}
-
-\item{display}{Logical. Should plots be printed or returned as an arrangeGrob object?}
-
-\item{pars_prior}{Named vector of prior PK or PK-PD parameters}
-
-\item{pars_post}{Named vector of posterior PK or PK-PD parameters}
-
-\item{pk_ix}{Indicies of parameter vector(s) corresponding to PK parameters}
-
-\item{pd_ix}{Indicies of parameter vector(s) corresponding to PD parameters}
+\item{ylab_resp}{y-axis label for PD component, if present.}
+}
+\value{
+ggplot object displaying predicted concentrations for a pkmod object.
 }
 \description{
 Will show predicted concentrations in compartments associated with an infusion schedule.
-
-User can provide a series of effect-site concentrations and a PD model or
- an infusion schedule with a PK-PD model.
-
-Plot output returned by "bayes_control" function.
+}
+\examples{
+# dosing schedule
+dose <- create_inf(times = c(0,0.5,4,4.5,10), c(100,0,80,0,0))
+# pkmod object
+my_mod <- pkmod(pars_pk = c(CL = 15, V1 = 10, Q2 = 10, V2 = 20))
+# plot predicted concentrations
+plot(my_mod, inf = dose, ylab = "Concentration (mg/L)", xlab = "Minutes")
+# plot with PD component
+my_mod_pd <- pkmod(pars_pk = c(v1 = 8.995, v2 = 17.297, v3 = 120.963, cl = 1.382,
+q2 = 0.919, q3 = 0.609, ke0 = 1.289),
+pars_pd = c(c50 = 2.8, gamma = 1.47, gamma2 = 1.89, e0 = 93, emx = 93),
+pdfn = emax, pdinv = emax_inv, ecmpt = 4)
+plot(my_mod_pd, inf = dose, ylab = "Concentration (mg/L)", ylab_resp = "Bispectral Index",
+xlab = "Minutes")
+# plot with alternate PK and PD parameters
+plot(my_mod_pd, inf = dose, pars = c(cl = 10), pars_pd = c(c50 = 2, emx = 100),
+ylab = "Concentration (mg/L)", ylab_resp = "Bispectral Index", xlab = "Minutes")
 }

@@ -4,10 +4,10 @@
 \alias{tci_plasma}
 \title{TCI algorithm for plasma targeting}
 \usage{
-tci_plasma(Cpt, pkmod, dtm, maxrt = 1200, cmpt = 1, ...)
+tci_plasma(Ct, pkmod, dtm = 1/6, maxrt = 1200, ...)
 }
 \arguments{
-\item{Cpt}{Target plasma concentration}
+\item{Ct}{Target plasma concentration}
 
 \item{pkmod}{PK model}
 
@@ -17,10 +17,18 @@ tci_plasma(Cpt, pkmod, dtm, maxrt = 1200, cmpt = 1, ...)
 maximum infusion rate of 1200 ml/h permitted by
 existing TCI pumps (e.g. Anestfusor TCI program).}
 
-\item{cmpt}{Compartment into which infusions are administered. Defaults to the first compartment.}
-
-\item{...}{Arguments passed on to pkmod.}
+\item{...}{Arguments passed on to update.pkmod.}
+}
+\value{
+Numeric value
 }
 \description{
 TCI algorithm based on the algorithm described by Jacobs (1990).
+}
+\examples{
+# plasma targeting
+my_mod <- pkmod(pars_pk = c(CL = 10, V1 = 10))
+tci_plasma(Ct = 2, my_mod)
+# update CL parameter
+tci_plasma(Ct = 2, my_mod, pars_pk = c(CL = 15))
 }
