@@ -27,50 +27,6 @@ knitr::opts_chunk$set(
 The `tci` package provides closed-form solutions for 1-, 2-, 3-, and 3-compartment with effect-site PK models based on solutions described and code provided in @Abuhelwa2015. It does not, however, include an ordinary differential equation (ODE) solver as many other R packages do, including [mrgsolve](https://mrgsolve.github.io/), [PKPDsim](https://github.com/InsightRX/PKPDsim), and [RxODE](https://github.com/nlmixrdevelopment/RxODE). `tci` package functions can nonetheless be applied to models from these packages through the creation of user-defined PK functions.
  
 
- 
-<!-- 
-Exogenous phosphocreatine (phosphocreatine sodium)
-  - Given to allow the body to produce ATP during myocardial injury (e.g., during pediatric myocarditis)
-  - Administered via IV
-  - Breaks down into metabolite creatine
-  - Described with a 4 compartment model [@He2020]
-  - Description of Pcr, cr, in @Balestrino2021
-  
-Ketamine
-- Otto et al. 2021. Also useful example of external PK model validation.
-- IV administration, takes effect immediately (relative to SSRIs), and lasts for weeks to months 
-- Used to treat treatment-resistant depression
-- Results in adverse effects at high doses
-- S-Ketamine turns into norketamine, which is present in much higher concentrations at steady state
-  - "administering S-ketamine orally is like administering a pro-drug of norketamine" [@Fanta2015]
-- Ketamine and norketamine may produce effects in opposite directions (ideal for TCI) [@Olofson2012]
-
-
-IV antibiotics used for sepsis
-- Time dependent
-- Important to get correct concentration and duration for safety of patient and prevention
-of antimicrobial resistance
-- Ideal for patient personalization
-
-- "Prolonged duration of antimicrobial therapy is associated with increased resistance, higher risk of drug-associated adverse effects, and higher costs."
-- "short treatments are safer than longer treatments, without affecting treatment success"
-- "Optimized antibiotic dos ing regimens to ensure therapeutic levels of antimicrobials improve clinical results, minimize drug toxicity and drug-resistance, and reduce mortality in critically ill patients"
-
-
-- TCI has been used for vancomycin [@Colin2018] and cefepime [@Jonckheere2020] 
-
-Models/drugs commonly used with TCI:
-(https://www.bjanaesthesia.org/article/S0007-0912(18)30120-X/fulltext)
-
-1. Propofol: Marsh, Schnider, Eleveld
-2. Remifenanyl: Minto, Eleveld, Kim
-
-It is highly likely that TCI systems will be used to administer antibiotics in the future for personalized dosing in critically ill patients. [@Roberts2019]
-
--->
- 
-
- 
 ### Custom PK models
 
 Custom PK models based on ODEs or analytical solutions can be passed to `pkmod` objects through the `pkfn` argument. To illustrate this functionality, we consider the PK of the analgesic remifentanil. Remifentanil is an opioid derivative that is often administered intravenously to induce analgesia alongside propofol. Here, we consider the three-compartment PK model proposed by \citet{Cascone2013}. Remifentanil is infused into a central compartment, representing the blood supply, and then circulated to two peripheral compartments, representing highly-perfused and scarcely-perfused organs and tissues. Remifentanil is then removed from all three-compartments with separate clearance rates. A diagram of the three-compartment model, reproduced from \citet{Cascone2013}, is displayed in figure \ref{fig:Cascone_fig2}. The differential equations describing the remifentanyl model are given in equations \ref{eq:remif}.
