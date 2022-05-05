@@ -36,7 +36,7 @@ pkmod_eleveld_ppf(
 \item{...}{Arguments passed to `pkmod`}
 }
 \value{
-`pkmod` object with Eleveld population PK or PK-PD parameters
+`pkmod` object with Eleveld propofol population PK or PK-PD parameters
 }
 \description{
 Function takes patient covariate values required for the Eleveld

@@ -19,11 +19,11 @@ Imports:
     reshape,
     reshape2,
     xtable,
-    Rcpp
+    Rcpp,
+    knitr
 LinkingTo: Rcpp, RcppArmadillo
 Suggests: 
     testthat (>= 2.1.0),
-    knitr,
     rmarkdown,
 	mrgsolve
 RoxygenNote: 7.1.1

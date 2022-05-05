@@ -98,7 +98,7 @@ pkmod_schnider <- function(AGE, HGT, LBM = NULL,TBW=NULL,MALE=NULL,...){
 #' @param PMA Post-menstrual age. Calculated as AGE + 40 weeks if not provided.
 #' @param PD Logical. Should PD parameters be returned in addition to PK parameters.
 #' @param ... Arguments passed to `pkmod`
-#' @return `pkmod` object with Eleveld population PK or PK-PD parameters
+#' @return `pkmod` object with Eleveld propofol population PK or PK-PD parameters
 #' @examples
 #' pkmod_eleveld_ppf(AGE = 40,TBW = 56,HGT=150,MALE = TRUE)
 #' @export
@@ -336,15 +336,14 @@ pkmod_kim <- function(AGE,TBW,BMI=NULL,MALE=NULL,FFM=NULL,...){
 #' PK or PK-PD model for propofol and returns a `pkmod` object with the appropriate model
 #' parameters.
 #' @param AGE Age (years)
+#' @param MALE Sex, logical
 #' @param TBW Total body weight (kg)
 #' @param HGT Height (cm)
-#' @param MALE Sex, logical
-#' @param OPIATE Logical indicating presence of opiates. Defaults to TRUE.
-#' @param ARTERIAL PK based on arterial sampling rather than venous. Defaults to TRUE.
-#' @param PMA Post-menstrual age. Calculated as AGE + 40 weeks if not provided.
+#' @param BMI Body mass index
+#' @param FFM Fat-free mass. Not needed if HGT, TBW are provided.
 #' @param PD Logical. Should PD parameters be returned in addition to PK parameters.
 #' @param ... Arguments passed to `pkmod`
-#' @return `pkmod` object with Eleveld population PK or PK-PD parameters
+#' @return `pkmod` object with Eleveld remifentanil population PK or PK-PD parameters
 #' @examples
 #' pkmod_eleveld_remi(AGE = 40,TBW = 56,HGT=150,MALE = TRUE)
 #' @export
@@ -438,7 +437,7 @@ pkmod_eleveld_remi <- function(AGE, MALE, TBW = NULL,HGT=NULL,BMI = NULL, FFM = 
 #' @param ... Arguments passed to update.pkmod
 #' @examples
 #' sample_pkmod(pkmod_schnider(AGE = 40,HGT=170,TBW=50,MALE=TRUE))
-#' sample_pkmod(pkmod_eleveld(AGE = 40,TBW = 56,HGT=150,MALE = TRUE, PD = FALSE))
+#' sample_pkmod(pkmod_eleveld_ppf(AGE = 40,TBW = 56,HGT=150,MALE = TRUE, PD = FALSE))
 #' @export
 sample_pkmod <- function(pkmod, log_normal = TRUE, ...){
 

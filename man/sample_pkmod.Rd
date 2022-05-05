@@ -19,5 +19,5 @@ Sample parameters from a population PK model
 }
 \examples{
 sample_pkmod(pkmod_schnider(AGE = 40,HGT=170,TBW=50,MALE=TRUE))
-sample_pkmod(pkmod_eleveld(AGE = 40,TBW = 56,HGT=150,MALE = TRUE, PD = FALSE))
+sample_pkmod(pkmod_eleveld_ppf(AGE = 40,TBW = 56,HGT=150,MALE = TRUE, PD = FALSE))
 }

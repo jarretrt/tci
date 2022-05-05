@@ -24,18 +24,16 @@ pkmod_eleveld_remi(
 
 \item{HGT}{Height (cm)}
 
+\item{BMI}{Body mass index}
+
+\item{FFM}{Fat-free mass. Not needed if HGT, TBW are provided.}
+
 \item{PD}{Logical. Should PD parameters be returned in addition to PK parameters.}
 
 \item{...}{Arguments passed to `pkmod`}
-
-\item{OPIATE}{Logical indicating presence of opiates. Defaults to TRUE.}
-
-\item{ARTERIAL}{PK based on arterial sampling rather than venous. Defaults to TRUE.}
-
-\item{PMA}{Post-menstrual age. Calculated as AGE + 40 weeks if not provided.}
 }
 \value{
-`pkmod` object with Eleveld population PK or PK-PD parameters
+`pkmod` object with Eleveld remifentanil population PK or PK-PD parameters
 }
 \description{
 Function takes patient covariate values required for the Eleveld
