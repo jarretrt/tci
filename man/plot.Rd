@@ -21,7 +21,7 @@
 
 \item{...}{Arguments passed on to predict.pkmod. Could include changing initial concentrations or parameter values through pkmod_update. See ?predict.pkmod}
 
-\item{inf}{An infusion schedule object with columns "begin","end","infrt".}
+\item{inf}{An infusion schedule object with columns "begin","end","inf_rate".}
 
 \item{endtm}{Final time to evaluate predictions}
 
@@ -43,7 +43,7 @@ Will show predicted concentrations in compartments associated with an infusion s
 }
 \examples{
 # dosing schedule
-dose <- create_inf(times = c(0,0.5,4,4.5,10), c(100,0,80,0,0))
+dose <- inf_manual(inf_tms = c(0,0.5,4,4.5,10), inf_rate = c(100,0,80,0,0))
 # pkmod object
 my_mod <- pkmod(pars_pk = c(CL = 15, V1 = 10, Q2 = 10, V2 = 20))
 # plot predicted concentrations

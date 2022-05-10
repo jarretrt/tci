@@ -9,8 +9,8 @@
 \arguments{
 \item{object}{An object with class pkmod.}
 
-\item{inf}{A matrix with columns "begin","end","infrt" indicating when infusions should
-be administered. Can be created by `create_inf` or `apply_tci`.}
+\item{inf}{A matrix with columns "begin","end","inf_rate" indicating when infusions should
+be administered. Can be created by `inf_manual` or `inf_tci`.}
 
 \item{tms}{Times at which to calculate predicted concentrations.}
 
@@ -25,7 +25,7 @@ Predict concentrations from a pkmod object - can be a user defined function
 }
 \examples{
 # dosing schedule
-dose <- create_inf(times = c(0,0.5,4,4.5,10), c(100,0,80,0,0))
+dose <- inf_manual(inf_tms = c(0,0.5,4,4.5,10), inf_rate = c(100,0,80,0,0))
 # pkmod object
 my_mod <- pkmod(pars_pk = c(CL = 15, V1 = 10, Q2 = 10, V2 = 20))
 # predict at specific times

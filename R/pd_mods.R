@@ -88,7 +88,6 @@ emax_inv_eleveld <- function(pdresp, pars){
   names(pars) <- tolower(names(pars))
   if("ce50" %in% names(pars)) names(pars)[names(pars) == "ce50"] <- "c50"
   if("emax" %in% names(pars)) names(pars)[names(pars) == "emax"] <- "emx"
-  if("emax" %in% names(pars)) names(pars)[names(pars) == "emax"] <- "emx"
   c50    <- pars["c50"]
   e0     <- pars["e0"]
   gamma  <- pars["gamma"]

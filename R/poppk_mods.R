@@ -42,9 +42,9 @@ pkmod_marsh <- function(TBW,...){
 #' and covariates on the pharmacokinetics of propofol in adult volunteers."
 #' Anesthesiology 88 (5):1170-82.
 #' @param AGE Age (years)
-#' @param LBM Lean body mass (kg). Can be provided instead of TBW, HGT, and MALE
+#' @param HGT Height (cm)
+#' @param LBM Lean body mass (kg). Can be provided instead of TBW, and MALE
 #' @param TBW Weight (kg). Used to calculate LBM if LBM is not provided.
-#' @param HGT Height (cm). Used to calculate LBM if LBM is not provided.
 #' @param MALE Logical. Used to calculate LBM if LBM is not provided.
 #' @param ... Arguments passed to `pkmod`
 #' @return `pkmod` object with Schnider population PK parameters
@@ -205,10 +205,10 @@ pkmod_eleveld_ppf <- function(AGE,TBW,HGT,MALE,OPIATE=TRUE,ARTERIAL=TRUE,PMA=NUL
 #' "An Allometric Model of Remifentanil Pharmacokinetics and Pharmacodynamics."
 #' Anesthesiology Vol. 126, 1005–1018 doi: https://doi.org/10.1097/ALN.0000000000001634.
 #' @param AGE Age (years)
-#' @param LBM Lean body mass (kg). Can be provided instead of TBW, HGT, and MALE
 #' @param TBW Weight (kg). Used to calculate LBM if LBM is not provided.
 #' @param HGT Height (cm). Used to calculate LBM if LBM is not provided.
 #' @param MALE Logical. Used to calculate LBM if LBM is not provided.
+#' @param LBM Lean body mass (kg). Can be provided instead of TBW, HGT, and MALE
 #' @param PD Logical. Should PD parameters be returned in addition to PK parameters.
 #' @param ... Arguments passed to `pkmod`
 #' @return `pkmod` object with Schnider population PK parameters
@@ -216,7 +216,7 @@ pkmod_eleveld_ppf <- function(AGE,TBW,HGT,MALE,OPIATE=TRUE,ARTERIAL=TRUE,PMA=NUL
 #' pkmod_minto(AGE = 40,HGT=170,LBM = 43.9)
 #' pkmod_minto(AGE = 40,HGT=170,TBW=50,MALE=TRUE)
 #' @export
-pkmod_minto <- function(AGE, HGT, LBM = NULL,TBW=NULL,MALE=NULL, PD = TRUE, ...){
+pkmod_minto <- function(AGE,HGT=NULL,TBW=NULL,MALE=NULL, LBM = NULL,PD = TRUE, ...){
 
   if(is.null(LBM) & any(is.null(MALE),is.null(TBW),is.null(HGT)))
     stop("MALE, TBW, and HGT must all be provided if LBM is NULL")
@@ -286,16 +286,21 @@ pkmod_minto <- function(AGE, HGT, LBM = NULL,TBW=NULL,MALE=NULL, PD = TRUE, ...)
 #' Anesthesiology Vol. 126, 1019–1032. doi: https://doi.org/10.1097/ALN.0000000000001635
 #' @param AGE Age (years)
 #' @param TBW Total body weight (kg).
-#' @param BMI Body mass index
+#' @param HGT Height (cm). Used to calculate BMI if BMI is not provided.
+#' @param BMI Body mass index. Used to calculate LBM if LBM is not provided.
 #' @param MALE Logical. Used to calculate LBM if LBM is not provided.
-#' @param FFM Optional specification of
+#' @param FFM Fat-free mass. Can be used instead of BMI and MALE.
 #' @param ... Arguments passed to `pkmod`
 #' @return `pkmod` object with Schnider population PK parameters
 #' @examples
 #' pkmod_kim(AGE = 40,TBW = 75, BMI = 30, MALE = TRUE)
 #' pkmod_kim(AGE = 40,TBW = 75, FFM = 52.83)
 #' @export
-pkmod_kim <- function(AGE,TBW,BMI=NULL,MALE=NULL,FFM=NULL,...){
+pkmod_kim <- function(AGE,TBW,HGT=NULL,BMI=NULL,MALE=NULL,FFM=NULL,...){
+
+  if(is.null(BMI) & !is.null(HGT)){
+    BMI = 10000 * TBW / HGT / HGT
+  }
 
   if((is.null(BMI)|is.null(MALE)) & is.null(FFM))
     stop("BMI and MALE must be specified if FFM is NULL")
@@ -326,6 +331,7 @@ pkmod_kim <- function(AGE,TBW,BMI=NULL,MALE=NULL,FFM=NULL,...){
         sigma_add = 0.0217,
         sigma_mult = 0.168,
         log_response = FALSE,
+        ecmpt = 1,
         Omega = Omega, ...)
 }
 
@@ -337,20 +343,19 @@ pkmod_kim <- function(AGE,TBW,BMI=NULL,MALE=NULL,FFM=NULL,...){
 #' parameters.
 #' @param AGE Age (years)
 #' @param MALE Sex, logical
-#' @param TBW Total body weight (kg)
-#' @param HGT Height (cm)
+#' @param TBW Total body weight (kg).
+#' @param HGT Height (cm). Used to calculate BMI if not provided.
 #' @param BMI Body mass index
-#' @param FFM Fat-free mass. Not needed if HGT, TBW are provided.
 #' @param PD Logical. Should PD parameters be returned in addition to PK parameters.
 #' @param ... Arguments passed to `pkmod`
 #' @return `pkmod` object with Eleveld remifentanil population PK or PK-PD parameters
 #' @examples
 #' pkmod_eleveld_remi(AGE = 40,TBW = 56,HGT=150,MALE = TRUE)
 #' @export
-pkmod_eleveld_remi <- function(AGE, MALE, TBW = NULL,HGT=NULL,BMI = NULL, FFM = NULL,PD=TRUE,...){
+pkmod_eleveld_remi <- function(AGE, MALE, TBW, HGT=NULL,BMI = NULL,PD=TRUE,...){
 
-  if(is.null(BMI) & is.null(TBW) & is.null(HGT))
-    stop("TBW and HGT must be specified if BMI is NULL")
+  if(is.null(BMI) & is.null(HGT))
+    stop("HGT must be specified if BMI is NULL")
 
   if(is.null(BMI)) BMI = 10000 * TBW / HGT / HGT
 
@@ -424,6 +429,106 @@ pkmod_eleveld_remi <- function(AGE, MALE, TBW = NULL,HGT=NULL,BMI = NULL, FFM = 
           Omega = Omega, ...)
   }
 }
+
+# ------------------------------------------------------------------------------
+# Wrapper function for population pk models ------------------------------------
+# ------------------------------------------------------------------------------
+
+#' @name poppkmod
+#' @title Generate a `pkmod` object from an existing population PK model
+#'
+#' @description Generate a `pkmod` object from an existing population PK model
+#' for propofol or remifentanil using patient covariates. Available models for
+#' propofol are the Marsh, Schnider, and Eleveld models. Available models for
+#' remifentanil are the Minto, Kim, and Eleveld models. Input is
+#' a data frame with rows corresponding to individuals and columns
+#' recording patient covariates.
+#' @param data Data frame of patient covariates. ID values, if used, should be in a column labeled "id" or "ID"
+#' @param drug "ppf" for propofol or "remi" for remifentanil. Defaults to "ppf".
+#' @param model Model name. Options are "marsh", "schnider", or "eleveld" if
+#' drug = "ppf", or "minto", "kim", or "eleveld" if drug = "remi".
+#' @param sample Logical. Should parameter values be sampled from interindividual distribution (TRUE)
+#' or evaluated at point estimates for covariates (FALSE)? Defaults to FALSE.
+#' @param PD Should the PD component be evaluated for PK-PD models. Defaults to TRUE.
+#' @param ... Arguments passed on to each pkmod object
+#' @return `poppkmod` object
+#' @examples
+#' data <- data.frame(ID = 1:5, AGE = seq(20,60,by=10), TBW = seq(60,80,by=5),
+#' HGT = seq(150,190,by=10), MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
+#' poppkmod(data, drug = "ppf", model = "eleveld")
+#' poppkmod(data, drug = "remi", model = "kim")
+#' @export
+poppkmod <- function(data, drug = c("ppf","remi"), model = c("marsh","schnider","eleveld","minto","kim"),
+                     sample = FALSE, PD = TRUE, ...){
+
+  drug <- match.arg(drug)
+  model <- match.arg(model)
+
+  if(drug == "ppf" & model %in% c("minto","kim"))
+    stop("'drug' must be set to 'remi' to use Minto or Kim models")
+
+  if(drug == "remi" & model %in% c("marsh","schnider"))
+    stop("'drug' must be set to 'ppf' to use Marsh or Schnider models")
+
+  if("id" %in% tolower(names(data))){
+    ids <- data[,grep("id",names(data), ignore.case = TRUE)]
+  } else{
+    ids <- 1:nrow(data)
+  }
+
+  if(!is.data.frame(data)){
+    warning("Converting 'data' to a data frame")
+    data <- as.data.frame(data)
+  }
+
+  apply_fn_df <- function(fn, dat, ...){
+    lapply(1:nrow(dat), function(i) do.call(fn, c(as.list(dat[i,names(dat) %in% names(formals(fn)), drop = FALSE]),list(...))))
+  }
+
+  if(model == "marsh"){
+    if(!("TBW" %in% names(data))) stop("data must have column 'TBW'")
+    mods <- apply_fn_df(pkmod_marsh, data)
+  }
+
+  if(model == "schnider"){
+    if(any(!(c("AGE","HGT") %in% names(data))) | !("LBM" %in% names(data) | all(c("TBW","MALE") %in% names(data))))
+      stop("data must have columns 'AGE','HGT' and either 'TBW' and 'MALE' or 'LBW'")
+    mods <- apply_fn_df(pkmod_schnider, data)
+  }
+
+  if(model == "eleveld" & drug == "ppf"){
+    if(any(!(c("AGE","TBW","HGT","MALE") %in% names(data))))
+      stop("data must have columns 'AGE','TBW','HGT' and 'MALE'")
+    mods <- apply_fn_df(pkmod_eleveld_ppf, data, PD=PD)
+  }
+
+  if(model == "minto"){
+    if(any(!(c("AGE") %in% names(data))) | !("LBM" %in% names(data) | all(c("TBW","MALE","HGT") %in% names(data))))
+      stop("data must have columns 'AGE','HGT' and either 'TBW' and 'MALE' or 'LBW'")
+    mods <- apply_fn_df(pkmod_minto, data, PD=PD)
+  }
+
+  if(model == "kim"){
+    if(any(!(c("AGE","TBW") %in% names(data))) | (all(!c("BMI","HGT") %in% names(data)) & !"FFM" %in% names(data)))
+      stop("data must have columns 'AGE','TBW' and either 'BMI' and 'HGT' or 'FFM'")
+    mods <- apply_fn_df(pkmod_kim, data)
+  }
+
+  if(model == "eleveld" & drug == "remi"){
+    if(any(!(c("AGE","MALE","TBW") %in% names(data))) | (all(!c("BMI","HGT") %in% names(data)) & !"FFM" %in% names(data)))
+      stop("data must have columns 'AGE', 'MALE', and 'TBW' and either 'HGT' or 'BMI'")
+    mods <- apply_fn_df(pkmod_eleveld_remi, data, PD=PD)
+  }
+
+  if(sample){
+    mods <- lapply(mods, sample_pkmod)
+  }
+
+  out <- list(pkmods = mods, drug = drug, model = model, ids = ids)
+  class(out) <- "poppkmod"
+  return(out)
+}
+
 
 # ------------------------------------------------------------------------------
 # Extra functions --------------------------------------------------------------

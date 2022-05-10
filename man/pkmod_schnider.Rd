@@ -9,9 +9,9 @@ pkmod_schnider(AGE, HGT, LBM = NULL, TBW = NULL, MALE = NULL, ...)
 \arguments{
 \item{AGE}{Age (years)}
 
-\item{HGT}{Height (cm). Used to calculate LBM if LBM is not provided.}
+\item{HGT}{Height (cm)}
 
-\item{LBM}{Lean body mass (kg). Can be provided instead of TBW, HGT, and MALE}
+\item{LBM}{Lean body mass (kg). Can be provided instead of TBW, and MALE}
 
 \item{TBW}{Weight (kg). Used to calculate LBM if LBM is not provided.}
 

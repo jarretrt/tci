@@ -103,8 +103,6 @@ pk_remif <- function(tm, kR, pars, init = c(0,0,0)){
 }
 ```
 
-When `pk_remif` is evaluated, it will return  
-
 We can now evaluate the remifentanil PK model as we would any of the internal PK functions. The optimized parameter values identified by \citet{Cascone2013}, which we will use as an example, are reproduced in Table \ref{tab:Cascone-tab1}.
 
 ```{r,Cascone-table, results='asis', echo = FALSE}
@@ -130,8 +128,7 @@ print(tab_cascone_df,
 ```
 
 ```{r}
-dose_remi <- create_inf(times = 0, infrt = 60, duration = 20)
-
+dose_remi <- inf_manual(inf_tms = 0, inf_rate = 60, duration = 20)
 pars_remif <- c(V1 = 7.88, V2=23.9, V3=13.8, CL1=5, CL2=0.828, CL3=0.0784,
                 k10 = 0.172, k12=0.373, k21=0.103, k13=0.0367, k31=0.0124)
 mod_remif <- pkmod(pkfn = pk_remif, pars_pk = pars_remif)
@@ -151,7 +148,7 @@ An example of this is the algorithm proposed by @VanPoucke2004 that limits the m
 
 In this example algorithm the user specifies a permissible amount of overshoot in the central compartment, \texttt{lim\_amt}, beyond the nominal target. At each step, the example TCI algorithm defines a maximum plasma concentration to equal the target effect-site concentration plus the permissible overshoot: \texttt{Cp\_max\ =\ Cet\ +\ lim\_amt}. It then calculates the infusion required to reach or maintain \texttt{Cp\_max} over the subsequent ten seconds, \texttt{pinf}. It then calculates the maximum effect-site concentration if \texttt{pinf} is given, \texttt{Ce\_max}. If \texttt{Ce\_max} is less than the target concentration, \texttt{pinf} can be administered without overshoot. If \texttt{Ce\_max} is greater than the target concentration, then targeting the effect-site directly will result in a maximum plasma concentration less than \texttt{Cp\_max} and the effect-site targeting algorithm is applied.
 
-The required arguments for a custom algorithm are 1) a single numeric value specifying the target concentration, `Ct`, 2) a `pkmod` object created by `pkmod()`, 3) a single numeric value specifying the infusion duration, `dtm`, and 4) additional arguments that are passed to `update.pkmod` at the beginning of the algorithm. Argument (4) is used to update starting concentrations when the algorithm is iteratively applied in `apply_tci`. 
+The required arguments for a custom algorithm are 1) a single numeric value specifying the target concentration, `Ct`, 2) a `pkmod` object created by `pkmod()`, 3) a single numeric value specifying the infusion duration, `dtm`, and 4) additional arguments that are passed to `update.pkmod` at the beginning of the algorithm. Argument (4) is used to update starting concentrations when the algorithm is iteratively applied in `inf_tci`. 
 
 ```{r,alternate-effect-site-alg, echo = TRUE}
 tci_plasma_lim <- function(Ct, pkmod, dtm = 1/6, maxrt = 1200,
@@ -173,7 +170,7 @@ tci_plasma_lim <- function(Ct, pkmod, dtm = 1/6, maxrt = 1200,
   pinf <- tci_plasma(Ct = Cp_max, pkmod = pkmod, dtm = dtm, maxrt = maxrt)
   
   # Administer dtm-minute infusion
-  unit_inf <- create_inf(times = 0, infrt = pinf, duration = dtm)
+  unit_inf <- inf_manual(inf_tms = 0, inf_rate = pinf, duration = dtm)
   
   # Calculate maximum effect-site concentration
   CeP <- function(tm) predict(pkmod, inf = unit_inf, tms = tm)[,pkmod$ecmpt]
@@ -196,16 +193,17 @@ mod3ecpt <- pkmod(pars_pk = c(cl = 10, q2 = 2, q3 =20, v = 15, v2 = 30, v3 = 50,
 tci_plasma_lim(Ct = 2, pkmod = mod3ecpt, lim_amt = 0.25)
 ```
 
-More usefully, however, we can pass the algorithm to `apply_tci` through the `custom_alg` argument and use it to calculate infusion rates required to reach a series of targets.
+More usefully, however, we can pass the algorithm to `inf_tci` through the `custom_alg` argument and use it to calculate infusion rates required to reach a series of targets.
 
 ```{r,tci-custom-alg, echo = TRUE, fig.cap= "Evaluation of user-defined TCI effect-site algorithm. \\label{fig:custom-tci-alg}"}
 # tci target concentrations
 tci_targets <- cbind(value = c(1,2,2.5,2.5), time = c(0,3,7,10))
 # calculate infusion schedule using plasma-limiting algorithm
-plim_inf <- apply_tci(targets = tci_targets,
-                      pkmod = mod3ecpt, 
-                      custom_alg = tci_plasma_lim, 
-                      lim_amt = 0.25)
+plim_inf <- inf_tci(target_vals = c(1,2,2.5,2.5),
+                    target_tms = c(0,3,7,10),
+                    pkmod = mod3ecpt, 
+                    custom_alg = tci_plasma_lim, 
+                    lim_amt = 0.25)
 head(plim_inf)
 ```
 
@@ -213,7 +211,10 @@ For comparison, we calculate the infusion schedule associated with direct effect
 
 ```{r}
 # effect-site targeting
-eff_inf <- apply_tci(targets = tci_targets, pkmod = mod3ecpt, type = "effect")
+eff_inf <- inf_tci(target_vals = c(1,2,2.5,2.5),
+                    target_tms = c(0,3,7,10), 
+                   pkmod = mod3ecpt, 
+                   type = "effect")
 ```
 
 

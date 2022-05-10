@@ -32,7 +32,7 @@ prior_vcov <- matrix(diag(c(0.265,0.346,0.209,0.610,0.565,0.597,0.702,0.463)),
 8,8, dimnames = list(NULL,names(lpars)))
 my_mod <- pkmod(pars_pk = c(cl = 10, q2 = 2, q3 =20, v = 15, v2 = 30, v3 = 50,
 ke0 = 1.2), sigma_add = 0.2, log_response = TRUE, Omega = prior_vcov)
-inf <- create_inf(times = 0, infrt = 80, duration = 2)
+inf <- inf_manual(inf_tms = 0, inf_rate = 80, duration = 2)
 tms <- c(1,2,4,8,12)
 obs <- simulate(my_mod, inf = inf, tms = tms)
 log_posterior_neg(lpars, my_mod, inf, tms, obs)

@@ -4,29 +4,18 @@
 \alias{pkmod_eleveld_remi}
 \title{Eleveld population PK model for remifentanil}
 \usage{
-pkmod_eleveld_remi(
-  AGE,
-  MALE,
-  TBW = NULL,
-  HGT = NULL,
-  BMI = NULL,
-  FFM = NULL,
-  PD = TRUE,
-  ...
-)
+pkmod_eleveld_remi(AGE, MALE, TBW, HGT = NULL, BMI = NULL, PD = TRUE, ...)
 }
 \arguments{
 \item{AGE}{Age (years)}
 
 \item{MALE}{Sex, logical}
 
-\item{TBW}{Total body weight (kg)}
+\item{TBW}{Total body weight (kg).}
 
-\item{HGT}{Height (cm)}
+\item{HGT}{Height (cm). Used to calculate BMI if not provided.}
 
 \item{BMI}{Body mass index}
-
-\item{FFM}{Fat-free mass. Not needed if HGT, TBW are provided.}
 
 \item{PD}{Logical. Should PD parameters be returned in addition to PK parameters.}
 

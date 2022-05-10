@@ -4,18 +4,20 @@
 \alias{pkmod_kim}
 \title{Kim population PK model for remifentanil}
 \usage{
-pkmod_kim(AGE, TBW, BMI = NULL, MALE = NULL, FFM = NULL, ...)
+pkmod_kim(AGE, TBW, HGT = NULL, BMI = NULL, MALE = NULL, FFM = NULL, ...)
 }
 \arguments{
 \item{AGE}{Age (years)}
 
 \item{TBW}{Total body weight (kg).}
 
-\item{BMI}{Body mass index}
+\item{HGT}{Height (cm). Used to calculate BMI if BMI is not provided.}
+
+\item{BMI}{Body mass index. Used to calculate LBM if LBM is not provided.}
 
 \item{MALE}{Logical. Used to calculate LBM if LBM is not provided.}
 
-\item{FFM}{Optional specification of}
+\item{FFM}{Fat-free mass. Can be used instead of BMI and MALE.}
 
 \item{...}{Arguments passed to `pkmod`}
 }

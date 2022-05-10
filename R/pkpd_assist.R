@@ -1,113 +1,8 @@
 # --------------------------------------------------------------------------------------------------------------------------------
 # - PK-PD model helper functions and methods -------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
-# #' Create dosing schedule
-# #'
-# #' Returns a data frame describing a set of infusions to be administered. Output
-# #' can be used as argument "inf" in predict_pkmod.
-# #'
-# #' @param times Vector of time to begin infusions. If duration is NULL, times
-# #' expected to include both infusion start and infusion end times.
-# #' @param infrt Vector of infusion rates. Must lave length equal to either
-# #' length(times) or 1. If length(infrt)=1, the same infusion rate will be
-# #' administered at each time.
-# #' @param duration Optional duration of infusions.
-# #' @return Matrix of infusion rates, start and end times.
-# #' @examples
-# #' # specify start and end times, as well as infusion rates (including 0).
-# #' dose(times = c(0,0.5,4,4.5,10), inf = c(100,0,80,0,0))
-# #' # specify start times, single infusion rate and single duration
-# #' dose(times = c(0,4), infrt = 100, duration = 0.5)
-# #' # multiple infusion rates, single duration
-# #' dose(times = c(0,4), infrt = c(100,80), duration = 0.5)
-# #' # multiple sequential infusion rates
-# #' dose(times = seq(0,1,1/6), infrt = 100, duration = 1/6)
-# #' # single infusion rate, multiple durations
-# #' dose(times = c(0,4), infrt = 100, duration = c(0.5,1))
-# #' # multiple infusion rates, multiple durations
-# #' dose(times = c(0,4), infrt = c(100,80), duration = c(0.5,1))
-# #' @export
-# dose <- function(times, infrt, duration = NULL)
-# {
-#
-#   if(!is.null(duration) & !(length(duration) %in% c(1, length(times))))
-#     stop("duration length must be equal to 1 or length of time vector")
-#   if(!(length(infrt) %in% c(1, length(times))))
-#     stop("infrt length must be equal to 1 or length of time vector")
-#   if(!(length(infrt) %in% c(1, length(times))) & tail(infrt,1)!=0 & !is.null(duration))
-#     stop("Final value of infrt must be zero or duration must be non-null")
-#
-#   if(!is.null(duration)){
-#     endtms <- times + duration
-#     alltms <- union(round(times,5), round(endtms,5))
-#     ord <- order(alltms)
-#     if(length(infrt) == 1) infrt <- c(rep(infrt,length(times)), rep(0,length(endtms)))
-#     out <- as.matrix(cbind(
-#       infrt = infrt[ord][-length(alltms)],
-#       begin = alltms[ord][-length(alltms)],
-#       end = alltms[ord][-1]))
-#     out[is.na(out[,"infrt"]),"infrt"] <- 0
-#   } else{
-#     out <- as.matrix(cbind(infrt = infrt[-length(infrt)],
-#                            begin = times[-length(times)],
-#                            end = times[-1]))
-#   }
-#   return(out)
-# }
 
-#' Create dosing schedule
-#'
-#' Returns a data frame describing a set of infusions to be administered. Output
-#' can be used as argument "inf" in predict_pkmod.
-#'
-#' @param times Vector of time to begin infusions. If duration is NULL, times
-#' expected to include both infusion start and infusion end times.
-#' @param infrt Vector of infusion rates. Must lave length equal to either
-#' length(times) or 1. If length(infrt)=1, the same infusion rate will be
-#' administered at each time. Either infrt or target must be specified, but not both.
-#' @param duration Optional duration of infusions.
-#' @return Matrix of infusion rates, start and end times.
-#' @importFrom utils tail
-#' @examples
-#' # specify start and end times, as well as infusion rates (including 0).
-#' create_inf(times = c(0,0.5,4,4.5,10), infrt = c(100,0,80,0,0))
-#' # specify start times, single infusion rate and single duration
-#' create_inf(times = c(0,4), infrt = 100, duration = 0.5)
-#' # multiple infusion rates, single duration
-#' create_inf(times = c(0,4), infrt = c(100,80), duration = 0.5)
-#' # multiple sequential infusion rates
-#' create_inf(times = seq(0,1,1/6), infrt = 100, duration = 1/6)
-#' # single infusion rate, multiple durations
-#' create_inf(times = c(0,4), infrt = 100, duration = c(0.5,1))
-#' # multiple infusion rates, multiple durations
-#' create_inf(times = c(0,4), infrt = c(100,80), duration = c(0.5,1))
-#' @export
-create_inf <- function(times, infrt = NULL, duration = NULL)
-{
 
- if(!is.null(duration) & !(length(duration) %in% c(1, length(times))))
-   stop("duration length must be equal to 1 or length of time vector")
- if(!(length(infrt) %in% c(1, length(times))))
-   stop("infrt length must be equal to 1 or length of time vector")
- if(!(length(infrt) %in% c(1, length(times))) & tail(infrt,1)!=0 & !is.null(duration))
-   stop("Final value of infrt must be zero or duration must be non-null")
- if(!is.null(duration)){
-   endtms <- times + duration
-   alltms <- union(round(times,5), round(endtms,5))
-   ord <- order(alltms)
-   if(length(infrt) == 1) infrt <- c(rep(infrt,length(times)), rep(0,length(endtms)))
-   out <- as.matrix(cbind(
-     begin = alltms[ord][-length(alltms)],
-     end = alltms[ord][-1],
-     infrt = infrt[ord][-length(alltms)]))
-   out[is.na(out[,"infrt"]),"infrt"] <- 0
- } else{
-   out <- as.matrix(cbind(begin = times[-length(times)],
-                          end = times[-1],
-                          infrt = infrt[-length(infrt)]))
- }
- return(out)
-}
 
 #' @name format_pars
 #' @title Format parameters for use in Rcpp functions
@@ -298,56 +193,21 @@ list_pkmods <- function(){
 }
 
 
-#' @name restrict_sigmoid
-#' @title Restrict target sigmoid values
-#' @description Function to place restriction on gamma and E50 parameters of target sigmoid
-#' such that it passes through point (tfinal, BISfinal+eps)
-#'
-#' @param t50 parameter of Emax model
-#' @param tfinal end of the induction period
-#' @param eps distance between BISfinal and the target function at tfinal
-#' @param BIS0 starting BIS value
-#' @param BISfinal asymptote of Emax model
-#' @return Numeric vector of PD parameter values
-#' @export
-restrict_sigmoid <- function(t50, tfinal =10, eps = 1, BIS0 = 100, BISfinal = 50-eps){
-  gamma <- log((BIS0-BISfinal)/eps - 1, base = tfinal/t50)
-  c(c50 = t50, gamma = gamma, e0 = BIS0, emx = BIS0 - BISfinal)
-}
-
-
-# #' Generate variance-covariance matrix for Eleveld PK-PD model
+# #' @name restrict_sigmoid
+# #' @title Restrict target sigmoid values
+# #' @description Function to place restriction on gamma and E50 parameters of target sigmoid
+# #' such that it passes through point (tfinal, BISfinal+eps)
 # #'
-# #' Generate the variance-covariance matrix for Eleveld PK-PD model for an observation
-# #' via Monte Carlo sampling.
-# #'
-# #' @param dat Data frame of observed patient covariates
-# #' @param N Number of Monte Carlo samples
-# #' @param rates Logical. Should rate constants be calculated
-# #' @param varnames Column names of variables used to calculate variance-covariance matrix
-# #' @return List of variance-covariance matrices with length equal to the number of rows in dat.
+# #' @param t50 parameter of Emax model
+# #' @param tfinal end of the induction period
+# #' @param eps distance between BISfinal and the target function at tfinal
+# #' @param BIS0 starting BIS value
+# #' @param BISfinal asymptote of Emax model
+# #' @return Numeric vector of PD parameter values
 # #' @export
-# eleveld_vcov <- function(dat,
-#                          N = 1000,
-#                          rates = TRUE,
-#                          varnames = c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")){
-#
-#   if(rates){
-#     varnames <- c("K10","K12","K21","K13","K31","V1","V2","V3","KE0","CE50","SIGMA")
-#   } else{
-#     varnames <- c("CL","Q2","Q3","V1","V2","V3","KE0","CE50","SIGMA")
-#   }
-#   vcv_list <- lapply(1:nrow(dat), function(i){
-#     mc_samples <- replicate(N, log(unlist(
-#       eleveld_poppk(dat[i,], rate = rates, PD = TRUE, rand = TRUE)[,varnames])
-#     ))
-#     vcv <- cov(t(mc_samples))
-#     if(rcond(vcv) < 1e-5)
-#       diag(vcv) <- diag(vcv) + 1e-3
-#     round(vcv,5)
-#   })
-#
-#   vcv_list
+# restrict_sigmoid <- function(t50, tfinal =10, eps = 1, BIS0 = 100, BISfinal = 50-eps){
+#   gamma <- log((BIS0-BISfinal)/eps - 1, base = tfinal/t50)
+#   c(c50 = t50, gamma = gamma, e0 = BIS0, emx = BIS0 - BISfinal)
 # }
 
 

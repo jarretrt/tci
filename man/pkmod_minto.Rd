@@ -4,18 +4,26 @@
 \alias{pkmod_minto}
 \title{Minto population PK model for remifentanil}
 \usage{
-pkmod_minto(AGE, HGT, LBM = NULL, TBW = NULL, MALE = NULL, PD = TRUE, ...)
+pkmod_minto(
+  AGE,
+  HGT = NULL,
+  TBW = NULL,
+  MALE = NULL,
+  LBM = NULL,
+  PD = TRUE,
+  ...
+)
 }
 \arguments{
 \item{AGE}{Age (years)}
 
 \item{HGT}{Height (cm). Used to calculate LBM if LBM is not provided.}
 
-\item{LBM}{Lean body mass (kg). Can be provided instead of TBW, HGT, and MALE}
-
 \item{TBW}{Weight (kg). Used to calculate LBM if LBM is not provided.}
 
 \item{MALE}{Logical. Used to calculate LBM if LBM is not provided.}
+
+\item{LBM}{Lean body mass (kg). Can be provided instead of TBW, HGT, and MALE}
 
 \item{PD}{Logical. Should PD parameters be returned in addition to PK parameters.}
 

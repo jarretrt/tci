@@ -21,11 +21,11 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Introduction
+# Introduction
 
 Target-controlled infusion (TCI) systems calculate infusion rates required to reach target concentrations or effects within a patient. Where pharmacokinetic (PK) and pharmacodynamic (PD) models describe a time course of concentrations or effects, respectively, associated with a series of doses, TCI algorithms calculate the inverse relationship: what doses must be administered to achieve target responses? 
 
-The `tci` package implements TCI algorithms for PK and PK-PD models for drugs described by compartmental models and administered via intravenous infusion. The package provides closed solutions for one, two, or three compartment mammillary models (i.e., all peripheral compartments are joined to a central compartment), as well as a three-compartment model with an adjoining effect-site. PK model code is based on solutions and code published by @Abuhelwa2015. TCI algorithms for plasma- and effect-site targeting are implemented based on work by @Jacobs1990 and @Shafer1992, respectively. Users can specify alternative PK models or TCI algorithms.
+The `tci` package implements TCI algorithms for PK and PK-PD models for drugs described by compartmental models and administered via intravenous infusion. The package provides closed solutions for one, two, or three compartment mammillary models (i.e., all peripheral compartments are joined to a central compartment), as well as a three-compartment model with an adjoining effect-site. PK model code is based on solutions published by @Abuhelwa2015 with models implemented in C++ via `Rcpp`. TCI algorithms for plasma- and effect-site targeting are implemented based on work by @Jacobs1990 and @Shafer1992, respectively. Users can specify alternative PK models or TCI algorithms.
 
 
 
@@ -43,11 +43,18 @@ ggplot <- function(...) ggplot2::ggplot(...) +
   # scale_color_manual(values = c("black","steelblue","seagreen"))
 ```
 
-## `pkmod` object class
+## `pkmod` and `poppkmod` object classes
 
-The `tci` package is built around the use of objects with the S3 class `pkmod` created with the function `pkmod`. These serve as containers for 1) functions implementing the structural PK model (e.g., a 1-compartment model with first-order elimination) and the PD model, if applicable, 2) the parameters for the respective functions, and 3) initial concentrations, and 4) information relevant for simulating observations or implementing TCI control, such as the compartment number associated with observations or with an effect-site. If unspecified, it will assume that the first compartment corresponds to plasma measurements and the final compartment is the effect-site.
+The `tci` package is built around S3 classes `pkmod` and `poppkmod`, created with the functions `pkmod` and `poppkmod`, respectively. `pkmod` objects serve as containers for 1) functions implementing the structural PK model (e.g., a 1-compartment model with first-order elimination) and the PD model, if applicable, 2) the parameters for the respective functions, and 3) initial concentrations, and 4) information relevant for simulating observations or implementing TCI control, such as the compartment number associated with observations or with an effect-site. `poppkmod` are wrapper objects that contain one or more `pkmod` objects associated with published population PK models: the Marsh, Schnider, and Eleveld models for propofol, and the Minto, Kim, and Eleveld models for remifentanil. 
 
-For use of compartment models included within the package (i.e., 1-,2-,3-compartment or 3-effect), the structural PK model can be inferred from the parameter names. 
+Both `pkmod` and `poppkmod` objects have associated `predict` and `simulate` methods that can be used to predict concentrations and simulate observations (PK or PD) given an infusion schedule. Infusion schedules, in turn, are created either manually via `inf_manual` or by applying a TCI algorithm to reach designated targets via `inf_tci`. `pkmod` objects are additionally equipped with a `update` method that allows for model components (e.g., parameter values, initial concentrations) to be easily modified. Both `predict` and `simulate` methods pass additional arguments via the ellipses argument, `...`, to `update.pkmod` to readily allow for prediction or simulation under different conditions.
+
+Examples in this vignette will focus on illustrating the lower-level functions of `tci` applied to `pkmod` objects. See the vignette on population PK models for illustration of higher-level functions and applications to population PK models for propofol and remifentanil. 
+
+
+# Examples
+
+Equations implementing 1-,2-,3-compartment and 3-compartment-effect structural PK models are included in the `tci` package. The function `pkmod` will automatically infer the correct structure based on the parameter names. 
 
 ```{r}
 # 1-compartment model
@@ -56,7 +63,8 @@ For use of compartment models included within the package (i.e., 1-,2-,3-compart
 (mod3ecpt <- pkmod(pars_pk = c(cl = 10, q2 = 2, q3 =20, v = 15, v2 = 30, v3 = 50, ke0 = 1.2)))
 ```
 
-The list of usable parameter names can be seen by typing `list_parnms()`. 
+Acceptable parameter names can be viewed by calling `list_parnms()`. Less-commonly used parameters, such as clearance from a peripheral compartment, are also permissible. 
+
 ```{r}
 # acceptable parameter names
 list_parnms()
@@ -73,31 +81,30 @@ Most functions in the `tci` package pass additional arguments to `update.pkmod` 
 
 ## Infusion schedules
 
-An infusion schedule is required to evaluate a `pkmod` object. This schedule should be a matrix with column labels "begin", "end", and "infrt", indicating infusion begin times, end times, and infusion rates. It can be created directly by the user, or outputted by the `create_inf` or `apply_tci` functions. In the former function, the user specifies infusion start times, durations, and infusion rates. 
+An infusion schedule is required to for `predict` and `simulate` methods. This schedule should be a matrix with column labels "begin", "end", and "infrt", indicating infusion begin times, end times, and infusion rates. It can be created directly by the user, or outputted by the `inf_manual` or `inf_tci` functions. In the former function, the user specifies infusion start times, durations, and infusion rates. 
 
 ```{r}
 # single infusion
-(single_inf <- create_inf(times = 0, duration = 0.5, infrt = 100))
+(single_inf <- inf_manual(inf_tms = 0, duration = 0.5, inf_rate = 100))
 # multiple infusions
-(multi_inf <- create_inf(times = c(0,3,6), duration = c(1,0.5,0.25), infrt = 100))
+(multi_inf <- inf_manual(inf_tms = c(0,3,6), duration = c(1,0.5,0.25), inf_rate = 100))
 ```
 
-Typically, however, the `apply_tci` will be used to calculate infusion rates required to reach specified targets. `apply_tci` requires 1) a set of target concentrations (or PD response values) and corresponding times at which the target is set, and 2) a `pkmod` object. It has "plasma" and "effect" settings, implementing the Jacobs and Shafer algorithms, respectively. Custom algorithms can be specified through the `custom_alg` argument.
+Typically, however, the `inf_tci` will be used to calculate infusion rates required to reach specified targets. `inf_tci` requires 1) a set of target concentrations (or PD response values) and corresponding times at which the target is set, and 2) a `pkmod` object. It has "plasma" and "effect" settings, implementing the Jacobs and Shafer algorithms, respectively. Custom algorithms can be specified through the `custom_alg` argument. See the vignette on custom models and algorithms for more details.
 
 ```{r}
-# target concentrations for TCI algorithm
-targets <- cbind(value = c(2,3,4,4), time = c(0,2,3,10))
-
 # plasma targeting for one-compartment model
-inf_1cpt <- apply_tci(targets, pkmod = mod1cpt, type = "plasma")
+inf_1cpt <- inf_tci(target_vals = c(2,3,4,4), target_tms = c(0,2,3,10), 
+                    pkmod = mod1cpt, type = "plasma")
 head(inf_1cpt)
 
 # effect-site targeting for three-compartment effect site model
-inf_3ecpt <- apply_tci(targets, pkmod = mod3ecpt, type = "effect")
+inf_3ecpt <- inf_tci(target_vals = c(2,3,4,4), target_tms = c(0,2,3,10), 
+                     pkmod = mod3ecpt, type = "effect")
 head(inf_3ecpt)
 ```
 
-By default, plasma- and effect-targeting algorithms are updated in increments of 1/6. If a PK model elimination parameters have units of minutes (as do commonly used models for the anesthetic propofol), this will correspond to updating TCI targets at 10-second intervals. If elimination rates are in different units, such as hours, then the TCI update frequency should be modified using the `apply_tci` argument `dtm`.
+By default, plasma- and effect-targeting algorithms are updated in increments of 1/6. If a PK model elimination parameters have units of minutes (as do commonly used models for the anesthetic propofol), this will correspond to updating TCI targets at 10-second intervals. If elimination rates are in different units, such as hours, then the TCI update frequency should be modified by the argument `dtm`.
 
 ## Predict and simulate methods
 
@@ -163,11 +170,10 @@ modpd <- update(mod3ecpt, pdfn = emax, pdinv = emax_inv,
                  pars_pd = c(e0 = 100, emx = 100, c50 = 3.5, gamma = 2.2))
 ```
 
-PD targets are passed along with the updated `pkmod` to `apply_tci`, which will assume values are PD values (unless overridden by the `ignore_pd` argument of `apply_tci`).
+PD targets are passed along with the updated `pkmod` to `inf_tci`, which will assume values are PD values (unless overridden by the `ignore_pd` argument of `inf_tci`).
 
 ```{r}
-pd_targets <- cbind(value = c(70,60,50,50), time = c(0,2,3,10))
-inf_pd <- apply_tci(pd_targets, pkmod = modpd, type = "effect")
+inf_pd <- inf_tci(target_vals = c(70,60,50,50), target_tms = c(0,2,3,10), pkmod = modpd, type = "effect")
 ```
 
 We can then similarly use `predict.pkmod` and `simulate.pkmod` methods to predict and simulate PD responses. BIS measurements may be collected at a rate of one observation per 10-20 seconds, depending on the BIS device settings.
@@ -200,25 +206,44 @@ ggplot(dat_pdm, aes(x = time, y = value, color = variable)) +
 ```
 
 
-## Closed-loop control
+## Open- and closed-loop control
 
-Closed-loop control systems automatically adjust controlled variable(s), in this case the infusion rate, in response to patient feedback. In `tci`, closed-loop control is implemented through the function `simulate_clc`, which applies Bayesian updates to update a patient's prior PK or PK-PD model as data are simulated according to a second, "true" PK/PK-PD model. To use `simulate_clc`, the user must specify 
+Functions simulating open- and closed-loop control are implemented in `tci` and can be used to predict patient responses and observed measurements under model misspecification without or with feedback. These are implemented via the functions `simulate_olc` and `simulate_clc` for open- and closed-loop control, respectively. Both functions require two `pkmod` or `poppkmod` objects representing the prior model for a set of individuals and the "true" models that will be used to simulate observations. They additionally require targets and target times to be passed to the TCI algorithm and times at which observations should be made. Closed-loop control further requires a set of times at which the prior PK/PKPD model should be updated based on the  available measurements. 
 
-1. A *prior* `pkmod` object describing the prior patient model. This model must have an associated `Omega` matrix describing inter-individual variability in PK-PD parameters. Any parameters that aren't listed in the column names of `Omega` are assumed to be fixed and aren't updated by `simulate_clc`.
-2. A *true* `pkmod` object describing the model from which data are generated. The true model does not need to have the same structure as the prior model.
-3. A set of targets for the TCI algorithm.
-4. Times at which to simulate observations from the "true" model.
-5. Times at which to update the prior model with the observed values.
+### Open-loop control
+
+To illustrate open-loop control, we simulate PK responses from a three-compartment model at times 1, 2, 4, 8, 12, 16, and 24 over a 24 hour period in which effect-site targeting is used and the target concentration is raised from 2 mg/L to 4 mg/L. 
+
+```{r}
+mod_true  <- update(mod3ecpt, pars_pk = c(cl = 20, q2 = 1.5, ke0 = 1.8))
+sim_ol <- simulate_olc(pkmod_prior = mod3ecpt, 
+                    pkmod_true = mod_true, 
+                    target_vals = c(2,3,4,4), 
+                    target_tms = c(0,2,3,24),
+                    obs_tms = c(1,2,4,8,12,16,24), 
+                    seed = 1)
+ggplot(melt(sim_ol$resp, id.vars = c("time","type"))) + 
+  geom_line(aes(x = time, y = value, color = variable)) + 
+  geom_point(data = sim_ol$obs, aes(x = time, y = obs)) +
+  facet_wrap(~type) +
+  labs(x = "Hours", y = "Concentration (mg/L)")
+```
 
 
-### PK example - plasma targeting
+### Closed-loop control
 
-Below we illustrate use of this function in the following scenario. A medication is administered to a patient via IV infusion once every 24 hours for three days. Each infusion is administered over the course of an hour at a rate calculated to reach a target plasma concentration of 3 mg/L. 
+Under Bayesian closed-loop control, a prior PK/PK-PD model is updated in response to observed data. In `tci` simulations, the observed data are generated by an underlying true model. 
+
+
+**PK example - plasma targeting**
+
+Below we illustrate the following scenario. A medication is administered to a patient via IV infusion once every 24 hours for three days. Each infusion is administered over the course of an hour at a rate calculated to reach a target plasma concentration of 3 mg/L.
 
 ```{r}
 # TCI targets - 3 doses (hour-long infusions) at 24h intervals calculated to 
 # reach 3 mg/L plasma concentration
-targets <- cbind(time = c(0,1,24,25,48,49,72), value = c(3,0,3,0,3,0,0))
+target_tms <- c(0,1,24,25,48,49,72)
+target_vals <- c(3,0,3,0,3,0,0)
 ```
 
 Samples are collected at 1, 2, 4, 8, 12, 16, 23, 25, 36, and 47 hours and are used to update the patient's model at 24 and 48 hours. 
@@ -245,27 +270,25 @@ pkmod_true <- update(mod3ecpt, sigma_mult = 0.3)
 We now run the simulation using a plasma-targeting TCI algorithm and plot the results.
 ```{r}
 # run simulation
-sim <- simulate_clc(pkmod_prior, pkmod_true, targets, obs_tms, update_tms, 
-                    type = "plasma", seed = 1)
-len <- 1000
+sim_cl <- simulate_clc(pkmod_prior, pkmod_true, target_vals, target_tms, 
+                    obs_tms, update_tms, type = "plasma", seed = 1)
+len <- 1e3
 tms <- seq(0,48,length.out = len)
 
 # true, prior, posterior plasma concentrations
-ctrue <- predict(pkmod_true, sim$inf,tms)[,1]
-cprior <- predict(pkmod_prior, sim$inf,tms)[,1]
-post_pars <- sim$pars[nrow(sim$pars),]
-cpost  <- predict(pkmod_prior, sim$inf,tms, pars_pk = post_pars[1:7], 
-                  sigma_add = post_pars[8])[,1]
+ctrue <- predict(pkmod_true, sim_cl$inf,tms)[,1]
+cprior <- predict(pkmod_prior, sim_cl$inf,tms)[,1]
+cpost <-  predict(sim_cl$pkmod_post, sim_cl$inf,tms)[,1]
 df <- data.frame(time = rep(tms,3),
                 value = c(ctrue, cprior, cpost),
                 model = c(rep("true",len),rep("prior",len),rep("posterior",len)))
 p1 <- ggplot(df, aes(x = time, y = value, color = model)) +
  geom_line() +
- geom_point(data = sim$obs, aes(x = time, y = obs), inherit.aes = FALSE) +
+ geom_point(data = sim_cl$obs, aes(x = time, y = obs), inherit.aes = FALSE) +
  labs(x = "Time (h)", y = "Concentration (mg/L)") +
  geom_vline(xintercept = update_tms, linetype = "dotted", alpha = 0.6)
 
-p2 <- ggplot(as.data.frame(sim$inf), aes(x = begin, y = infrt)) + 
+p2 <- ggplot(as.data.frame(sim_cl$inf), aes(x = begin, y = inf_rate)) + 
   geom_line() + 
   labs(x = "Time (h)", y = "Infusion rate (mg/h)")
 
@@ -275,7 +298,7 @@ plot(arrangeGrob(p1,p2, ncol = 2))
 Due to the structural model misspecification, the posterior model substantially under-predicts the true concentrations and delivers infusions that results in maximum concentrations substantially higher than the intended 3 mg/L at 24 and 48 hours. 
 
 
-## PK-PD example - effect-site targeting
+**PK-PD example - effect-site targeting**
 
 We now consider applying closed-loop control to a patient's BIS signal during the induction of anesthesia with propofol. As in the prior PK-PD example, propofol PK are described by a three-compartment effect-site model and the BIS response by an Emax model. A target of BIS=50 will be used with observations simulated at a rate of one observation per 10 seconds and model parameters updated every minute. We will further assume that there is a delay in processing the BIS signal, such that measurements are not available until 30 seconds after they are collected. This is implemented in `simulate_clc` by setting the `delay` parameter. For the prior model, we will assume that the only parameters that vary within the population are the clearance parameters, the effect-site equilibrium constant, the concentration associated with 50\% effect, and the residual error. 
 
@@ -289,13 +312,13 @@ pkpdmod_true <- update(modpd, sigma_add = 7,
                        pars_pk = c(cl = 20,q2=6,q3=50,ke0=0.8),
                        pars_pd = c(c50=2.5))
 
-targets <- cbind(value = c(50,50), time = c(0,10))
 obs_tms <- seq(1/6,10,1/6)
 update_tms <- seq(1,10,0.5)
 
 sim_pkpd <- simulate_clc(pkmod_prior = pkpdmod_prior, 
                          pkmod_true = pkpdmod_true, 
-                         targets = targets, 
+                         target_vals = c(50,50),
+                         target_tms = c(0,10),
                          obs_tms = obs_tms, 
                          update_tms = update_tms, 
                          seed = 1, delay = 0.5)
@@ -307,10 +330,7 @@ sim_pkpd <- simulate_clc(pkmod_prior = pkpdmod_prior,
 tms <- seq(0,10,length.out = len)
 resp_true <- predict(pkpdmod_true, sim_pkpd$inf,tms)[,5]
 resp_prior <- predict(pkpdmod_prior, sim_pkpd$inf,tms)[,5]
-post_pars <- sim_pkpd$pars[nrow(sim_pkpd$pars),]
-resp_post  <- predict(pkpdmod_prior, sim_pkpd$inf, tms, 
-                      pars_pk = post_pars[1:4], pars_pd = post_pars[5], 
-                      sigma_add = post_pars[6])[,5]
+resp_post  <- predict(sim_pkpd$pkmod_post, sim_pkpd$inf, tms)[,5]
 df <- data.frame(time = rep(tms,3),
                  value = c(resp_true, resp_prior, resp_post),
                  model = c(rep("true",len),rep("prior",len),rep("posterior",len)))
@@ -319,10 +339,9 @@ ggplot(df, aes(x = time, y = value, color = model)) +
   geom_line() +
   geom_point(data = sim_pkpd$obs, aes(x = time, y = obs), inherit.aes = FALSE) +
   labs(x = "Hours", y = "Bispectral Index") +
-  geom_vline(xintercept = update_tms, linetype = "dotted", alpha = 0.6) +
-  geom_step(data = as.data.frame(targets), aes(x = time, y = value), inherit.aes = FALSE)
+  geom_vline(xintercept = update_tms, linetype = "dotted", alpha = 0.6) + 
+  geom_hline(yintercept = 50)
 ```
-
 
 
 
