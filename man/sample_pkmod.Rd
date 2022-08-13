@@ -2,7 +2,7 @@
 % Please edit documentation in R/poppk_mods.R
 \name{sample_pkmod}
 \alias{sample_pkmod}
-\title{Sample parameters from a population PK model}
+\title{Sample parameters from a `pkmod` object}
 \usage{
 sample_pkmod(pkmod, log_normal = TRUE, ...)
 }
@@ -14,8 +14,11 @@ and multiplicative if TRUE, additive and normally distributed if FALSE.}
 
 \item{...}{Arguments passed to update.pkmod}
 }
+\value{
+`pkmod` object with updated parameters.
+}
 \description{
-Sample parameters from a population PK model
+Sample parameters from a `pkmod` object
 }
 \examples{
 sample_pkmod(pkmod_schnider(AGE = 40,HGT=170,TBW=50,MALE=TRUE))

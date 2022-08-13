@@ -21,5 +21,5 @@ Update parameters or initial values of a pkmod object
 # initial pkmod object
 (my_mod <- pkmod(pars_pk = c(CL = 10, V1 = 10)))
 # update a subset of parameters and initial values
-update(my_mod, pars_pk = c(CL = 20), init = 3, sigma_add = 1, log_response = TRUE)
+update(my_mod, pars_pk = c(CL = 20, V1 = 2), init = 3, sigma_add = 1, log_response = TRUE)
 }

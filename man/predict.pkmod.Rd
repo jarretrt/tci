@@ -4,7 +4,7 @@
 \alias{predict.pkmod}
 \title{Predict method for pkmod objects}
 \usage{
-\method{predict}{pkmod}(object, inf, tms, ...)
+\method{predict}{pkmod}(object, inf, tms, return_times = FALSE, ...)
 }
 \arguments{
 \item{object}{An object with class pkmod.}
@@ -13,6 +13,8 @@
 be administered. Can be created by `inf_manual` or `inf_tci`.}
 
 \item{tms}{Times at which to calculate predicted concentrations.}
+
+\item{return_times}{Logical. Should prediction times be returned along with responses? Defaults to FALSE.}
 
 \item{...}{List or vector of values to be passed on to update.pkmod.}
 }

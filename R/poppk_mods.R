@@ -430,116 +430,19 @@ pkmod_eleveld_remi <- function(AGE, MALE, TBW, HGT=NULL,BMI = NULL,PD=TRUE,...){
   }
 }
 
-# ------------------------------------------------------------------------------
-# Wrapper function for population pk models ------------------------------------
-# ------------------------------------------------------------------------------
-
-#' @name poppkmod
-#' @title Generate a `pkmod` object from an existing population PK model
-#'
-#' @description Generate a `pkmod` object from an existing population PK model
-#' for propofol or remifentanil using patient covariates. Available models for
-#' propofol are the Marsh, Schnider, and Eleveld models. Available models for
-#' remifentanil are the Minto, Kim, and Eleveld models. Input is
-#' a data frame with rows corresponding to individuals and columns
-#' recording patient covariates.
-#' @param data Data frame of patient covariates. ID values, if used, should be in a column labeled "id" or "ID"
-#' @param drug "ppf" for propofol or "remi" for remifentanil. Defaults to "ppf".
-#' @param model Model name. Options are "marsh", "schnider", or "eleveld" if
-#' drug = "ppf", or "minto", "kim", or "eleveld" if drug = "remi".
-#' @param sample Logical. Should parameter values be sampled from interindividual distribution (TRUE)
-#' or evaluated at point estimates for covariates (FALSE)? Defaults to FALSE.
-#' @param PD Should the PD component be evaluated for PK-PD models. Defaults to TRUE.
-#' @param ... Arguments passed on to each pkmod object
-#' @return `poppkmod` object
-#' @examples
-#' data <- data.frame(ID = 1:5, AGE = seq(20,60,by=10), TBW = seq(60,80,by=5),
-#' HGT = seq(150,190,by=10), MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
-#' poppkmod(data, drug = "ppf", model = "eleveld")
-#' poppkmod(data, drug = "remi", model = "kim")
-#' @export
-poppkmod <- function(data, drug = c("ppf","remi"), model = c("marsh","schnider","eleveld","minto","kim"),
-                     sample = FALSE, PD = TRUE, ...){
-
-  drug <- match.arg(drug)
-  model <- match.arg(model)
-
-  if(drug == "ppf" & model %in% c("minto","kim"))
-    stop("'drug' must be set to 'remi' to use Minto or Kim models")
-
-  if(drug == "remi" & model %in% c("marsh","schnider"))
-    stop("'drug' must be set to 'ppf' to use Marsh or Schnider models")
-
-  if("id" %in% tolower(names(data))){
-    ids <- data[,grep("id",names(data), ignore.case = TRUE)]
-  } else{
-    ids <- 1:nrow(data)
-  }
-
-  if(!is.data.frame(data)){
-    warning("Converting 'data' to a data frame")
-    data <- as.data.frame(data)
-  }
-
-  apply_fn_df <- function(fn, dat, ...){
-    lapply(1:nrow(dat), function(i) do.call(fn, c(as.list(dat[i,names(dat) %in% names(formals(fn)), drop = FALSE]),list(...))))
-  }
-
-  if(model == "marsh"){
-    if(!("TBW" %in% names(data))) stop("data must have column 'TBW'")
-    mods <- apply_fn_df(pkmod_marsh, data)
-  }
-
-  if(model == "schnider"){
-    if(any(!(c("AGE","HGT") %in% names(data))) | !("LBM" %in% names(data) | all(c("TBW","MALE") %in% names(data))))
-      stop("data must have columns 'AGE','HGT' and either 'TBW' and 'MALE' or 'LBW'")
-    mods <- apply_fn_df(pkmod_schnider, data)
-  }
-
-  if(model == "eleveld" & drug == "ppf"){
-    if(any(!(c("AGE","TBW","HGT","MALE") %in% names(data))))
-      stop("data must have columns 'AGE','TBW','HGT' and 'MALE'")
-    mods <- apply_fn_df(pkmod_eleveld_ppf, data, PD=PD)
-  }
-
-  if(model == "minto"){
-    if(any(!(c("AGE") %in% names(data))) | !("LBM" %in% names(data) | all(c("TBW","MALE","HGT") %in% names(data))))
-      stop("data must have columns 'AGE','HGT' and either 'TBW' and 'MALE' or 'LBW'")
-    mods <- apply_fn_df(pkmod_minto, data, PD=PD)
-  }
-
-  if(model == "kim"){
-    if(any(!(c("AGE","TBW") %in% names(data))) | (all(!c("BMI","HGT") %in% names(data)) & !"FFM" %in% names(data)))
-      stop("data must have columns 'AGE','TBW' and either 'BMI' and 'HGT' or 'FFM'")
-    mods <- apply_fn_df(pkmod_kim, data)
-  }
-
-  if(model == "eleveld" & drug == "remi"){
-    if(any(!(c("AGE","MALE","TBW") %in% names(data))) | (all(!c("BMI","HGT") %in% names(data)) & !"FFM" %in% names(data)))
-      stop("data must have columns 'AGE', 'MALE', and 'TBW' and either 'HGT' or 'BMI'")
-    mods <- apply_fn_df(pkmod_eleveld_remi, data, PD=PD)
-  }
-
-  if(sample){
-    mods <- lapply(mods, sample_pkmod)
-  }
-
-  out <- list(pkmods = mods, drug = drug, model = model, ids = ids)
-  class(out) <- "poppkmod"
-  return(out)
-}
 
 
 # ------------------------------------------------------------------------------
 # Extra functions --------------------------------------------------------------
 # ------------------------------------------------------------------------------
 
-#' Sample parameters from a population PK model
+#' Sample parameters from a `pkmod` object
 #'
 #' @param pkmod `pkmod` object with associated Omega matrix describing random effect variances
 #' @param log_normal Logical. Assumes random effects are log-normally distributed
 #' and multiplicative if TRUE, additive and normally distributed if FALSE.
 #' @param ... Arguments passed to update.pkmod
+#' @return `pkmod` object with updated parameters.
 #' @examples
 #' sample_pkmod(pkmod_schnider(AGE = 40,HGT=170,TBW=50,MALE=TRUE))
 #' sample_pkmod(pkmod_eleveld_ppf(AGE = 40,TBW = 56,HGT=150,MALE = TRUE, PD = FALSE))
@@ -580,6 +483,34 @@ sample_pkmod <- function(pkmod, log_normal = TRUE, ...){
          sigma_add = sigma_add_new, sigma_mult = sigma_mult_new)
 }
 
+#' @name sample_iiv
+#' @title Sample PK or PK-PD parameters from the distribution of inter- or intra-individual variability
+#' @description Sample PK or PK-PD parameters from the distribution of random effects
+#' for a `pkmod` or `poppkmod` object, as described by the Omega matrix (see ?pkmod).
+#' @param mod `pkmod` or `poppkmod` object with associated Omega matrix describing random effect variances
+#' @param log_normal Logical. Assumes random effects are log-normally distributed
+#' and multiplicative if TRUE, additive and normally distributed if FALSE.
+#' @param ... Arguments passed to update.pkmod.
+#' @return Returns model passed to "mod" argument with randomly sampled PK or PK-PD
+#' parameters.
+#' @examples
+#' # sample from single PK model
+#' sample_iiv(pkmod_schnider(AGE = 40,HGT=170,TBW=50,MALE=TRUE))
+#' # sample from `poppkmod`
+#' data <- data.frame(ID = 1:5, AGE = seq(20,60,by=10), TBW = seq(60,80,by=5),
+#' HGT = seq(150,190,by=10), MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
+#' sample_iiv(poppkmod(data = data, drug = "ppf", model = "eleveld"))
+#' @export
+sample_iiv <- function(mod, log_normal = TRUE, ...){
 
+  if(!inherits(mod, "pkmod") & !inherits(mod, "poppkmod"))
+    stop("mod must have class 'pkmod' or 'poppkmod'")
 
+  if(inherits(mod, "pkmod")){
+    return(sample_pkmod(mod, log_normal = log_normal, ...))
+  } else{
+    mod$pkmods <- lapply(mod$pkmods, sample_pkmod, log_normal = log_normal, ...)
+    return(mod)
+  }
+}
 

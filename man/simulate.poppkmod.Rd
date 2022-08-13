@@ -2,7 +2,7 @@
 % Please edit documentation in R/methods.R
 \name{simulate.poppkmod}
 \alias{simulate.poppkmod}
-\title{Simulate method for poppkmod objects}
+\title{Summary method for `poppkmod` objects}
 \usage{
 \method{simulate}{poppkmod}(
   object,
@@ -35,6 +35,10 @@ Overridden if a PD model is included.}
 \item{resp_bounds}{Optional vector of two values indicating minimum and maximum values possible for the response.}
 }
 \description{
+Summarize parameter distribution
+Simulate method for poppkmod objects
+}
+\details{
 Simulate observations from a poppkmod object
 }
 \examples{

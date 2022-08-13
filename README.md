@@ -3,16 +3,33 @@ README
 
 # tci
 
-The `tci` package implements plasma- and effect-site targeting
-target-controlled infusion (TCI) algorithms to 1-, 2-, 3-, and
-3-compartment/effect-site pharmacokinetic (PK) models with intravenous
-drug administration. TCI algorithms can further be applied to
-pharmacodynamic (PD) targets when a PD model and its inverse are
-specified. Functions are supplied for simulation of individual responses
-to TCI infusion schedules under open- or Bayesian closed-loop control.
-See the `overview` vignette for further details. Custom user-defined PK
-models or TCI algorithms can be specified, as illustrated in the
-`custom` vignette.
+The `tci` package implements target-controlled infusion (TCI) algorithms
+to calculate infusion schedules for compartmental pharmacokinetic (PK)
+and pharmacokinetic-pharmacodynamic (PK-PD) models. Using these infusion
+schedules, functions in `tci` can be used to simulate PK or PK-PD
+responses with or without model misspecification. Generated responses
+can be used to simulate closed-loop control by implementing Bayesian
+updates to the PK or PK-PD model based on the “observed” (i.e.,
+simulated) data.
+
+Closed-form solutions are provided for one, two, or three compartment
+mammillary models (i.e., all peripheral compartments are joined to a
+central compartment), as well as a three-compartment model with an
+adjoining effect-site. Alternative models, potentially based on ordinary
+differential equations (ODE), can be specified using other R packages
+and adapted for use with `tci` functions (see the “Custom PK models and
+algorithms” vignette).
+
+`tci` implements both plasma-and effect-site targeting TCI algorithms
+based on work by Jacobs (1990) and Shafer and Gregg (1992),
+respectively. Users can implement alternative user-defined TCI
+algorithms, however. Again, see the “Custom PK models and algorithms”
+vignette for further details.
+
+Several population PK models commonly used for TCI are implemented in
+`tci`. These include the Marsh, Schnider, and Eleveld models for
+propofol, and the Minto, Kim, and Eleveld models for remifentanil. Use
+of these models is illustrated in the “Population PK models” vignette.
 
 ## Installation
 
@@ -38,210 +55,253 @@ library(ggplot2) # for plotting
 
 ## Examples
 
-### PK/PKPD Models
-
-PK and PKPD models are created using the function `pkmod` for individual
-PK/PKPD models or `poppkmod` to access previously published population
-PK models. The only required argument to `pkmod` is a named vector
-`pars_pk`, indicating the PK parameters for a specific individual.
-Acceptable PK parameter names can be found by calling `list_parnms()`.
-The number of compartments will be inferred from the parameter names.
+Equations implementing 1-, 2-, 3-compartment and 3-compartment-effect
+structural PK models are included in the `tci` package. The function
+`pkmod` will automatically infer the correct structure based on the
+parameter names.
 
 ``` r
-# 3-compartment PK model with effect site
+# 3-compartment model with effect site
 (mod3ecpt <- pkmod(pars_pk = c(cl = 10, q2 = 2, q3 =20, v = 15, v2 = 30, v3 = 50, ke0 = 1.2)))
 ```
 
-    ## --- PK model ------------------------------------------- 
-    ## 4-compartment PK model 
-    ## PK parameters: cl = 10, q2 = 2, q3 = 20, v = 15, v2 = 30, v3 = 50, ke0 = 1.2 
-    ## Initial concentrations: (0,0,0,0) 
-    ## Plasma compartment: 1 
-    ## Effect compartment: 4 
-    ## --- Simulation ----------------------------------------- 
-    ## Additive error SD: 0 
-    ## Multiplicative error SD: 0 
-    ## Logged response: FALSE
+    ## tci pkmod object
+    ## See ?update.pkmod to modify or add elements
+    ## 
+    ## PK model 
+    ##  4-compartment PK model 
+    ##  PK parameters: cl = 10, q2 = 2, q3 = 20, v = 15, v2 = 30, v3 = 50, ke0 = 1.2 
+    ##  Initial concentrations: (0,0,0,0) 
+    ##  Plasma compartment: 1 
+    ##  Effect compartment: 4 
+    ## 
+    ## Simulation
+    ##  Additive error SD: 0 
+    ##  Multiplicative error SD: 0 
+    ##  Logged response: FALSE
 
-A PD model can be added by specifying arguments `pdfn`, `pdinv`, and
-`pars_pd`, with the first to referring to functions implementing the PD
-function and its inverse, and `pars_pd` specifying a named vector of PD
-parameters used by `pdfn` and `pdinv`. Arguments can be added to an
-existing `pkmod` object using the `update.pkmod` method.
+Acceptable parameter names can be viewed by calling `list_parnms()`.
+Less-commonly used parameters, such as clearance from a peripheral
+compartment, are also permissible.
 
 ``` r
-# 3-compartment PK model with effect site and Emax PD 
-(mod3ecpt_pd <- update(mod3ecpt, pdfn = emax, pdinv = emax_inv, 
-                 pars_pd = c(e0 = 100, emx = 100, c50 = 3.5, gamma = 2.2)))
+# acceptable parameter names
+list_parnms()
 ```
 
-    ## --- PK model ------------------------------------------- 
-    ## 4-compartment PK model 
-    ## PK parameters: cl = 10, q2 = 2, q3 = 20, v = 15, v2 = 30, v3 = 50, ke0 = 1.2 
-    ## Initial concentrations: (0,0,0,0) 
-    ## Plasma compartment: 1 
-    ## Effect compartment: 4 
-    ## --- PD model ------------------------------------------- 
-    ## PD parameters: e0 = 100, emx = 100, c50 = 3.5, gamma = 2.2 
-    ## --- Simulation ----------------------------------------- 
-    ## Additive error SD: 0 
-    ## Multiplicative error SD: 0 
-    ## Logged response: FALSE
+    ## Acceptable names for 'pars_pk' vector (case-insensitive) 
+    ## 
+    ## First compartment options
+    ##  Central volume: 'v','v1' 
+    ##  Elimination: 'cl','cl1','k10','ke' 
+    ## 
+    ## Second compartment options
+    ##  Peripheral volume: 'v2' 
+    ##  Transfer: 'q','q2','k12','k21' 
+    ##  Elimination: 'cl2','k20' 
+    ## 
+    ## Third compartment options
+    ##  Second peripheral volume: 'v3' 
+    ##  Transfer: 'q3','k13','k31' 
+    ##  Elimination: 'cl3','k30' 
+    ## 
+    ## Effect-site
+    ##  Elimination: 'ke0'
+
+Elements of `pkmod` objects can be modified through an `update.pkmod`
+method. Perhaps most usefully, this allows for partial modifications to
+PK-PD parameters. For example, the effect-site equilibrium constant can
+be easily updated.
+
+``` r
+update(mod3ecpt, pars_pk = c(ke0 = 0.9), init = c(1,0.2,0.3,1))
+```
+
+    ## tci pkmod object
+    ## See ?update.pkmod to modify or add elements
+    ## 
+    ## PK model 
+    ##  4-compartment PK model 
+    ##  PK parameters: cl = 10, q2 = 2, q3 = 20, v = 15, v2 = 30, v3 = 50, ke0 = 0.9 
+    ##  Initial concentrations: (1,0.2,0.3,1) 
+    ##  Plasma compartment: 1 
+    ##  Effect compartment: 4 
+    ## 
+    ## Simulation
+    ##  Additive error SD: 0 
+    ##  Multiplicative error SD: 0 
+    ##  Logged response: FALSE
+
+Most functions in the `tci` package pass additional arguments to
+`update.pkmod` allowing for easy modification of `pkmod` objects as
+needed.
+
+## TCI Infusion schedules
+
+TCI algorithms are implemented using the function `tci_inf` (manual
+infusions are implemented by `inf_manual`). The user supplies a set of
+targets, times at which the target is set, and a `pkmod` object. The TCI
+algorithm (defaults to `type = "plasma"`) is iteratively applied to
+calculate infusion rates required to reach each target in turn. By
+default, infusion rates are updated in increments of 1/6, corresponding
+to every 10-second intervals if infusions rate units are in amount per
+minute. Infusion rates themselves must have the same units as the PK
+elimination parameters. If elimination rates are in different units,
+such as hours, then the TCI update frequency should be modified by the
+argument `dtm`.
+
+``` r
+# effect-site targeting for three-compartment effect site model
+inf_3ecpt <- inf_tci(target_vals = c(2,3,4,4), target_tms = c(0,2,3,10), 
+                     pkmod = mod3ecpt, type = "effect")
+head(inf_3ecpt)
+```
+
+    ##        begin     end inf_rate Ct c1_start   c2_start  c3_start  c4_start
+    ## [1,] 0.00000 0.16667 643.6921  2 0.000000 0.00000000 0.0000000 0.0000000
+    ## [2,] 0.16667 0.33333   0.0000  2 6.033672 0.03532348 0.2079682 0.5966263
+    ## [3,] 0.33333 0.50000   0.0000  2 4.301795 0.09138590 0.5235366 1.4096671
+    ## [4,] 0.50000 0.66667   0.0000  2 3.136188 0.13103476 0.7267367 1.8178340
+    ## [5,] 0.66667 0.83333  19.3835  2 2.350071 0.15960595 0.8548449 1.9785480
+    ## [6,] 0.83333 1.00000   0.0000  2 2.000000 0.18174014 0.9390928 2.0109479
+    ##        c1_end     c2_end    c3_end    c4_end
+    ## [1,] 6.033672 0.03532348 0.2079682 0.5966263
+    ## [2,] 4.301795 0.09138590 0.5235366 1.4096671
+    ## [3,] 3.136188 0.13103476 0.7267367 1.8178340
+    ## [4,] 2.350071 0.15960595 0.8548449 1.9785480
+    ## [5,] 2.000000 0.18174014 0.9390928 2.0109479
+    ## [6,] 1.586605 0.19939667 0.9931813 1.9678507
 
 ## Population PK models
 
-Several published population PK models are currently implemented in
-`tci`. For propofol, these include the Marsh, Schnider, and Eleveld
-models. For remifentanil, they include the Minto, Kim, and Eleveld
-models. Each population PK model function takes individual covariates
-(e.g., age, total body weight) and returns a `pkmod` object that
-implements the population model at the corresponding structural PK/PK-PD
-parameter values.
-
-Population PK/PKPD models are created using the function `poppkmod`. The
-primary argument to `poppkmod` is a data frame with individual covariate
-values to be evaluated by the model. Available models and required
-covariates can be viewed by printing `list_pkmods()`.
+Population PK models are implemented by the function `poppkmod`. The
+user must supply a data frame with the set of covariates (e.g., weight,
+age) required by the model. Several published population PK models are
+currently implemented in `tci`. For propofol, these include the Marsh,
+Schnider, and Eleveld models. For remifentanil, they include the Minto,
+Kim, and Eleveld models. See `?poppkmod` or the population PK model
+vignette for details. `list_pkmods()` will list available population PK
+models and covariates required by each.
 
 ``` r
-list_pkmods()
-```
-
-| Population.model      | Function               | Drug         | Type    | Required.covariates              |
-|:----------------------|:-----------------------|:-------------|:--------|:---------------------------------|
-| Marsh                 | pkmod\_marsh()         | Propofol     | PK      | TBW                              |
-| Schnider              | pkmod\_schnider()      | Propofol     | PK      | AGE, HGT, LBM or (TBW and MALE)  |
-| Eleveld (propofol)    | pkmod\_eleveld\_ppf()  | Propofol     | PK/PKPD | AGE, HGT, MALE, TBW              |
-| Minto                 | pkmod\_minto()         | Remifentanil | PK/PKPD | AGE, LBM or (MALE, TBW, and HGT) |
-| Kim                   | pkmod\_kim()           | Remifentanil | PK      | AGE, TBW, FFM or (MALE and BMI)  |
-| Eleveld (remifentanil | pkmod\_eleveld\_remi() | Remifentanil | PK/PKPD | AGE, MALE, BMI or (TBW and HGT)  |
-
-The user additionally selects the appropriate drug (“ppf” for propofol
-or “remi” for remifentanil) and model. By setting the argument
-`sample=TRUE` PK/PKPD parameters will be randomly sampled from the
-distribution described by the model’s interindividual variability.
-
-``` r
-data <- data.frame(ID = 1:5, 
-                   AGE = seq(20,60,by=10), 
-                   TBW = seq(60,80,by=5), 
-                   HGT = seq(150,190,by=10), 
+# data frame of patient covariates
+data <- data.frame(ID = 1:5, AGE = seq(20,60,by=10), 
+                   TBW = seq(60,80,by=5), HGT = seq(150,190,by=10), 
                    MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
-ppf_eleveld <- poppkmod(data, drug = "ppf", model = "eleveld")
+# Eleveld population PK model for propofol
+pkpd_elvd <- poppkmod(data = data, drug = "ppf", model = "eleveld")
 ```
 
-## Predict and simulate methods
+As with the `pkmod` class, `poppkmod` objects can be used by `inf_tci`
+and have `predict` and `simulate` methods to predict and simulate PK-PD
+responses, respectively.
 
-S3 methods for `predict` and `simulate` exist for both `pkmod` and
-`poppkmod` objects. `predict` is used to predict concentrations over
-time associated with a model object, while `simulate` is used to
-simulate observations from the model. Both methods require an infusion
-schedule that indicates infusion begin times, end times, and infusion
-rates with columns labeled “begin,” “end,” and “inf\_rate.” Infusion
-schedules can be created manually via the function `inf_manual` or
-calculated by a TCI algorithm to reach designated targets (plasma or
-effect-site) with `inf_tci`. By default, `inf_tci` will interpret
-targets as PD response values if the model object has a PD component.
-This can be overruled by setting the argument `ignore_pd=TRUE`,
-indicating that targets are concentrations.
+PK-PD parameter values can be drawn at random from the
+inter-/intra-individual variability distribution, as described by the
+`pkmod`
+![Omega](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;Omega "Omega")
+matrix, by either 1) setting the argument `sample = TRUE` when calling
+`poppkmod`, or 2) by using the function `sample_iiv`.
 
 ``` r
-# Infusions of 100 mg/min for 30 sec at 0, 3, 6 min
-(multi_inf <- inf_manual(inf_tms = c(0,3,6), inf_rate = 100, duration = 0.5))
-```
-
-    ##      begin end inf_rate
-    ## [1,]   0.0 0.5      100
-    ## [2,]   0.5 3.0        0
-    ## [3,]   3.0 3.5      100
-    ## [4,]   3.5 6.0        0
-    ## [5,]   6.0 6.5      100
-
-``` r
-# Infusions to reach and maintain a target effect-site concentration of 3 mg/L for
-# ten minutes, updated each 30 seconds
-inf_pk <- inf_tci(pkmod = ppf_eleveld, 
-                   target_vals = c(3,3), 
-                   target_tms = c(0,10), 
-                   type = "effect", 
-                   dtm = 0.5, 
-                   ignore_pd = TRUE)
-# plot results
-ggplot(as.data.frame(inf_pk)) + 
-  geom_step(aes(x = begin, y = inf_rate, color = factor(id))) +
-  xlab("Minutes") + ylab("Infusion rate (mg/min)")
-```
-
-<img src="README_files/figure-gfm/unnamed-chunk-7-1.png" style="display: block; margin: auto;" />
-
-## Open- and closed-loop simulations
-
-A system is termed “open-loop” if a controlled variable, such as the
-infusion rate, is calculated without feedback from the system and
-closed-loop if feedback is incorporated. By default, TCI systems are
-open-loop: infusion rates are calculated to reach targets according to a
-PK or PKPD model that is believed to describe an individual. In
-practice, a clinician will adjust infusion rates as needed, thereby
-manually “closing the loop.” The `tci` package simulates this process,
-absent clinician involvement, using the function `simulate_olc`.
-
-In practice, the dynamics governing an individual’s response will not be
-identical to those predicted by a model. To simulate this mismatch,
-therefore, two models are required: 1) a “prior” model that is believed
-to describe the individual and used to calculate infusion rates, and 2)
-a “true” model that is used to generate responses given the infusions
-administered. Typically, the prior will be a population model evaluated
-at patient covariate values, while the true model parameters may be
-sampled from the distributions representing inter- and/or intra-patient
-variability in parameters, or may be associated with a completely
-different model to simulate model misspecification. In addition to these
-two models, `simulate_olc` requires a set of targets, times at which
-targets are set, and times at which observations are to be simulated.
-
-``` r
-# Sample "true" PKPD parameters from distribution of interindividual variability
 set.seed(1)
-ppf_eleveld_true <- poppkmod(data, drug = "ppf", model = "eleveld", sample = TRUE)
-
-# Target BIS=50 for 10 minutes with observations collected every 30 seconds
-sim_ol <- simulate_olc(pkmod_prior = ppf_eleveld, 
-                       pkmod_true = ppf_eleveld_true, 
-                       target_vals = c(50,50),
-                       target_tms = c(0,10), 
-                       obs_tms = seq(1/2,10,1/2))
-
-ggplot(sim_ol$resp) + 
-  geom_line(aes(x = time, y = pdresp, color = id)) + 
-  geom_point(data = sim_ol$obs, aes(x = time, y = obs, color = id), alpha = 0.3) +
-  facet_wrap(~type) +
-  labs(x = "Hours", y = "Bispectral Index")
+pkpd_elvd_iiv <- sample_iiv(pkpd_elvd)
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-8-1.png" style="display: block; margin: auto;" />
+## Simulations
 
-During closed-loop control, as implemented in `tci`, simulated data are
-used to periodically perform Bayesian updates of the prior patient model
-to estimate a posterior patient-specific model. This model is then used
-to calculate subsequent infusion rates. Closed-loop control is simulated
-by the function `simulate_clc`, which takes the same arguments as
-`simulate_olc` in addition to a set of times at which updates should be
-performed.
+Simulations are best implemented through the function `simulate_tci`,
+which allows for model misspecification as well as Bayesian updates to
+model parameters based on previously observed data (i.e., “closed-loop”
+control). `simulate_tci` can be used for both `pkmod` or `poppkmod`
+classes. Required arguments to `simulate_tci` are 1) a prior PK model
+(`pkmod_prior`) that is used to calculate infusion rates and may be
+updated throughout the simulation if update times are provided, 2) a
+true PK model (`pkmod_true`) that is used to simulate observations, 3)
+TCI target values, 4) TCI target times, and 5) times to simulate
+observations.
 
 ``` r
-# Target BIS=50 for 10 minutes with observations collected every 30 seconds
-sim_cl <- simulate_clc(pkmod_prior = ppf_eleveld, 
-                       pkmod_true = ppf_eleveld_true, 
-                       target_vals = c(50,50),
-                       target_tms = c(0,10), 
-                       obs_tms = seq(1/2,10,1/2), 
-                       update_tms = 1:10, 
-                       verbose = FALSE)
+# TCI target values (PD response)
+target_vals <- c(75,60,50,50)
+# values are in terms of minutes. 1/6 = 10 seconds
+# TCI target times
+target_tms <- c(0,3,6,10)
+# observation times 
+obs_tms <- seq(1/6,10,1/6)
 
-ggplot(sim_cl$resp) + 
-  geom_line(aes(x = time, y = pdresp, color = id)) + 
-  geom_point(data = sim_cl$obs, aes(x = time, y = obs, color = id), alpha = 0.3) +
-  facet_wrap(~type) +
-  labs(x = "Hours", y = "Bispectral Index")
+# simulate without updates ("open-loop")
+sim_ol <- simulate_tci(pkmod_prior = pkpd_elvd, pkmod_true = pkpd_elvd_iiv, 
+             target_vals, target_tms, obs_tms, type = "effect", seed = 1)
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-9-1.png" style="display: block; margin: auto;" />
+`simulate_tci` returns an object with class `sim_tci` that can be
+plotted using the `ggplot2` library.
+
+``` r
+plot(sim_ol)
+```
+
+<img src="README_files/figure-gfm/unnamed-chunk-10-1.png" style="display: block; margin: auto;" />
+
+Modifications can be made to the plot to show a subset of responses,
+concentrations instead of PD response values, infusion rates, and
+simulated data.
+
+``` r
+plot(sim_ol, yvar = "c4", id = c(1,3,5), show_inf = TRUE, wrap_id = TRUE)
+```
+
+<img src="README_files/figure-gfm/unnamed-chunk-11-1.png" style="display: block; margin: auto;" />
+
+Closed-loop simulations can be implemented by specifying a set of update
+times. We illustrate this with updates each minute and a processing
+delay of 20 seconds.
+
+``` r
+sim_cl <- simulate_tci(pkmod_prior = pkpd_elvd, pkmod_true = pkpd_elvd_iiv, 
+             target_vals, target_tms, obs_tms, update_tms = 1:10, delay = 1/3,
+               type = "effect", seed = 1)
+```
+
+    ## [1] "Simulating ID=1"
+    ## [1] "Simulating ID=2"
+    ## [1] "Simulating ID=3"
+    ## [1] "Simulating ID=4"
+    ## [1] "Simulating ID=5"
+
+Since `plot.sim_tci` returns a `ggplot2` object, it is easy to modify
+aspects such as titles and axis labels using `ggplot2` functions.
+
+``` r
+plot(sim_cl) + 
+  xlab("Minutes") + 
+  ylab("Bispectral Index") + 
+  ggtitle("Closed-loop simulation of Eleveld propofol model", 
+          subtitle = "Minute updates, processing delay of 20 seconds")
+```
+
+<img src="README_files/figure-gfm/unnamed-chunk-13-1.png" style="display: block; margin: auto;" />
+
+<div id="refs" class="references csl-bib-body hanging-indent">
+
+<div id="ref-Jacobs1990" class="csl-entry">
+
+Jacobs, James R. 1990. “<span class="nocase">Algorithm for Optimal
+Linear Model-Based Control with Application to Pharmacokinetic
+Model-Driven Drug Delivery</span>.” *IEEE Transactions on Biomedical
+Engineering* 37 (1): 107–9. <https://doi.org/10.1109/10.43622>.
+
+</div>
+
+<div id="ref-Shafer1992" class="csl-entry">
+
+Shafer, Steven L., and Keith M. Gregg. 1992. “<span
+class="nocase">Algorithms to rapidly achieve and maintain stable drug
+concentrations at the site of drug effect with a computer-controlled
+infusion pump</span>.” *Journal of Pharmacokinetics and
+Biopharmaceutics* 20 (2): 147–69. <https://doi.org/10.1007/BF01070999>.
+
+</div>
+
+</div>

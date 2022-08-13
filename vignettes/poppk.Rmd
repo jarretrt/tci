@@ -1,0 +1,131 @@
+---
+title: "Population PK models"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Population PK models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: bibfile.bib  
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  echo = TRUE, 
+  message = FALSE, 
+  warning = FALSE, 
+  fig.align="center",
+  fig.height= 4, 
+  fig.width = 6
+)
+```
+
+```{r, libraries, echo = FALSE}
+library(tci)
+library(ggplot2)   # ggplot for plotting
+```
+
+```{r, echo=FALSE, eval = FALSE}
+old <- theme_set(theme_bw())
+ggplot <- function(...) ggplot2::ggplot(...) + 
+  scale_color_brewer(palette="Pastel1")
+```
+
+Population pharmacokinetic/pharmacodynamic (popPK) adjust model parameters (e.g., clearance) for patient covariate values (e.g., total body weight) that are believed to modify each parameter. By doing so, observable sources of variability between patients can be adjusted for, resulting in more personalized predictions. 
+
+PopPK models are implemented using the function `poppkmod`, which takes a data frame of patient covariate values. See `?poppkmod` for appropriate covariate names for each model. The result is a `poppkmod` object that contains a list of the individual-level models (as `pkmod` objects), as well as information regarding the individual covariates and the model used. ID values are assigned to each individual (1 to N) if not supplied in the `data` argument.
+
+In this example, we use the Eleveld popPK model for propofol [@Eleveld2018], which describes the pharmacokinetics (PK) of propofol using a three-compartment effect site model. The effect site is linked to an Emax pharmacodynamic (PD) model that describes the Bispectral Index (BIS) response. BIS values are calculated from EEG sensor-derived data to measure a patient's depth of anesthesia on a scale from 100 (fully awake) to 0 (fully anesthetized). BIS values are generated each second, but typically are smoothed in 10-15 second intervals, and are subject to a processing delay.
+
+```{r}
+# create a data frame of patient covariates
+data <- data.frame(ID = 1:5, AGE = seq(20,60,by=10), 
+                   TBW = seq(60,80,by=5), HGT = seq(150,190,by=10), 
+                   MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
+# create population PK model
+pkpd_elvd <- poppkmod(data = data, drug = "ppf", model = "eleveld")
+```
+
+By default, `poppkmod` will calculate PK parameter values at the point estimates for each set of covariate values, that is, without inter- or intra-individual variability (IIV). Random sets of PK or PK-PD parameter values can be drawn from the IIV distribution either by setting `sample=TRUE` in `poppkmod` or by using the function `sample_iiv`. This can be useful when simulating responses under model misspecification. Parameters can be log-normally distributed (default, of the form $\theta_i=\theta_{\text{pop}}e^{\eta_i}$) or normally distributed $\theta_i=\theta_{\text{pop}} + \eta_i$) about the population parameter estimate. Random effects, $\eta_i$, are assumed to be normally distributed with variances given by the "Omega" matrix: $\mathbf{\eta_i} \sim N(\mathbf{0},\mathbf{\Omega})$.
+
+```{r}
+set.seed(1)
+pkpd_elvd_iiv <- sample_iiv(pkpd_elvd)
+
+set.seed(1)
+pkpd_elvd_iiv2 <- poppkmod(data = data, drug = "ppf", model = "eleveld", sample = TRUE)
+
+identical(pkpd_elvd_iiv, pkpd_elvd_iiv2)
+```
+
+As with `pkmod` objects, the function `inf_tci` is used to calculate TCI infusion schedules. 
+When supplied with a `poppkmod`, a separate infusion schedule is calculated for each individual and the results are returned in a single data frame with an ID variable. 
+
+```{r}
+target_vals = c(75,60,50,50)
+target_tms = c(0,3,6,10)
+
+# effect-site targeting
+inf_poppk <- inf_tci(pkpd_elvd, target_vals, target_tms, "effect")
+head(inf_poppk)
+```
+`predict.poppkmod` and `simulate.poppkmod` methods also can be used to predict and simulate values, respectively, using an infusion schedule. 
+
+```{r}
+predict(pkpd_elvd, inf = inf_poppk, tms = c(1,3))
+set.seed(1)
+simulate(pkpd_elvd_iiv, nsim = 3, inf = inf_poppk, tms = c(1,3), resp_bounds = c(0,100))
+```
+
+While response values can be simulated using the `simulate.poppkmod` method, a more user-friendly function for conducting simulations is `simulate_tci`. `simulate_tci` can be used for `pkmod` or `poppkmod` objects and is used to both predict responses and simulate data values. Further, it easily incorporates model misspecification and can be used for closed-loop control if update times are specified (argument `update_tms`). At each update time, all "observed" (i.e., simulated) data up until the update time will be used to re-estimate model PK/PK-PD parameters using Bayes rule. When update times are used, `simulate_tci` can further incorporate processing delays so that simulated data will not be accessible to the update mechanism until the appropriate time (simulation time + processing time). 
+
+We first illustrate `simulate_tci` without updates and with observations generated every 10 seconds for 10 minutes. Infusions are calculated using the model parameters predicted at each patient's covariates (object `pkpd_elvd`), while data values are simulated using model parameters sampled from the distribution of inter-individual variability (object `pkpd_elvd_iiv`). Data values are assumed to follow a normal distribution. 
+
+```{r}
+# values are in terms of minutes. 1/6 = 10 seconds
+obs_tms <- seq(1/6,10,1/6)
+
+sim_ol <- simulate_tci(pkmod_prior = pkpd_elvd, pkmod_true = pkpd_elvd_iiv, 
+             target_vals, target_tms, obs_tms, type = "effect", seed = 1)
+```
+
+`simulate_tci` returns an object with class `sim_tci` that can be plotted using the `ggplot2` library.
+
+```{r}
+plot(sim_ol)
+```
+
+Modifications can be made to the plot to show a subset of responses, concentrations instead of PD response values, infusion rates, and simulated data.
+
+```{r}
+plot(sim_ol, yvar = "c4", id = c(1,3,5), show_inf = TRUE, wrap_id = TRUE)
+```
+
+Closed-loop simulations can be implemented by specifying a set of update times. We illustrate this with updates each minute and a processing delay of 20 seconds. 
+
+```{r}
+sim_cl <- simulate_tci(pkmod_prior = pkpd_elvd, pkmod_true = pkpd_elvd_iiv, 
+             target_vals, target_tms, obs_tms, update_tms = 1:10, delay = 1/3,
+               type = "effect", seed = 1)
+```
+
+Since `plot.sim_tci` returns a `ggplot2` object, it is easy to modify aspects such as titles and axis labels using `ggplot2` functions. 
+
+```{r}
+plot(sim_cl) + 
+  xlab("Minutes") + 
+  ylab("Bispectral Index") + 
+  ggtitle("Closed-loop simulation of Eleveld propofol model", 
+          subtitle = "Minute updates, processing delay of 20 seconds")
+```
+
+```{r}
+plot(sim_cl, yvar = "c4", id = c(1,3,5), show_inf = TRUE, wrap_id = TRUE)
+```
+
+
+### References
+
+
+

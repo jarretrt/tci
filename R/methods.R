@@ -152,78 +152,43 @@ pkmod <- function(pars_pk = NULL, init = NULL, pkfn = NULL, pars_pd = NULL, pdfn
 #' @export
 print.pkmod <- function(x, ..., digits = 3){
 
+  cat("tci pkmod object\n")
+  cat("See ?update.pkmod to modify or add elements\n")
   x <- update(x,...)
-  cat("--- PK model -------------------------------------------", "\n")
-  cat(paste0(x$ncmpt,"-compartment PK model"),"\n")
+  cat("\nPK model \n")
+  cat(paste0(" ", x$ncmpt,"-compartment PK model"),"\n")
   if(!is.null(x$pars_pk))
-    cat(paste0("PK parameters: ",
+    cat(paste0(" PK parameters: ",
                paste(names(x$pars_pk), "=", signif(x$pars_pk,digits),
                      collapse = ", ")),"\n")
   if(!is.null(x$init))
-    cat(paste0("Initial concentrations: ",paste0("(",paste(signif(x$init,digits),
+    cat(paste0(" Initial concentrations: ",paste0("(",paste(signif(x$init,digits),
                                                            collapse = ","),")")),"\n")
 
-  cat(paste0("Plasma compartment: ",x$pcmpt),"\n")
-  if(!is.null(x$ecmpt)) cat(paste0("Effect compartment: ",x$ecmpt),"\n")
+  cat(paste0(" Plasma compartment: ",x$pcmpt),"\n")
+  if(!is.null(x$ecmpt)) cat(paste0(" Effect compartment: ",x$ecmpt),"\n")
   if(!is.null(x$pars_pd) & length(x$pars_pd) > 0){
-    cat("--- PD model -------------------------------------------", "\n")
-    cat(paste0("PD parameters: ",paste(names(x$pars_pd), "=", signif(x$pars_pd,digits),
+    cat("\nPD model \n")
+    cat(paste0(" PD parameters: ",paste(names(x$pars_pd), "=", signif(x$pars_pd,digits),
                                        collapse = ", ")),"\n")
   }
   if(!is.null(x$sigma_add)|!is.null(x$sigma_mult)|!is.null(x$log_response)){
-    cat("--- Simulation -----------------------------------------", "\n")
+    cat("\nSimulation\n")
   }
 
-  if(!is.null(x$sigma_add)) cat(paste0("Additive error SD: ",signif(x$sigma_add,digits)),"\n")
-  if(!is.null(x$sigma_mult)) cat(paste0("Multiplicative error SD: ",signif(x$sigma_mult,digits)),"\n")
-  if(!is.null(x$log_response)) cat(paste0("Logged response: ",x$log_response),"\n")
+  if(!is.null(x$sigma_add)) cat(paste0(" Additive error SD: ",signif(x$sigma_add,digits)),"\n")
+  if(!is.null(x$sigma_mult)) cat(paste0(" Multiplicative error SD: ",signif(x$sigma_mult,digits)),"\n")
+  if(!is.null(x$log_response)) cat(paste0(" Logged response: ",x$log_response),"\n")
   if(!is.null(x$Omega)){
-    cat("Random effects","\n")
+    cat(" Random effects","\n")
     print(signif(x$Omega,digits))
   }
+
+  # cat("\nUpdate Method\n")
+  # cat(" Modify or add elements via 'update()' \n")
+  # cat(" e.g., update(pkmod, pars_pk = c(CL=5, V1=2), init = 1) \n")
 }
 
-
-#' Print poppkmod
-#'
-#' Print method for poppkmod objects
-#' @param x Object with class "pkmod" created by `poppkmod()`
-#' @param digits Number of significant digits to print
-#' @param ... Additional arguments. Not used
-#' @examples
-#' data <- data.frame(ID = 1:5,
-#' AGE = seq(20,60,by=10),
-#' TBW = seq(60,80,by=5),
-#' HGT = seq(150,190,by=10),
-#' MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
-#' poppkmod(data, drug = "ppf", model = "eleveld")
-#' poppkmod(data, drug = "ppf", model = "eleveld")
-#' @return Prints description of pkmod
-#' @export
-print.poppkmod <- function(x, ..., digits = 3){
-
-  cat("--- Model summary --------------------------------------", "\n")
-  drug_type <- ifelse(x$drug == "ppf","propofol","remifentanil")
-  mod_name <- x$model
-  substr(mod_name,1,1) <- toupper(substr(mod_name,1,1))
-  cat(paste(mod_name, "population model for",drug_type), "\n")
-  cat(paste("Number of individuals:",length(x$pkmods)), "\n")
-
-  cat("--- PK model -------------------------------------------", "\n")
-  pkstr <- ifelse(x$pkmods[[1]]$ncmpt == 4, "3 compartment-effect", paste(x$pkmods[[1]]$ncmpt,"compartment"))
-  cat(paste("Structural PK model:", pkstr), "\n")
-  cat(paste("PK parameter names:", paste(names(x$pkmods[[1]]$pars_pk), collapse = " ")),"\n")
-  tci_type <- ifelse("ke0" %in% tolower(names(x$pkmods[[1]]$pars_pk)), "Effect-site","Plamsa")
-  cat(paste("Default TCI targeting:",tci_type),"\n")
-
-  cat("--- PD model -------------------------------------------", "\n")
-  cat(paste("Structural PD model:", ifelse(!is.null(x$pkmods[[1]]$pdfn), "Emax", "None")),"\n")
-  cat(paste("PD parameter names:", paste(names(x$pkmods[[1]]$pars_pd), collapse = " ")),"\n")
-  if(!is.null(x$pkmods[[1]]$pars_pd)){
-    vals_pd <- summary(t(sapply(x$pkmods, `[[`, "pars_pd")), digits = digits)[c(1,3,6),]
-    knitr::kable(vals_pd, format = "rst")
-  }
-}
 
 
 #' Update method for pkmod
@@ -236,7 +201,7 @@ print.poppkmod <- function(x, ..., digits = 3){
 #' # initial pkmod object
 #' (my_mod <- pkmod(pars_pk = c(CL = 10, V1 = 10)))
 #' # update a subset of parameters and initial values
-#' update(my_mod, pars_pk = c(CL = 20), init = 3, sigma_add = 1, log_response = TRUE)
+#' update(my_mod, pars_pk = c(CL = 20, V1 = 2), init = 3, sigma_add = 1, log_response = TRUE)
 #' @export
 update.pkmod <- function(object, ...){
 
@@ -261,8 +226,6 @@ update.pkmod <- function(object, ...){
 }
 
 
-
-
 #' Predict method for pkmod objects
 #'
 #' Predict concentrations from a pkmod object - can be a user defined function
@@ -271,6 +234,7 @@ update.pkmod <- function(object, ...){
 #' @param inf A matrix with columns "begin","end","inf_rate" indicating when infusions should
 #' be administered. Can be created by `inf_manual` or `inf_tci`.
 #' @param tms Times at which to calculate predicted concentrations.
+#' @param return_times Logical. Should prediction times be returned along with responses? Defaults to FALSE.
 #' @param ... List or vector of values to be passed on to update.pkmod.
 #' @return Matrix of predicted concentrations associated with a pkmod object and
 #' and infusion schedule.
@@ -291,7 +255,7 @@ update.pkmod <- function(object, ...){
 #' predict(my_mod_pd, inf = dose, tms = c(1.5,2.5,3), pars_pk = c(ke0 = 0.8),
 #' pars_pd = c(c50 = 2, e0 = 100))
 #' @export
-predict.pkmod <- function(object, inf, tms, ...){
+predict.pkmod <- function(object, inf, tms, return_times = FALSE, ...){
 
   # update pkmod
   object <- update(object, ...)
@@ -383,6 +347,8 @@ predict.pkmod <- function(object, inf, tms, ...){
     pred <- cbind(pred, pdresp=object$pdfn(ce = pred[,object$ecmpt],
                                            pars = object$pars_pd))
   }
+
+  if(return_times) pred <- cbind(time = tms, pred)
 
   return(pred)
 }
@@ -496,6 +462,325 @@ simulate.pkmod <- function(object, nsim = 1, seed = NULL, ..., inf, tms,
 
 
 
+## -- poppkmod methods ---------------------------------------------------------
+
+#' @name init_poppkmod
+#' @title Initialize a `poppkmod` object.
+#'
+#' @description Generate a `poppkmod` object from an existing population PK model
+#' for propofol or remifentanil using patient covariates. Available models for
+#' propofol are the Marsh, Schnider, and Eleveld models. Available models for
+#' remifentanil are the Minto, Kim, and Eleveld models. Input is
+#' a data frame with rows corresponding to individuals and columns
+#' recording patient covariates.
+#' @param data Data frame of patient covariates. ID values, if used, should be in a column labeled "id" or "ID"
+#' @param drug "ppf" for propofol or "remi" for remifentanil. Defaults to "ppf".
+#' @param model Model name. Options are "marsh", "schnider", or "eleveld" if
+#' drug = "ppf", or "minto", "kim", or "eleveld" if drug = "remi".
+#' @param sample Logical. Should parameter values be sampled from interindividual distribution (TRUE)
+#' or evaluated at point estimates for covariates (FALSE)? Defaults to FALSE.
+#' @param PD Should the PD component be evaluated for PK-PD models. Defaults to TRUE.
+#' @return `poppkmod` object
+#' @examples
+#' data <- data.frame(ID = 1:5, AGE = seq(20,60,by=10), TBW = seq(60,80,by=5),
+#' HGT = seq(150,190,by=10), MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
+#' init_poppkmod(data, drug = "ppf", model = "eleveld")
+#' init_poppkmod(data, drug = "remi", model = "kim")
+#' @export
+init_poppkmod <- function(data=NULL, drug = NULL, model = NULL, sample = NULL, PD = NULL){
+  poppkmod_obj <- list(data = data)
+  attr(poppkmod_obj,"drug") <- drug
+  attr(poppkmod_obj,"model") <- model
+  class(poppkmod_obj) <- "poppkmod"
+  return(poppkmod_obj)
+}
+
+
+#' @name validate_poppkmod
+#' @title Perform validation checks on a `poppkmod` object
+#'
+#' @description Perform validation checks on a `poppkmod` object created by `init_poppkmod`.
+#' @param x Object with class "poppkmod" created by init_poppkmod
+#' @return `poppkmod` object or error
+#' @examples
+#' data <- data.frame(ID = 1:5, AGE = seq(20,60,by=10), TBW = seq(60,80,by=5),
+#' HGT = seq(150,190,by=10), MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
+#' validate_poppkmod(init_poppkmod(data, drug = "ppf", model = "eleveld"))
+#' @export
+validate_poppkmod <- function(x){
+
+  if(!inherits(x, "poppkmod"))
+    stop("x must have class 'poppkmod'")
+
+  drug <- attr(x,"drug")
+  model <- attr(x,"model")
+
+
+    if(drug == "ppf" & model %in% c("minto","kim"))
+      stop("'drug' must be set to 'remi' to use Minto or Kim models")
+
+    if(drug == "remi" & model %in% c("marsh","schnider"))
+      stop("'drug' must be set to 'ppf' to use Marsh or Schnider models")
+
+    if("id" %in% tolower(names(x$data))){
+      ids <- x$data[,grep("id",names(x$data), ignore.case = TRUE)]
+    } else{
+      ids <- 1:nrow(x$data)
+    }
+
+    if(!is.data.frame(x$data)){
+      warning("Converting 'data' to a data frame")
+      x$data <- as.data.frame(x$data)
+    }
+
+    if(model == "marsh"){
+      if(!("TBW" %in% names(x$data))) stop("data must have column 'TBW'")
+    }
+
+    if(model == "schnider"){
+      if(any(!(c("AGE","HGT") %in% names(x$data))) | !("LBM" %in% names(x$data) | all(c("TBW","MALE") %in% names(x$data))))
+        stop("data must have columns 'AGE','HGT' and either 'TBW' and 'MALE' or 'LBW'")
+    }
+
+    if(model == "eleveld" & drug == "ppf"){
+      if(any(!(c("AGE","TBW","HGT","MALE") %in% names(x$data))))
+        stop("data must have columns 'AGE','TBW','HGT' and 'MALE'")
+    }
+
+    if(model == "minto"){
+      if(any(!(c("AGE") %in% names(x$data))) | !("LBM" %in% names(x$data) | all(c("TBW","MALE","HGT") %in% names(x$data))))
+        stop("data must have columns 'AGE','HGT' and either 'TBW' and 'MALE' or 'LBW'")
+    }
+
+    if(model == "kim"){
+      if(any(!(c("AGE","TBW") %in% names(x$data))) | (all(!c("BMI","HGT") %in% names(x$data)) & !"FFM" %in% names(x$data)))
+        stop("data must have columns 'AGE','TBW' and either 'BMI' and 'HGT' or 'FFM'")
+    }
+
+    if(model == "eleveld" & drug == "remi"){
+      if(any(!(c("AGE","MALE","TBW") %in% names(x$data))) | (all(!c("BMI","HGT") %in% names(x$data)) & !"FFM" %in% names(x$data)))
+        stop("data must have columns 'AGE', 'MALE', and 'TBW' and either 'HGT' or 'BMI'")
+    }
+
+  return(x)
+}
+
+
+#' @name poppkmod
+#' @title Implement a population pharmacokinetic/pharmacodynamic model.
+#'
+#' @description Create a `poppkmod` object using an existing population PK model
+#' for propofol or remifentanil using patient covariates. Available models for
+#' propofol are the Marsh, Schnider, and Eleveld models. Available models for
+#' remifentanil are the Minto, Kim, and Eleveld models. Input is
+#' a data frame with rows corresponding to individuals and columns
+#' recording patient covariates. An ID column is optional, but will be generated
+#' as 1:nrow(data) if not supplied. Covariates required by each model are
+#'
+#'  \strong{Propofol}
+#'  \itemize{
+#'   \item Marsh: TBW
+#'   \item Schnider: (AGE, HGT, TBW, MALE) or (AGE, HGT, LBW)
+#'   \item Eleveld: AGE, TBW, HGT, MALE
+#'  }
+#'
+#'  \strong{Remifentanil}
+#'  \itemize{
+#'   \item Minto: (AGE, HGT, TBW, MALE) or (AGE, HGT, LBW)
+#'   \item Kim: (AGE, TBW, BMI, HGT) or (AGE, TBW, FFM)
+#'   \item Eleveld: (AGE, MALE, TBW, HGT) or (AGE, MALE, TBW, BMI)
+#'  }
+#'
+#' \strong{Abbreviations}
+#' \itemize{
+#'  \item TBW = Total body weight (kg)
+#'  \item LBW = Lean body weight (kg)
+#'  \item FFM = Fat-free mass (kg)
+#'  \item AGE = Age (years)
+#'  \item HGT = Height (cm)
+#'  \item MALE = Male (1/0, TRUE/FALSE)
+#'  \item BMI = Body mass index (kg/\eqn{m^2})
+#'  }
+#'
+#' @param data Data frame of patient covariates. ID values, if used, should be in a column labeled "id" or "ID"
+#' @param drug "ppf" for propofol or "remi" for remifentanil. Defaults to "ppf".
+#' @param model Model name. Options are "marsh", "schnider", or "eleveld" if
+#' drug = "ppf", or "minto", "kim", or "eleveld" if drug = "remi".
+#' @param sample Logical. Should parameter values be sampled from interindividual distribution (TRUE)
+#' or evaluated at point estimates for covariates (FALSE)? Defaults to FALSE.
+#' @param PD Logical. If applicable, should the PD component be evaluated for PK-PD models. Defaults to TRUE.
+#' @param ... Arguments passed on to each pkmod object
+#' @return `poppkmod` object
+#' @examples
+#' data <- data.frame(ID = 1:5, AGE = seq(20,60,by=10), TBW = seq(60,80,by=5),
+#' HGT = seq(150,190,by=10), MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
+#' poppkmod(data, drug = "ppf", model = "eleveld")
+#' poppkmod(data, drug = "remi", model = "kim")
+#' @export
+poppkmod <- function(data, drug = c("ppf","remi"), model = c("marsh","schnider","eleveld","minto","kim"),
+                     sample = FALSE, PD = TRUE, ...){
+
+  drug <- match.arg(drug)
+  model <- match.arg(model)
+
+  # initialize object
+  new_mod <- init_poppkmod(data = data,
+                           drug = drug,
+                           model = model)
+
+  drug <- attr(new_mod,"drug")
+  model <- attr(new_mod,"model")
+
+  # perform validation checks
+  new_mod <- validate_poppkmod(new_mod)
+
+  # create list of pkmod objects
+  pkmod_fn_nm <- paste0("pkmod_", model)
+  if(model == "eleveld") pkmod_fn_nm <- paste0(pkmod_fn_nm,"_",drug)
+
+  fn <- get(pkmod_fn_nm)
+  fn_nms <- names(formals(fn))
+  cov_nms <- setdiff(fn_nms,"...")
+  dat_nms <- names(new_mod$data)
+
+
+  if("PD" %in% fn_nms){
+    new_mod$pkmods <- with(new_mod,
+                 lapply(1:nrow(data), function(i)
+                   do.call(fn, c(as.list(data[i,dat_nms %in% cov_nms, drop = FALSE]),
+                                 PD = PD,
+                                 list(...))))
+    )
+  } else{
+    new_mod$pkmods <- with(new_mod,
+                 lapply(1:nrow(data), function(i)
+                   do.call(fn, c(as.list(data[i,dat_nms %in% cov_nms, drop = FALSE]),
+                                 list(...)))))
+  }
+
+  if(sample){
+    new_mod$pkmods <- lapply(new_mod$pkmods, sample_pkmod)
+  }
+
+  if("id" %in% tolower(dat_nms)){
+    ix <- which(tolower(dat_nms) == "id")
+    new_mod$ids <- new_mod$data[,ix]
+  } else{
+    id <- 1:nrow(new_mod$data)
+  }
+
+  return(new_mod)
+}
+
+
+
+#' Print poppkmod
+#'
+#' Print method for poppkmod objects
+#' @param x Object with class "pkmod" created by `poppkmod()`
+#' @param digits Number of significant digits to print
+#' @param ... Additional arguments. Not used
+#' @examples
+#' data <- data.frame(ID = 1:5,
+#' AGE = seq(20,60,by=10),
+#' TBW = seq(60,80,by=5),
+#' HGT = seq(150,190,by=10),
+#' MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
+#' poppkmod(data, drug = "ppf", model = "eleveld")
+#' poppkmod(data, drug = "remi", model = "kim")
+#' @return Prints description of pkmod
+#' @export
+print.poppkmod <- function(x, ..., digits = 3){
+
+  drug <- attr(x, "drug")
+  model <- attr(x, "model")
+  cat("tci poppkmod\n")
+
+  cat("\nModel summary\n")
+  drug_type <- ifelse(drug == "ppf","propofol","remifentanil")
+  mod_name <- model
+  substr(mod_name,1,1) <- toupper(substr(mod_name,1,1))
+  cat(paste0(" ", mod_name, " population model for ",drug_type), "\n")
+  cat(paste(" Number of individuals:",length(x$pkmods)), "\n")
+
+  cat("\nPK model\n")
+  pkstr <- ifelse(x$pkmods[[1]]$ncmpt == 4, "3 compartment-effect", paste(x$pkmods[[1]]$ncmpt,"compartment"))
+  cat(paste(" Structural PK model:", pkstr), "\n")
+  cat(paste(" PK parameter names:", paste(names(x$pkmods[[1]]$pars_pk), collapse = " ")),"\n")
+  tci_type <- ifelse("ke0" %in% tolower(names(x$pkmods[[1]]$pars_pk)), "Effect-site","Plasma")
+  cat(paste(" Default TCI targeting:",tci_type),"\n")
+
+  if(!is.null(x$pkmods[[1]]$pdfn)){
+    cat("\nPD model\n")
+    cat(" Structural PD model: Emax \n")
+    cat(paste(" PD parameter names:", paste(names(x$pkmods[[1]]$pars_pd), collapse = " ")),"\n")
+  }
+
+  if(!is.null(x$pkmods[[1]]$pars_pd)){
+    vals_pd <- summary(t(sapply(x$pkmods, `[[`, "pars_pd")), digits = digits)[c(1,3,6),]
+    knitr::kable(vals_pd, format = "rst")
+  }
+
+  cat("\nSee poppkmod$pkmods for a list of individual models")
+}
+
+# #' Update method for poppkmod
+# #'
+# #' Update parameters or initial values of a poppkmod object
+# #' @param object Object with class poppkmod
+# #' @param ... Updated values passed to object.
+# #' @return Returns the pkmod object with elements replaced
+# #' @examples
+# #' # initial poppkmod object
+# #' data <- data.frame(ID = 1:5,
+# #' AGE = seq(20,60,by=10),
+# #' TBW = seq(60,80,by=5),
+# #' HGT = seq(150,190,by=10),
+# #' MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
+# #' my_mod <- poppkmod(data, drug = "ppf", model = "eleveld")
+# #' # update a subset of parameters and initial values
+# #' update(my_mod, pars_pk = c(CL = 4))$pkmods
+# #' update(my_mod, pars_pk = c(Q2 = c(1:5)))$pkmods
+# #'
+# #' update(my_mod, pars_pk = list(CL = 1:5, Q2 = 5:1))$pkmods
+# #' @export
+# update.poppkmod <- function(object, ...){
+#
+#   update_elements <- list(...)
+#   if(length(update_elements) == 0) return(object)
+#   if(is.list(update_elements[[1]])) update_elements <- update_elements[[1]]
+#
+#   # subset to elements with valid names
+#   update_elements <- update_elements[names(update_elements) %in% names(formals(pkmod))]
+#
+#   nid <- length(object$pkmods)
+#   for(i in 1:length(update_elements)){
+#     if(!length(update_elements[[i]]) %in% c(1,nid))
+#       stop("Arguments must have length 1 or length(data$ID)")
+#
+#     if(length(update_elements[[i]]) == 1){
+#       object$pkmods <- lapply(object$pkmods, update, update_elements[i])
+#     } else{
+#
+#       object$pkmods <- lapply(1:length(object$pkmods), function(j){
+#         elm <- list(update_elements[[i]][j])
+#         names(elm[[1]]) <- gsub(paste0(j,"$"), "", names(elm[[1]]))
+#         names(elm) <- names(update_elements)[i]
+#         update(object$pkmods[[j]], elm)
+#       })
+#     }
+#
+#   }
+#
+#   return(validate_poppkmod(object))
+# }
+
+
+#' Summary method for `poppkmod` objects
+#'
+#' Summarize parameter distribution
+
+
 #' Simulate method for poppkmod objects
 #'
 #' Simulate observations from a poppkmod object
@@ -536,109 +821,173 @@ simulate.poppkmod <- function(object, nsim = 1, seed = NULL, ..., inf, tms,
 
 
 
-## -- Plotting methods ---------------------------------------------------------
+## -- sim_tci methods ---------------------------------------------------------
 
-#' Plot method for 'pkmod'
+#' Print method for sim_tci class
 #'
-#' Will show predicted concentrations in compartments associated with an infusion schedule.
-#' @param x An object with class pkmod.
-#' @param ... Arguments passed on to predict.pkmod. Could include changing initial concentrations or parameter values through pkmod_update. See ?predict.pkmod
-#' @param inf An infusion schedule object with columns "begin","end","inf_rate".
-#' @param endtm Final time to evaluate predictions
-#' @param title Plot title
-#' @param xlab x-axis label
-#' @param ylab y-axis label
-#' @param plot_pk Logical. Should PK concentrations be displayed in addition to PD, when PD is present.
-#' @param ylab_resp y-axis label for PD component, if present.
-#' @return ggplot object displaying predicted concentrations for a pkmod object.
-#' @rdname plot
+#' Print object with class "sim_tci" created by `simulate_tci()`.
+#' @param x Object with class "sim_tci" created by `simulate_tci()`
+#' @param ... Other arguments. Not currently used.
+#' @return Prints a description of the simulation.
 #' @examples
-#' # dosing schedule
-#' dose <- inf_manual(inf_tms = c(0,0.5,4,4.5,10), inf_rate = c(100,0,80,0,0))
-#' # pkmod object
-#' my_mod <- pkmod(pars_pk = c(CL = 15, V1 = 10, Q2 = 10, V2 = 20))
-#' # plot predicted concentrations
-#' plot(my_mod, inf = dose, ylab = "Concentration (mg/L)", xlab = "Minutes")
-#' # plot with PD component
-#' my_mod_pd <- pkmod(pars_pk = c(v1 = 8.995, v2 = 17.297, v3 = 120.963, cl = 1.382,
-#' q2 = 0.919, q3 = 0.609, ke0 = 1.289),
-#' pars_pd = c(c50 = 2.8, gamma = 1.47, gamma2 = 1.89, e0 = 93, emx = 93),
-#' pdfn = emax, pdinv = emax_inv, ecmpt = 4)
-#' plot(my_mod_pd, inf = dose, ylab = "Concentration (mg/L)", ylab_resp = "Bispectral Index",
-#' xlab = "Minutes")
-#' # plot with alternate PK and PD parameters
-#' plot(my_mod_pd, inf = dose, pars = c(cl = 10), pars_pd = c(c50 = 2, emx = 100),
-#' ylab = "Concentration (mg/L)", ylab_resp = "Bispectral Index", xlab = "Minutes")
+#' data <- data.frame(ID = 1:3, AGE = c(20,30,40), TBW = c(60,70,80),
+#' HGT = c(150,160,170), MALE = c(TRUE,FALSE,TRUE))
+#' pkmod_prior <- poppkmod(data, drug = "ppf", model = "eleveld")
+#' pkmod_true  <- poppkmod(data, drug = "ppf", model = "eleveld", sample = TRUE)
+#' obs_tms <- seq(1/6,10,1/6)
+#' target_vals = c(75,60,50,50)
+#' target_tms = c(0,3,6,10)
+#'
+#' # open-loop simulation (without update_tms)
+#' sim_ol <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
+#' seed = 200)
+#'
+#' # closed-loop simulation (with update_tms)
+#' sim_cl <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
+#' update_tms = c(2,4,6,8), seed = 200)
 #' @export
-plot.pkmod <- function(x, ..., inf, endtm = NULL, title = NULL, xlab = "Time",
-                       ylab = "Concentration", plot_pk = TRUE,
-                       ylab_resp = "Response"){
+print.sim_tci <- function(x, ...){
+  cat("tci sim_tci\n")
 
-  pdresp <- id <- value <- variable <- NULL
+  cat("\n", "TCI Simulation", "\n", sep = "")
+  nid <- ifelse("id" %in% colnames(x$resp), length(unique(x$resp$id)), 1)
+  cat("  N individuals: ", nid, "\n", sep = "")
+  cat("  Control type: ", x$control, "\n", sep = "")
 
-  # set of times to predict at
-  begintm <- min(inf[,"begin"])
-  if(is.null(endtm)) endtm <- max(inf[,"end"])
-  tms <- seq(begintm, endtm, length.out = 1000)
+  resp_type <- ifelse("pdresp" %in% names(x$resp), "PD","PK")
+  cat("  Response type: ", resp_type, "\n", sep = "")
 
-  # predict concentrations
-  con <- data.frame(predict(x, inf = inf, tms = tms, return_init = FALSE, ...))
-  colnames(con) <- gsub("^c", "Compt. ", colnames(con))
-  con[,"time"] <- tms
+  tm_range <- round(range(x$resp[,"time"]),1)
+  cat("  Simulation duration: [",tm_range[1],",",tm_range[2],"]" , "\n", sep = "")
 
-  if(!("id" %in% colnames(con))) con <- cbind(id = rep(1,nrow(con)), con)
-  ids <- unique(con$id)
+  if(x$control == "closed-loop")
+    cat("  Update times: ", paste(x$update_tms, collapse = ", "), "\n", sep = "")
 
-  if(is.null(x$pdfn)){
-    tmp <- reshape::melt(con, id = c("id","time"))
-    p <- ggplot2::ggplot(tmp,
-                         ggplot2::aes(x = time,
-                                      y = value,
-                                      linetype = variable,
-                                      color = variable))
-    for(i in ids) p <- p + ggplot2::geom_line(data = tmp[tmp$id ==i,])
-    p <- p +
-      ggplot2::labs(y = ylab,
-                    x = xlab,
-                    color = "Compartment",
-                    linetype = "Compartment",
-                    title = title)
-    p
+  obs_tms <- round(x$obs_tms,1)
+  if(length(obs_tms)>10) {
+    obs_tms <- c(obs_tms[1:4], obs_tms[(length(obs_tms)-2):length(obs_tms)])
+    cat("  Observation times: ", paste(obs_tms[1:4], collapse = ", "),", ... , ",
+        paste(obs_tms[5:7], collapse = ", "), sep = "")
   } else{
-    # plot PK model
-    if(plot_pk){
-      tmp <- reshape::melt(con[,-which(colnames(con)=="pdresp")], id = c("id","time"))
-      p1 <- ggplot2::ggplot(tmp,
-                            ggplot2::aes(x = time,
-                                         y = value,
-                                         linetype = variable,
-                                         color = variable))
-
-      for(i in ids) p1 <- p1 + ggplot2::geom_line(data = tmp[tmp$id ==i,])
-      p1 <- p1 +
-        ggplot2::labs(y = ylab,
-                      x = xlab,
-                      color = "Compartment",
-                      linetype = "Compartment") +
-        ggplot2::theme(legend.position="bottom")
-    } else{
-      p1 <- NULL
-    }
-
-    p2 <- ggplot2::ggplot(con, ggplot2::aes(x = time, y = pdresp, group = id)) +
-      ggplot2::geom_line() +
-      ggplot2::labs(y = ylab_resp, x = xlab) +
-      ggplot2::lims(y = c(0,100))
-
-    if(!is.null(p1)){
-      gridExtra::grid.arrange(p2, p1, nrow = 2, top = title)
-    } else{
-      gridExtra::grid.arrange(p2, top = title)
-    }
+    cat("  Observation times: ", paste(round(x$obs_tms,1), collapse = ", "), sep = "")
   }
 }
 
 
-plot.tcisim <- function(tcisim){
 
+
+#' Print method for sim_tci class
+#'
+#' Print object with class "sim_tci" created by `simulate_tci()`.
+#' @param x Object with class "sim_tci" created by `simulate_tci()`
+#' @param ... Other arguments. Not currently used.
+#' @param yvar Response variable. Options are concentrations ("c1","c2",...) or
+#' "pdresp" for a PD response. Only one variable may be plotted at a time.
+#' @param id Subset of IDs to plot. Will default to all if unspecified. Can be
+#' displayed in separate plots via `wrap_id` argument.
+#' @param type Type of response to plot. Options are "prior", "true", or "posterior"
+#' if closed-loop control was used.
+#' @param show_inf Logical. Display infusion rates alongside response values.
+#' @param show_data Logical. Display simulated data values in addition to responses.
+#' @param show_updates Logical, for closed-loop only. Show update times along x-axis.
+#' @param wrap_id Logical. Separate plots by ID value.
+#' @return Plots simulation results
+#' @import ggplot2
+#' @importFrom reshape melt
+#' @examples
+#' data <- data.frame(ID = 1:3, AGE = c(20,30,40), TBW = c(60,70,80),
+#' HGT = c(150,160,170), MALE = c(TRUE,FALSE,TRUE))
+#' pkmod_prior <- poppkmod(data, drug = "ppf", model = "eleveld")
+#' pkmod_true  <- poppkmod(data, drug = "ppf", model = "eleveld", sample = TRUE)
+#' obs_tms <- seq(1/6,10,1/6)
+#' target_vals = c(75,60,50,50)
+#' target_tms = c(0,3,6,10)
+#'
+#' # open-loop simulation (without update_tms)
+#' sim_ol <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
+#' seed = 200)
+#' plot(sim_ol, id = c(1,2), type = "true")
+#' plot(sim_ol, yvar = "c4", type = "true")
+#' plot(sim_ol, yvar = "c4", type = "true", wrap_id = TRUE, show_inf = TRUE)
+#'
+#' # closed-loop simulation (with update_tms)
+#' sim_cl <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
+#' update_tms = c(2,4,6,8), seed = 200)
+#' plot(sim_cl, type = "posterior", id = 1, show_inf = TRUE)
+#' plot(sim_cl, type = "posterior", wrap_id = TRUE, show_data = TRUE)
+#' plot(sim_cl, yvar = "c4", wrap_id = TRUE)
+#' @export
+plot.sim_tci <- function(x, ..., yvar = NULL, id = NULL,
+                         type = c("true","prior","posterior"),
+                         show_inf = FALSE, show_data = FALSE,
+                         show_updates = FALSE, wrap_id = FALSE){
+
+  value = NA; variable = NA
+  type = match.arg(type)
+
+  if(length(yvar)>1) stop("Only 1 yvar value is allowed")
+  if(type == "posterior" & x$control == "open-loop")
+    stop("posterior type is not available for open-loop simulations")
+
+  resp_options <- names(x$resp)[names(x$resp) %in% c(paste0("c",1:9),"pdresp")]
+  if(!is.null(yvar)){
+    if(!yvar %in% resp_options)
+      stop(paste0("yvar must be one of ", paste(resp_options, collapse = ", ")))
+  }
+
+  if(is.null(yvar) & "pdresp" %in% names(x$resp)) yvar <- "pdresp"
+  if(is.null(yvar) & !("pdresp" %in% names(x$resp))) yvar <- "c1"
+
+  if(!"id" %in% colnames(x$resp)){
+    x$resp <- cbind(id = 1, x$resp)
+    x$inf <- cbind(id = 1, x$inf)
+    x$obs <- cbind(id = 1, x$obs)
+  }
+  if(is.null(id)) id <- unique(x$resp[,"id"])
+  target_var <- ifelse(yvar=="pdresp", "pdt","Ct")
+
+  resp <- melt(x$resp, id.vars = c("id","time","type"))
+  resp <- resp[resp$variable == yvar,]
+  resp <- resp[resp$type == type,]
+  resp$type <- "Response"
+  resp$id <- as.factor(resp$id)
+
+  # infusion data frame
+  inf <- data.frame(id = as.factor(rep(x$inf[,"id"],times = 2)),
+                    time = rep(x$inf[,"begin"],times = 2),
+                    variable = c(x$inf[,target_var], x$inf[,"inf_rate"]),
+                    type = factor(rep(c("Response","Infusion Rate"), each = nrow(x$inf)),
+                                  levels = c("Infusion Rate","Response"), ordered = TRUE))
+
+  if(!show_inf){
+    inf <- inf[inf$type == "Response",]
+  }
+
+  # observation data frame
+  obs <- as.data.frame(x$obs)
+  obs$type = "Response"
+
+  # subset to selected ids
+  resp <- resp[resp$id %in% id,]
+  obs <- obs[obs$id %in% id,]
+  inf <- inf[inf$id %in% id,]
+
+  p <- ggplot(resp, aes(x = time, y = value, color = id, linetype = id)) +
+      geom_line() +
+      geom_step(data = inf, aes(x = time, y = variable), color = "black") +
+      facet_wrap(~type, nrow = 2, scales = "free")
+
+  if(show_data) p <- p + geom_point(data = obs, aes(x = time, y = obs), alpha = 0.5)
+
+  if(show_updates & x$control == "closed-loop"){
+    update_df <- as.data.frame(expand.grid(id = id,
+                                           time = x$update_tms))
+    update_df$type = "Response"
+    p <- p + geom_vline(data = update_df, aes(xintercept = time), linetype = "dotted")
+  }
+
+  if(wrap_id) p <- p + facet_grid(type~id, scales = "free")
+
+  p
 }
+

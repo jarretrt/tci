@@ -1,11 +1,163 @@
-#' ------------------------------------------------------------------------------------
-#' Closed-loop ------------------------------------------------------------------------
-#' ------------------------------------------------------------------------------------
+## -- Open-loop functions ------------------------------------------------------
+
+#' Simulate open-loop control
+#'
+#' Simulate open-loop control with target-controlled infusion for a `pkmod` object.
+#' Infusion rates are calculated using `pkmod_prior` to reach `target_vals` at
+#' `target_tms`. Data values are simulated using `pkmod_true` at `obs_tms`.
+#' `pkmod_prior` and `pkmod_true` do not need to have the same structure.
+#'
+#' @param pkmod_prior `pkmod` object describing a PK/PK-PD model that is used to calculate
+#' TCI infusion rates and is updated as data are simulated and incorporated. Must have an
+#' associated Omega matrix.
+#' @param pkmod_true `pkmod` object describing the patient's "true" response. This model
+#' will be used to simulate observations.
+#' @param target_vals A vector of numeric values indicating PK or PD targets for TCI algorithm.
+#' @param target_tms A vector of numeric values indicating times at which the TCI algorithm should
+#' begin targeting each value.
+#' @param obs_tms Times at which data values should be simulated from `pkmod_true`.
+#' @param type Type of TCI algorithm to be used. Options are "plasma" and "effect".
+#' Defaults to "effect". Will be overwritten if `custom_alg` is non-null.
+#' @param custom_alg Custom TCI algorithm to overwrite default plasma- or effect-site targeting.
+#' @param resp_bounds Optional vector of two values indicating minimum and maximum values possible for the response.
+#' @param seed An integer used to initialize the random number generator.
+#' @examples
+#' pkmod_prior <- pkmod(pars_pk = c(cl = 10, q2 = 2, q3 =20, v = 15, v2 = 30, v3 = 50, ke0 = 1.2))
+#' pkmod_true  <- pkmod(pars_pk = c(cl = 16, q2 = 4, q3 =10, v = 20, v2 = 20, v3 = 80, ke0 = 0.8),
+#' sigma_add = 0.1, log_response = TRUE)
+#' target_vals <- c(2,3,4,3,3)
+#' target_tms <- c(0,5,10,36,60)
+#' obs_tms <- c(1,2,4,8,12,16,24,36,48)
+#' sim <- olc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms)
+#' len <- 500
+#' tms <- seq(0,60,length.out = len)
+#' df <- data.frame(time = rep(tms,2),
+#'                  value = c(predict(pkmod_true, sim$inf,tms)[,1],
+#'                  predict(pkmod_prior, sim$inf,tms)[,1]),
+#'                  type = c(rep("true",len),rep("prior",len)))
+#' library(ggplot2)
+#' ggplot(df, aes(x = time, y = value, color = type)) +
+#'   geom_step(data = data.frame(time = target_tms, value = target_vals),
+#'   aes(x = time, y = value), inherit.aes = FALSE) +
+#'   geom_line() +
+#'   geom_point(data = sim$obs, aes(x = time, y = obs), inherit.aes = FALSE)
+#' @export
+olc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, type=c("effect","plasma"),
+                custom_alg = NULL, resp_bounds = NULL, seed = NULL){
+
+  if(class(pkmod_prior) != "pkmod" | class(pkmod_true) != "pkmod")
+    stop("Both 'pkmod_prior' and 'pkmod_true' must be pkmod objects.")
+
+  if(is.null(seed)) seed <- sample(1:1e5,1)
+  set.seed(seed)
+  type = match.arg(type)
+
+  # calculate infusion based on prior model
+  inf <- inf_tci(pkmod_prior, target_vals, target_tms, type = type, custom_alg = custom_alg)
+
+  # simulate response from true model
+  obs <- simulate(pkmod_true, tms = obs_tms, inf = inf, resp_bounds=resp_bounds)
+
+  return(list(obs = data.frame(time = obs_tms, obs = obs), inf = inf, seed=seed))
+}
 
 
+#' Simulate open-loop control using TCI
+#'
+#' Simulate open-loop control using TCI for `pkmod` or `poppkmod` objects.
+#' Infusion rates are calculated using `pkmod_prior` to reach `target_vals` at
+#' `target_tms`. Data values are simulated using `pkmod_true` at `obs_tms`.
+#' `pkmod_prior` and `pkmod_true` do not need to have the same structure, but
+#' are required to have the same number of IDs (i.e., N) if `poppkmod` objects
+#' are used.
+#'
+#' @param pkmod_prior `pkmod` object describing a PK/PK-PD model that is used to calculate
+#' TCI infusion rates and is updated as data are simulated and incorporated. Must have an
+#' associated Omega matrix.
+#' @param pkmod_true `pkmod` object describing the patient's "true" response. This model
+#' will be used to simulate observations.
+#' @param target_vals A vector of numeric values indicating PK or PD targets for TCI algorithm.
+#' @param target_tms A vector of numeric values indicating times at which the TCI algorithm should
+#' begin targeting each value.
+#' @param obs_tms Times at which data values should be simulated from `pkmod_true`.
+#' @param type Type of TCI algorithm to be used. Options are "plasma" and "effect".
+#' Defaults to "effect". Will be overwritten if `custom_alg` is non-null.
+#' @param custom_alg Custom TCI algorithm to overwrite default plasma- or effect-site targeting.
+#' @param resp_bounds Optional vector of two values indicating minimum and maximum values possible for the response.
+#' @param seed An integer used to initialize the random number generator.
+#' @examples
+#' data <- data.frame(ID = 1:5, AGE = seq(20,60,by=10), TBW = seq(60,80,by=5),
+#' HGT = seq(150,190,by=10), MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
+#' pkmod_prior <- poppkmod(data, drug = "ppf", model = "eleveld")
+#' pkmod_true  <- poppkmod(data, drug = "ppf", model = "eleveld", sample = TRUE)
+#' obs_tms <- seq(1/6,10,1/6)
+#' target_vals = c(75,60,50,50)
+#' target_tms = c(0,3,6,10)
+#' sim <- simulate_olc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms)
+#' len <- 500
+#' tms <- seq(0,10,length.out = len)
+#' resp <- data.frame(rbind(predict(pkmod_true, sim$inf, tms),
+#' predict(pkmod_prior, sim$inf, tms)))
+#' resp$type = c(rep("true",len*5),rep("prior",len*5))
+#' library(ggplot2)
+#' ggplot(resp) + geom_line(aes(x = time, y = pdresp, color = factor(id))) + facet_wrap(~type) +
+#'   labs(x = "Hours", y = "Bispectral Index") + theme_bw() +
+#'   geom_step(data = data.frame(time = target_tms, value = target_vals),
+#'   aes(x = time, y = value), inherit.aes = FALSE)
+#' @export
+simulate_olc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, type=c("effect","plasma"),
+                         custom_alg = NULL, resp_bounds = NULL, seed = NULL){
+
+  if(is.null(seed)) seed <- sample(1:1e5,1)
+  set.seed(seed)
+  type <- match.arg(type)
+
+  if(class(pkmod_prior) != class(pkmod_true) | !class(pkmod_prior) %in% c("pkmod","poppkmod"))
+    stop("pkmod_prior and pkmod_true must either both have class 'pkmod' or 'poppkmod'")
+
+  if(class(pkmod_prior) == "pkmod"){
+    out <- olc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, type, custom_alg, resp_bounds)
+    ids <- 1
+    out$obs$type = "true"
+  } else{
+    if(length(pkmod_prior$pkmods) != length(pkmod_true$pkmods))
+      stop("'pkmod_prior' and 'pkmod_true' must have the same number of pkmods")
+
+    sim <- lapply(1:length(pkmod_prior$pkmods), function(i){
+      olc(pkmod_prior$pkmods[[i]], pkmod_true$pkmods[[i]], target_vals, target_tms, obs_tms, type, custom_alg, resp_bounds)
+    })
+
+    ids <- as.factor(pkmod_prior$ids)
+    out <- list(obs = cbind(id = rep(ids, each = nrow(sim[[1]]$obs)),
+                            type = "true",
+                            do.call("rbind",lapply(sim, `[[`, "obs"))),
+                inf = cbind(id = rep(ids, each = nrow(sim[[1]]$inf)),
+                            do.call("rbind",lapply(sim, `[[`, "inf"))),
+                seed = sapply(sim, `[[`, "seed"))
+  }
+
+  tmseq <- seq(min(out$inf[,"begin"]), max(out$inf[,"end"]), length.out = 1e3)
+  out$resp <- as.data.frame(rbind(
+    predict(pkmod_prior, out$inf,tms = tmseq),
+    predict(pkmod_true, out$inf, tms = tmseq)))
+  out$resp$type <- c(rep("prior", 1e3*length(ids)), rep("true", 1e3*length(ids)))
+  if("id" %in% names(out$resp)) out$resp$id <- as.factor(out$resp$id)
+  if(!"time" %in% names(out$resp)) out$resp <- cbind(time = tmseq, out$resp)
+
+  out
+}
+
+
+## -- Closed-loop functions ----------------------------------------------------
 #' Simulate closed-loop control
 #'
-#' Simulate closed-loop control using Bayesian updates
+#' Simulate closed-loop control using Bayesian updates.
+#' Infusion rates are calculated using `pkmod_prior` to reach `target_vals` at
+#' `target_tms`. Data values are simulated using `pkmod_true` at `obs_tms`.
+#' `pkmod_prior` and `pkmod_true` do not need to have the same structure. Model
+#' parameters are updated at each update time using all available simulated observations.
+#' Processing delays can be added through the `delay` argument, such that observations
+#' aren't made available to the update mechanism until `update_tms >= obs_tms + delay`.
 #'
 #' @param pkmod_prior `pkmod` object describing a PK/PK-PD model that is used to calculate
 #' TCI infusion rates and is updated as data are simulated and incorporated. Must have an
@@ -85,8 +237,8 @@
 #'   aes(x = time, y = value), inherit.aes = FALSE)
 #' @export
 clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, update_tms,
-                         type = c("effect","plasma"), custom_alg = NULL,
-                         resp_bounds = NULL, delay = 0, seed = NULL){
+                type = c("effect","plasma"), custom_alg = NULL,
+                resp_bounds = NULL, delay = 0, seed = NULL){
 
   if(is.null(seed)) seed <- sample(1:1e5,1)
   set.seed(seed)
@@ -103,7 +255,7 @@ clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, updat
   lpars <- matrix(NA, nrow = length(update_tms)-1, ncol = length(update_parnms), dimnames = list(NULL, update_parnms))
 
   init_prior <- matrix(NA, nrow = length(update_tms), ncol = pkmod_prior$ncmpt,
-                      dimnames = list(NULL, paste0("c",1:pkmod_prior$ncmpt)))
+                       dimnames = list(NULL, paste0("c",1:pkmod_prior$ncmpt)))
   init_true <- matrix(NA, nrow = length(update_tms), ncol = pkmod_true$ncmpt,
                       dimnames = list(NULL, paste0("c",1:pkmod_true$ncmpt)))
 
@@ -126,7 +278,10 @@ clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, updat
     # subset targets and observation times to period being updated
     targets_sub <- targets_new[targets_new$time <= update_tms[i] & targets_new$time >= update_tms[i-1],]
     # infusions up until update time
-    infi <- inf_tci(pkmod_prior, targets_sub[,"value"], targets_sub[,"time"], type = type, custom_alg = custom_alg, inittm = update_tms[i-1])[,1:3]
+
+    infi <- inf_tci(pkmod_prior, targets_sub[,"value"], targets_sub[,"time"], type = type, custom_alg = custom_alg, inittm = update_tms[i-1])
+    # inf_names <- intersect(colnames(infi), c("begin","end","inf_rate","Ct","pdt"))
+    # inf_all <- rbind(inf_all, infi[,inf_names])
     inf_all <- rbind(inf_all, infi)
 
     # full infusion schedule in case any(obs_tms_sub < min(infi[,"begin"]))
@@ -137,7 +292,7 @@ clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, updat
     # update model parameters
     lpars[i-1,] <- with(pkmod_prior, log(c(pars_pk,pars_pd,sigma_add=sigma_add,sigma_mult=sigma_mult)))[update_parnms]
     pkmod_prior <- bayes_update(lpars[i-1,], pkmod_prior, inf_all, tms = obs_tms_obs,
-                                  obs = obs_all, init = init_prior[1,])
+                                obs = obs_all, init = init_prior[1,])
 
     vcovi[[i]] <- pkmod_prior$Omega
 
@@ -158,10 +313,12 @@ clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, updat
 }
 
 
-#' Update PK-PD model parameters from observed data values
+#' Update PK-PD model parameters using observed data values
 #'
-#' Function will update parameters of `pkmod` object based on available data.
-#' Parameters from `pkmod` are used as initial values in the search.
+#' Function will update parameters of `pkmod` object based on available data using
+#' a Laplace approximation to the posterior. Parameters and "Omega" values from
+#' `pkmod` are used as prior point estimates and variance terms, respectively.
+#' Parameters fixed within the Omega matrix are assumed to be fixed and are not updated.
 #'
 #' @param lpars Logged parameter values. Can be a subset of the full set of PK or PK-PD parameter values.
 #' @param pkmod `pkmod` object. Mean values are a subset of log(pars_pk), log(pars_pd),
@@ -206,7 +363,7 @@ bayes_update <- function(lpars, pkmod, inf, tms, obs, update_init = FALSE, ...){
 
   pkmod <- update(pkmod, ...)
   opt <- try(optim(par = lpars, fn = log_posterior_neg, method = "BFGS", hessian = TRUE,
-                    pkmod = pkmod, inf = inf, tms = tms, obs = obs, control = list(maxit = 5000)))
+                   pkmod = pkmod, inf = inf, tms = tms, obs = obs, control = list(maxit = 5000)))
 
   if(class(opt) == "try-error") browser()
   if(opt$convergence>0) warning(paste("Convergence:", opt$convergence))
@@ -399,6 +556,14 @@ log_posterior_neg <- function(lpars, pkmod, inf, tms, obs){
 
 #' Simulate closed-loop control using Bayesian updates
 #'
+#' Simulate closed-loop control using Bayesian updates for `pkmod` or `poppkmod` objects.
+#' Infusion rates are calculated using `pkmod_prior` to reach `target_vals` at
+#' `target_tms`. Data values are simulated using `pkmod_true` at `obs_tms`.
+#' `pkmod_prior` and `pkmod_true` do not need to have the same structure. Model
+#' parameters are updated at each update time using all available simulated observations.
+#' Processing delays can be added through the `delay` argument, such that observations
+#' aren't made available to the update mechanism until `update_tms >= obs_tms + delay`.
+#'
 #' @param pkmod_prior `pkmod` or `poppkmod` object describing a PK/PK-PD model that is used to calculate
 #' TCI infusion rates and is updated as data are simulated and incorporated. Must have an
 #' associated Omega matrix.
@@ -457,7 +622,9 @@ simulate_clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_t
   pkmod_post <- pkmod_prior
   if(class(pkmod_prior) == "pkmod"){
     out <- clc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, update_tms, type, custom_alg, resp_bounds, delay, seed)
+    pkmod_post <- out$pkmod_post
     ids = as.factor(1)
+    pd = !is.null(pkmod_prior$pdfn)
   } else{
     if(length(pkmod_prior$pkmods) != length(pkmod_true$pkmods))
       stop("'pkmod_prior' and 'pkmod_true' must have the same number of pkmods")
@@ -465,26 +632,27 @@ simulate_clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_t
     sim <- lapply(1:length(pkmod_prior$pkmods), function(i){
       if(verbose) print(paste0("Simulating ID=",pkmod_prior$ids[i]))
       clc(pkmod_prior$pkmods[[i]], pkmod_true$pkmods[[i]], target_vals, target_tms, obs_tms, update_tms, type, custom_alg, resp_bounds, delay)
-      })
+    })
 
     pkmod_post$pkmods <- lapply(sim, `[[`, "pkmod_post")
 
+    pd = !is.null(pkmod_prior$pkmods[[1]]$pdfn)
     ids <- as.factor(pkmod_prior$ids)
     out <- list(obs = cbind(id = rep(ids, each = nrow(sim[[1]]$obs)),
                             type = "true",
-                     do.call("rbind",lapply(sim, `[[`, "obs"))),
-         inf = cbind(id = rep(ids, each = nrow(sim[[1]]$inf)),
-                     do.call("rbind",lapply(sim, `[[`, "inf"))),
-         pars = cbind(id = rep(ids, each = nrow(sim[[1]]$pars)),
-                     do.call("rbind",lapply(sim, `[[`, "pars"))),
-         pkmod_post = pkmod_post,
-         seed = seed)
+                            do.call("rbind",lapply(sim, `[[`, "obs"))),
+                inf = cbind(id = rep(ids, each = nrow(sim[[1]]$inf)),
+                            do.call("rbind",lapply(sim, `[[`, "inf"))),
+                pars = cbind(id = rep(ids, each = nrow(sim[[1]]$pars)),
+                             do.call("rbind",lapply(sim, `[[`, "pars"))),
+                pkmod_post = pkmod_post,
+                seed = seed)
   }
 
   tmseq <- seq(min(out$inf[,"begin"]), max(out$inf[,"end"]), length.out = 1e3)
-  resp <- list(prior = predict(pkmod_prior, out$inf,tms = tmseq),
-               posterior = predict(pkmod_post, out$inf, tms = tmseq),
-               true = predict(pkmod_true, out$inf, tms = tmseq))
+  resp <- list(prior = predict(pkmod_prior, out$inf,tms = tmseq, return_times = TRUE),
+               posterior = predict(pkmod_post, out$inf, tms = tmseq, return_times = TRUE),
+               true = predict(pkmod_true, out$inf, tms = tmseq, return_times = TRUE))
   if(length(unique(sapply(resp, ncol)))==1){
     resp <- as.data.frame(do.call("rbind", resp))
     resp$type <- c(rep("prior", 1e3*length(ids)),
@@ -492,10 +660,87 @@ simulate_clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_t
                    rep("true", 1e3*length(ids)))
     if("id" %in% names(out$resp)) out$resp$id <- as.factor(out$resp$id)
   }
+
   out <- c(out, list(resp = resp))
   out
 }
 
 
+## -- simulate_tci -------------------------------------------------------------
+#' Simulate open- or closed-loop control
+#'
+#' Simulate responses from a `pkmod` or `poppkmod` object using TCI control.
+#' Infusion rates are calculated to reach targets using `pkmod_prior`. Data values
+#' are simulated using `pkmod_true`. `pkmod_prior` and `pkmod_true` do not need to
+#' have the same parameters or structure and should be different when simulating
+#' responses under model misspecification.
+#' If update times (argument `update_tms`) are provided then the function `simulate_clc`
+#' is called for "closed-loop" control and model parameters will be updated via
+#' Bayes' rule using available data. Only parameters with values in the Omega matrix
+#' will be updated. A data processing delay can be added through the argument `delay`.
+#' See ?bayes_update? for more details. If update times are not specified, then
+#' the function `simulate_olc` will be called to implement "open-loop" control
+#' and model parameters will not be updated. Simulation results have class `tci_sim`
+#' and can be plotted using `plot.tci_sim()`.
+#'
+#' @param pkmod_prior `pkmod` or `poppkmod` object describing a PK/PK-PD model that is used to calculate
+#' TCI infusion rates and is updated as data are simulated and incorporated. Must have an
+#' associated Omega matrix.
+#' @param pkmod_true `pkmod` or `poppkmod` object describing the patient's "true" response. This model
+#' will be used to simulate observations.
+#' @param target_vals A vector of numeric values indicating PK or PD targets for TCI algorithm.
+#' @param target_tms A vector of numeric values indicating times at which the TCI algorithm should
+#' begin targeting each value.
+#' @param obs_tms Times at which data values should be simulated from `pkmod_true`.
+#' @param update_tms Times at which `pkmod_prior` should be updated using all available
+#' simulated observations.
+#' @param type Type of TCI algorithm to be used. Options are "plasma" and "effect".
+#' Defaults to "effect". Will be overwritten if `custom_alg` is non-null.
+#' @param custom_alg Custom TCI algorithm to overwrite default plasma- or effect-site targeting.
+#' @param resp_bounds Optional vector of two values indicating minimum and maximum values possible for the response.
+#' @param delay Optional numeric value indicating a temporal delay between when observations
+#' are simulated and when they should be made available for updating `pkmod_prior`. For example,
+#' a delay should be set to account for a processing time delay in Bispectral Index measurements
+#' or the time required to measure drug concentrations from collected samples.
+#' @param seed An integer used to initialize the random number generator.
+#' @param verbose Logical. Print progress as simulation is run.
+#' @examples
+#' data <- data.frame(ID = 1:3, AGE = c(20,30,40), TBW = c(60,70,80),
+#' HGT = c(150,160,170), MALE = c(TRUE,FALSE,TRUE))
+#' pkmod_prior <- poppkmod(data, drug = "ppf", model = "eleveld")
+#' pkmod_true  <- poppkmod(data, drug = "ppf", model = "eleveld", sample = TRUE)
+#' obs_tms <- seq(1/6,10,1/6)
+#' target_vals = c(75,60,50,50)
+#' target_tms = c(0,3,6,10)
+#'
+#' # open-loop simulation (without updates)
+#' sim_ol <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
+#' seed = 200)
+#' plot(sim_ol)
+#'
+#' # closed-loop simulation (with updates)
+#' sim_cl <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
+#' update_tms = c(2,4,6,8), seed = 200)
+#' plot(sim_cl, wrap_id = TRUE, show_inf = TRUE, show_data = TRUE)
+#' @export
+simulate_tci <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
+                         update_tms = NULL, type = c("effect","plasma"), custom_alg = NULL,
+                         resp_bounds = NULL, delay = 0, seed = NULL, verbose = TRUE){
 
+  type = match.arg(type)
 
+  if(is.null(update_tms)){
+    control_type <- "open-loop"
+    out <- simulate_olc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
+                        type, custom_alg, resp_bounds, seed)
+  } else{
+    control_type <- "closed-loop"
+    out <- simulate_clc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
+                        update_tms, type, custom_alg, resp_bounds, delay, seed, verbose)
+    out <- c(out, list(update_tms = update_tms))
+  }
+
+  out <- c(out, list(obs_tms = obs_tms, control = control_type))
+  oldClass(out) <- "sim_tci"
+  return(out)
+}

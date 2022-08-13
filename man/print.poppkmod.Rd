@@ -26,5 +26,5 @@ TBW = seq(60,80,by=5),
 HGT = seq(150,190,by=10),
 MALE = c(TRUE,TRUE,FALSE,FALSE,FALSE))
 poppkmod(data, drug = "ppf", model = "eleveld")
-poppkmod(data, drug = "ppf", model = "eleveld")
+poppkmod(data, drug = "remi", model = "kim")
 }

@@ -150,19 +150,19 @@ infer_pkfn <- function(parnms){
 #' @export
 list_parnms <- function(){
   cat("Acceptable names for 'pars_pk' vector (case-insensitive)", "\n")
-  cat("--- First compartment options-------------", "\n")
-  cat("Central volume: 'v','v1'","\n")
-  cat("Elimination: 'cl','cl1','k10','ke'","\n")
-  cat("--- Second compartment options------------", "\n")
-  cat("Peripheral volume: 'v2'","\n")
-  cat("Transfer: 'q','q2','k12','k21'","\n")
-  cat("Elimination: 'cl2','k20'","\n")
-  cat("--- Third compartment options-------------", "\n")
-  cat("Second peripheral volume: 'v3'","\n")
-  cat("Transfer: 'q3','k13','k31'","\n")
-  cat("Elimination: 'cl3','k30'","\n")
-  cat("--- Effect-site---------------------------", "\n")
-  cat("Elimination: 'ke0'","\n")
+  cat("\nFirst compartment options\n")
+  cat(" Central volume: 'v','v1'","\n")
+  cat(" Elimination: 'cl','cl1','k10','ke'","\n")
+  cat("\nSecond compartment options\n")
+  cat(" Peripheral volume: 'v2'","\n")
+  cat(" Transfer: 'q','q2','k12','k21'","\n")
+  cat(" Elimination: 'cl2','k20'","\n")
+  cat("\nThird compartment options\n")
+  cat(" Second peripheral volume: 'v3'","\n")
+  cat(" Transfer: 'q3','k13','k31'","\n")
+  cat(" Elimination: 'cl3','k30'","\n")
+  cat("\nEffect-site\n")
+  cat(" Elimination: 'ke0'")
 }
 
 
@@ -183,11 +183,12 @@ list_pkmods <- function(){
                                  "pkmod_minto()","pkmod_kim()","pkmod_eleveld_remi()"),
                     Drug = rep(c("Propofol","Remifentanil"), each = 3),
                     Type = c("PK","PK","PK/PKPD","PK/PKPD","PK","PK/PKPD"),
-                    `Required covariates` = c("TBW","AGE, HGT, LBM or (TBW and MALE)",
+                    `Required covariates` = c("TBW",
+                                              "(AGE, HGT, TBW, MALE) or (AGE, HGT, LBW)",
                                    "AGE, HGT, MALE, TBW",
-                                   "AGE, LBM or (MALE, TBW, and HGT)",
-                                   "AGE, TBW, FFM or (MALE and BMI)",
-                                   "AGE, MALE, BMI or (TBW and HGT)"))
+                                   "(AGE, HGT, TBW, MALE) or (AGE, HGT, LBW)",
+                                   "(AGE, TBW, BMI, HGT) or (AGE, TBW, FFM)",
+                                   "(AGE, MALE, TBW, HGT) or (AGE, MALE, TBW, BMI)"))
 
   knitr::kable(tab, format = "pipe")
 }
