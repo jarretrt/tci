@@ -31,6 +31,8 @@ sim_ol <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms
 seed = 200)
 
 # closed-loop simulation (with update_tms)
+\dontrun{
 sim_cl <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
 update_tms = c(2,4,6,8), seed = 200)
+}
 }

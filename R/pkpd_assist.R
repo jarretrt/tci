@@ -6,10 +6,8 @@
 
 #' @name format_pars
 #' @title Format parameters for use in Rcpp functions
-#'
-#' Order parameters for 1-4 compartment models to be used in Rcpp functions in
+#' @description Order parameters for 1-4 compartment models to be used in Rcpp functions in
 #' predict_pkmod method.
-#'
 #' @param pars Vector of named parameters. Names can be capitalized or lowercase
 #' and can include variations of "V1" as "V" or clearance terms rather than
 #' elimination rate constants.
@@ -252,7 +250,7 @@ elvdlpars <- function(x, pd = TRUE){
 #' @export
 assign_pars <- function(pkmod, pars){
 
-  if(class(pkmod) != "pkmod")
+  if(!inherits(pkmod, "pkmod"))
     stop("Class of pkmod must be 'pkmod'")
   if(!("pars" %in% names(formals(pkmod))))
     stop("Object 'pkmod' must have argument 'pars'")

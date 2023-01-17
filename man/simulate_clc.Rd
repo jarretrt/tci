@@ -71,6 +71,7 @@ obs_tms <- seq(1/6,10,1/6)
 update_tms <- c(2,4,6,8)
 target_vals = c(75,60,50,50)
 target_tms = c(0,3,6,10)
+\dontrun{
 sim <- simulate_clc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
 update_tms, seed = 200)
 len <- 500
@@ -84,4 +85,5 @@ ggplot(resp) + geom_line(aes(x = time, y = pdresp, color = factor(id))) +
 facet_wrap(~type) + labs(x = "Hours", y = "Bispectral Index") +
   geom_step(data = data.frame(time = target_tms, value = target_vals),
   aes(x = time, y = value), inherit.aes = FALSE)
+}
 }

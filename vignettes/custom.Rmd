@@ -24,7 +24,7 @@ knitr::opts_chunk$set(
 
 ### Introduction
 
-The `tci` package provides closed-form solutions for 1-, 2-, 3-, and 3-compartment with effect-site PK models based on solutions described and code provided in @Abuhelwa2015. It does not, however, include an ordinary differential equation (ODE) solver as many other R packages do, including [mrgsolve](https://mrgsolve.github.io/), [PKPDsim](https://github.com/InsightRX/PKPDsim), and [RxODE](https://github.com/nlmixrdevelopment/RxODE). `tci` package functions can nonetheless be applied to models from these packages through the creation of user-defined PK functions.
+The `tci` package provides closed-form solutions for 1-, 2-, 3-, and 3-compartment with effect-site PK models based on solutions described and code provided in @Abuhelwa2015. It does not, however, include an ordinary differential equation (ODE) solver as many other R packages do, including [mrgsolve](https://mrgsolve.org/), [PKPDsim](https://github.com/InsightRX/PKPDsim), and [RxODE](https://github.com/nlmixrdevelopment/RxODE). `tci` package functions can nonetheless be applied to models from these packages through the creation of user-defined PK functions.
  
 
 ### Custom PK models

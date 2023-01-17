@@ -33,9 +33,7 @@ of these models is illustrated in the “Population PK models” vignette.
 
 ## Installation
 
-The `tci` package can be installed from
-[CRAN](https://cran.rstudio.com/web/packages/tci/index.html) using the
-command.
+The `tci` package can be installed from CRAN using the command.
 
 ``` r
 install.packages("tci")
@@ -198,10 +196,8 @@ responses, respectively.
 
 PK-PD parameter values can be drawn at random from the
 inter-/intra-individual variability distribution, as described by the
-`pkmod`
-![Omega](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;Omega "Omega")
-matrix, by either 1) setting the argument `sample = TRUE` when calling
-`poppkmod`, or 2) by using the function `sample_iiv`.
+`pkmod` Omega matrix, by either 1) setting the argument `sample = TRUE`
+when calling `poppkmod`, or 2) by using the function `sample_iiv`.
 
 ``` r
 set.seed(1)

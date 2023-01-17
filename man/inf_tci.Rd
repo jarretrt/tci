@@ -13,6 +13,7 @@ inf_tci(
   custom_alg = NULL,
   inittm = 0,
   ignore_pd = FALSE,
+  pop_fn = NULL,
   ...
 )
 }
@@ -42,6 +43,10 @@ the minimum value of `target_tms`.}
 \item{ignore_pd}{Logical. Should the PD component of the pkmod object (if present)
 be ignored. By default, predict.tciinf will assume that 'value' refers to PD
 targets if a PD model is specified.}
+
+\item{pop_fn}{Function applied to the distribution of predicted values. E.g.,
+`median` will calculate doses such that the median value in the population will
+obtain the target value. Only applicable to `poppkmod` objects.}
 
 \item{...}{Arguments passed to TCI algorithm}
 }

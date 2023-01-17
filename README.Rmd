@@ -26,7 +26,7 @@ Several population PK models commonly used for TCI are implemented in `tci`. The
  
 ## Installation
 
-The `tci` package can be installed from [CRAN](https://cran.rstudio.com/web/packages/tci/index.html) using the command. 
+The `tci` package can be installed from CRAN using the command. 
 
 ```{r, eval = FALSE}
 install.packages("tci")

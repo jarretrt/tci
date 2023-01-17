@@ -515,7 +515,6 @@ validate_poppkmod <- function(x){
   drug <- attr(x,"drug")
   model <- attr(x,"model")
 
-
     if(drug == "ppf" & model %in% c("minto","kim"))
       stop("'drug' must be set to 'remi' to use Minto or Kim models")
 
@@ -609,6 +608,10 @@ validate_poppkmod <- function(x){
 #' @param sample Logical. Should parameter values be sampled from interindividual distribution (TRUE)
 #' or evaluated at point estimates for covariates (FALSE)? Defaults to FALSE.
 #' @param PD Logical. If applicable, should the PD component be evaluated for PK-PD models. Defaults to TRUE.
+#' @param custom_pkmod_fn Function that generates a custom `pkmod` object. If applicable,
+#' this should be a function of all covariates used with names corresponding to `data` argument
+#' (see ?pkmod_schnider for an example). If no covariates are used, the `data`
+#' argument must contain a column labeled "id" indicating the set of IDs.
 #' @param ... Arguments passed on to each pkmod object
 #' @return `poppkmod` object
 #' @examples
@@ -618,58 +621,75 @@ validate_poppkmod <- function(x){
 #' poppkmod(data, drug = "remi", model = "kim")
 #' @export
 poppkmod <- function(data, drug = c("ppf","remi"), model = c("marsh","schnider","eleveld","minto","kim"),
-                     sample = FALSE, PD = TRUE, ...){
+                     sample = FALSE, PD = TRUE, custom_pkmod_fn = NULL,...){
 
-  drug <- match.arg(drug)
-  model <- match.arg(model)
+  if(!is.null(custom_pkmod_fn)){
+    # implement a custom poppkmod
+    new_mod <- init_poppkmod(data = data,
+                             drug = "Custom",
+                             model = "Custom")
+    new_mod <- validate_poppkmod(new_mod)
 
-  # initialize object
-  new_mod <- init_poppkmod(data = data,
-                           drug = drug,
-                           model = model)
+    fn <- custom_pkmod_fn
+    fn_nms <- names(formals(fn))
+    cov_nms <- setdiff(fn_nms,"...")
+    dat_nms <- names(new_mod$data)
 
-  drug <- attr(new_mod,"drug")
-  model <- attr(new_mod,"model")
-
-  # perform validation checks
-  new_mod <- validate_poppkmod(new_mod)
-
-  # create list of pkmod objects
-  pkmod_fn_nm <- paste0("pkmod_", model)
-  if(model == "eleveld") pkmod_fn_nm <- paste0(pkmod_fn_nm,"_",drug)
-
-  fn <- get(pkmod_fn_nm)
-  fn_nms <- names(formals(fn))
-  cov_nms <- setdiff(fn_nms,"...")
-  dat_nms <- names(new_mod$data)
-
-
-  if("PD" %in% fn_nms){
     new_mod$pkmods <- with(new_mod,
-                 lapply(1:nrow(data), function(i)
-                   do.call(fn, c(as.list(data[i,dat_nms %in% cov_nms, drop = FALSE]),
-                                 PD = PD,
-                                 list(...))))
-    )
+                           lapply(1:nrow(data), function(i)
+                             do.call(fn, c(as.list(data[i,dat_nms %in% cov_nms, drop = FALSE]),
+                                           list(...)))))
   } else{
-    new_mod$pkmods <- with(new_mod,
-                 lapply(1:nrow(data), function(i)
-                   do.call(fn, c(as.list(data[i,dat_nms %in% cov_nms, drop = FALSE]),
-                                 list(...)))))
+
+    model <- match.arg(model)
+    drug <- match.arg(drug)
+    # initialize object
+    new_mod <- init_poppkmod(data = data,
+                             drug = drug,
+                             model = model)
+
+    drug <- attr(new_mod,"drug")
+    model <- attr(new_mod,"model")
+
+    # perform validation checks
+    new_mod <- validate_poppkmod(new_mod)
+
+    # create list of pkmod objects
+    pkmod_fn_nm <- paste0("pkmod_", model)
+    if(model == "eleveld") pkmod_fn_nm <- paste0(pkmod_fn_nm,"_",drug)
+
+    fn <- get(pkmod_fn_nm)
+    fn_nms <- names(formals(fn))
+    cov_nms <- setdiff(fn_nms,"...")
+    dat_nms <- names(new_mod$data)
+
+    if("PD" %in% fn_nms){
+      new_mod$pkmods <- with(new_mod,
+                             lapply(1:nrow(data), function(i)
+                               do.call(fn, c(as.list(data[i,dat_nms %in% cov_nms, drop = FALSE]),
+                                             PD = PD,
+                                             list(...))))
+      )
+    } else{
+      new_mod$pkmods <- with(new_mod,
+                             lapply(1:nrow(data), function(i)
+                               do.call(fn, c(as.list(data[i,dat_nms %in% cov_nms, drop = FALSE]),
+                                             list(...)))))
+    }
   }
 
-  if(sample){
-    new_mod$pkmods <- lapply(new_mod$pkmods, sample_pkmod)
-  }
+    if(sample){
+      new_mod$pkmods <- lapply(new_mod$pkmods, sample_pkmod)
+    }
 
-  if("id" %in% tolower(dat_nms)){
-    ix <- which(tolower(dat_nms) == "id")
-    new_mod$ids <- new_mod$data[,ix]
-  } else{
-    id <- 1:nrow(new_mod$data)
-  }
+    if("id" %in% tolower(dat_nms)){
+      ix <- which(tolower(dat_nms) == "id")
+      new_mod$ids <- new_mod$data[,ix]
+    } else{
+      id <- 1:nrow(new_mod$data)
+    }
 
-  return(new_mod)
+    return(new_mod)
 }
 
 
@@ -843,8 +863,10 @@ simulate.poppkmod <- function(object, nsim = 1, seed = NULL, ..., inf, tms,
 #' seed = 200)
 #'
 #' # closed-loop simulation (with update_tms)
+#' \dontrun{
 #' sim_cl <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
 #' update_tms = c(2,4,6,8), seed = 200)
+#' }
 #' @export
 print.sim_tci <- function(x, ...){
   cat("tci sim_tci\n")
@@ -876,9 +898,9 @@ print.sim_tci <- function(x, ...){
 
 
 
-#' Print method for sim_tci class
+#' Plot method for sim_tci class
 #'
-#' Print object with class "sim_tci" created by `simulate_tci()`.
+#' Plot object with class "sim_tci" created by `simulate_tci()`.
 #' @param x Object with class "sim_tci" created by `simulate_tci()`
 #' @param ... Other arguments. Not currently used.
 #' @param yvar Response variable. Options are concentrations ("c1","c2",...) or
@@ -895,8 +917,8 @@ print.sim_tci <- function(x, ...){
 #' @import ggplot2
 #' @importFrom reshape melt
 #' @examples
-#' data <- data.frame(ID = 1:3, AGE = c(20,30,40), TBW = c(60,70,80),
-#' HGT = c(150,160,170), MALE = c(TRUE,FALSE,TRUE))
+#' data <- data.frame(ID = 1:2, AGE = c(30,40), TBW = c(70,80),
+#' HGT = c(160,170), MALE = c(FALSE,TRUE))
 #' pkmod_prior <- poppkmod(data, drug = "ppf", model = "eleveld")
 #' pkmod_true  <- poppkmod(data, drug = "ppf", model = "eleveld", sample = TRUE)
 #' obs_tms <- seq(1/6,10,1/6)
@@ -906,16 +928,18 @@ print.sim_tci <- function(x, ...){
 #' # open-loop simulation (without update_tms)
 #' sim_ol <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
 #' seed = 200)
-#' plot(sim_ol, id = c(1,2), type = "true")
+#' plot(sim_ol, id = 1, type = "true")
 #' plot(sim_ol, yvar = "c4", type = "true")
 #' plot(sim_ol, yvar = "c4", type = "true", wrap_id = TRUE, show_inf = TRUE)
 #'
 #' # closed-loop simulation (with update_tms)
+#' \dontrun{
 #' sim_cl <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
-#' update_tms = c(2,4,6,8), seed = 200)
+#' update_tms = c(2,4,6), seed = 200)
 #' plot(sim_cl, type = "posterior", id = 1, show_inf = TRUE)
 #' plot(sim_cl, type = "posterior", wrap_id = TRUE, show_data = TRUE)
 #' plot(sim_cl, yvar = "c4", wrap_id = TRUE)
+#' }
 #' @export
 plot.sim_tci <- function(x, ..., yvar = NULL, id = NULL,
                          type = c("true","prior","posterior"),

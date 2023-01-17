@@ -217,7 +217,7 @@ apply_tci <- function(pkmod, target_vals, target_tms, type = c("plasma","effect"
 
   if(length(target_vals) != length(target_tms))
     stop("'target_vals' and 'target_tms' must have the same length")
-  if(class(pkmod) != "pkmod") stop("pkmod must have class 'pkmod'")
+  # if(!inherits(pkmod,"pkmod")) stop("pkmod must have class 'pkmod'")
 
   type <- match.arg(type)
 
@@ -300,6 +300,9 @@ apply_tci <- function(pkmod, target_vals, target_tms, type = c("plasma","effect"
 #' @param ignore_pd Logical. Should the PD component of the pkmod object (if present)
 #' be ignored. By default, predict.tciinf will assume that 'value' refers to PD
 #' targets if a PD model is specified.
+#' @param pop_fn Function applied to the distribution of predicted values. E.g.,
+#' `median` will calculate doses such that the median value in the population will
+#' obtain the target value. Only applicable to `poppkmod` objects.
 #' @param ... Arguments passed to TCI algorithm
 #' @examples
 #' # 3-compartment model with effect-site
@@ -315,14 +318,122 @@ apply_tci <- function(pkmod, target_vals, target_tms, type = c("plasma","effect"
 #' elvd_mod <- poppkmod(data, drug = "ppf", model = "eleveld")
 #' inf_tci(elvd_mod, target_vals = c(2,3,4,4), target_tms = c(0,2,3,10), "effect")
 #' @export
-inf_tci <- function(pkmod, target_vals, target_tms, type = c("plasma","effect"), dtm = NULL, custom_alg = NULL, inittm = 0, ignore_pd = FALSE, ...){
-  if(!class(pkmod) %in% c("pkmod","poppkmod")) stop("pkmod must have class 'pkmod' or 'poppkmod'")
-  if(class(pkmod) == "pkmod"){
+inf_tci <- function(pkmod, target_vals, target_tms, type = c("plasma","effect"), dtm = NULL, custom_alg = NULL, inittm = 0, ignore_pd = FALSE, pop_fn = NULL,...){
+
+  if(!(inherits(pkmod,"pkmod")|inherits(pkmod, "poppkmod")))
+    stop("pkmod must have class 'pkmod' or 'poppkmod'")
+  if(inherits(pkmod,"pkmod")){
     apply_tci(pkmod, target_vals, target_tms, type = match.arg(type), dtm = dtm, custom_alg = custom_alg, inittm = inittm, ignore_pd = ignore_pd, ...)
   } else{
     infs <- lapply(pkmod$pkmods, apply_tci, target_vals = target_vals, target_tms=target_tms, type = match.arg(type), dtm = dtm, custom_alg = custom_alg, inittm = inittm, ignore_pd = ignore_pd, ...)
     cbind(id=rep(pkmod$ids, each = nrow(infs[[1]])),do.call("rbind", infs))
   }
+}
+
+
+#' @name inf_tci_pop
+#' @title Calculate infusion rates to reach target values within a population
+#' @description This function will calculate infusion rates required to reach targets at a specified
+#' position (e.g., median, 25th percentile) of the response distribution in a population.
+#' The user supplies a `poppkmod` object, a set of values to be obtained, a set of
+#' times at which to reach them, and a function to apply to the distribution of responses.
+#' @param mod Object with class `poppkmod`, created by `poppkmod()`.
+#' @param target_vals A vector of numeric values indicating PK or PD targets for TCI algorithm.
+#' @param target_tms A vector of numeric values indicating times at which the TCI algorithm should
+#' begin targeting each value.
+#' @param pop_fn Function to apply to distribution of response values. Defaults to setting
+#' median value equal to targets.
+#' @param dtm TCI update frequency. Defaults to 1/6, corresponding to 10-second
+#' intervals if model parameters are in terms of minutes.
+#' @param inf_duration Optional parameter to describe duration of infusions. Can be
+#' less than or equal to `dtm`. Defaults to `dtm` if unspecified.
+#' @param cmpt Compartment used for targeting. Defaults to PD response if applicable and
+#' effect-site compartment if not.
+#' @param inittm Initial time to start TCI algorithm. Cannot be greater than
+#' the minimum value of `target_tms`.
+#' @param maxrt Maximum infusion rate.
+#' @examples
+#' nid = 100
+#' data <- data.frame(ID = 1:nid, AGE = sample(10:70, nid, replace = TRUE),
+#' TBW = sample(40:90, nid, TRUE), HGT = sample(130:210, nid, TRUE),
+#' MALE = sample(c(TRUE,FALSE),nid,TRUE))
+#' elvd_mod <- poppkmod(data, drug = "ppf", model = "eleveld")
+#' # calculate infusions to keep 90% of patients below 70
+#' inf <- inf_tci_pop(elvd_mod, target_vals = c(70,70), target_tms = c(0,50),
+#' pop_fn = function(...) quantile(..., 0.9), dtm = 10)
+#' tms <- seq(0,50,0.1)
+#' resp <- as.data.frame(predict(elvd_mod, inf, tms))
+#' ggplot(resp, aes(x = time, y = pdresp, group = id)) +
+#' geom_line(alpha = 0.1) +
+#' geom_hline(yintercept = 70)
+#' @export
+inf_tci_pop <- function(mod, target_vals, target_tms, pop_fn = median, dtm = 1/6,
+                        inf_duration = NULL, cmpt = NULL, inittm = 0, maxrt = 1e5){
+
+  if(length(target_vals) != length(target_tms))
+    stop("'target_vals' and 'target_tms' must have the same length")
+  if(!inherits(mod,"poppkmod")) stop("mod must have class 'poppkmod'")
+
+  if(is.null(cmpt)){
+    # warning("'cmpt' is not specified. Using PD response or effect site concentration")
+    cmpt <- ifelse(is.null(mod$pkmods[[1]]$pdfn),
+                   paste0("c",mod$pkmods[[1]]$ecmpt),
+                   "pdresp")
+  }
+
+  # set infusion duration if not specified
+  if(is.null(inf_duration)) inf_duration <- dtm
+  if(inf_duration > dtm) stop("'inf_duration' cannot be greater than 'dtm'")
+
+  # check initial time
+  if(any(inittm > target_tms)) stop("inittm cannot be greater than any target times")
+
+  # Create step function to define targets at any point
+  tms <- target_tms-inittm
+  sf <- stepfun(tms, c(0,target_vals))
+  updatetms <- seq(0, max(tms)-dtm, dtm)
+
+  # initialize values
+  inf_all <- rep(NA, length(updatetms))
+  ncmpt <- mod$pkmods[[1]]$ncmpt
+
+  # store original initial values
+  init_orig <- sapply(mod$pkmods, `[[`, "init")
+
+  # function to minimize
+  fopt <- function(infrt, popmod, tm_pred, val){
+    inf <- inf_manual(inf_tms = 0, inf_rate = infrt, duration = inf_duration)
+    pred <- predict(popmod, inf, tm_pred)[,cmpt]
+    return(pop_fn(pred)-val)
+  }
+
+  # iterate through times
+  for(i in 1:length(updatetms)){
+    # check bounds
+    lv <- fopt(0, mod, dtm, sf(updatetms[i]))
+    uv <- fopt(maxrt, mod, dtm, sf(updatetms[i]))
+    if(sign(lv) == sign(uv)){
+      warning("Some targets could not be reached on the interval provided and minimum/maximum
+              values were used. Consider increasing 'maxrt' to avoid this.")
+      inf_all[i] <- c(0,maxrt)[which.min(abs(c(lv,uv)))]
+    } else{
+      # calculate infusion rate
+      inf_all[i] <- uniroot(fopt, interval = c(0,maxrt), popmod = mod,
+                            tm_pred = dtm, val=sf(updatetms[i]))$root
+    }
+
+    # predict values at update time
+    predi <- predict(mod, inf = inf_manual(0,inf_all[i],inf_duration), tms = dtm)
+
+    # update initial values
+    mod$pkmods <- lapply(1:length(mod$pkmods), function(ii){
+      update(mod$pkmods[[ii]], init = predi[ii,paste0("c",1:ncmpt)])
+    })
+  }
+
+  # return infusion rates
+  out <- cbind(begin = updatetms, end = updatetms + inf_duration, inf_rate = inf_all)
+  return(out)
 }
 
 

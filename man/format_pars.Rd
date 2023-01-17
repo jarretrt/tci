@@ -2,10 +2,7 @@
 % Please edit documentation in R/pkpd_assist.R
 \name{format_pars}
 \alias{format_pars}
-\title{Format parameters for use in Rcpp functions
-
-Order parameters for 1-4 compartment models to be used in Rcpp functions in
-predict_pkmod method.}
+\title{Format parameters for use in Rcpp functions}
 \usage{
 format_pars(pars, ncmpt = 3)
 }
@@ -22,8 +19,6 @@ effect-site without a corresponding volume parameter.}
 Numeric vector of transformed parameter values.
 }
 \description{
-Format parameters for use in Rcpp functions
-
 Order parameters for 1-4 compartment models to be used in Rcpp functions in
 predict_pkmod method.
 }

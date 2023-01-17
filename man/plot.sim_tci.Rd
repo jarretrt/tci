@@ -2,7 +2,7 @@
 % Please edit documentation in R/methods.R
 \name{plot.sim_tci}
 \alias{plot.sim_tci}
-\title{Print method for sim_tci class}
+\title{Plot method for sim_tci class}
 \usage{
 \method{plot}{sim_tci}(
   x,
@@ -42,11 +42,11 @@ if closed-loop control was used.}
 Plots simulation results
 }
 \description{
-Print object with class "sim_tci" created by `simulate_tci()`.
+Plot object with class "sim_tci" created by `simulate_tci()`.
 }
 \examples{
-data <- data.frame(ID = 1:3, AGE = c(20,30,40), TBW = c(60,70,80),
-HGT = c(150,160,170), MALE = c(TRUE,FALSE,TRUE))
+data <- data.frame(ID = 1:2, AGE = c(30,40), TBW = c(70,80),
+HGT = c(160,170), MALE = c(FALSE,TRUE))
 pkmod_prior <- poppkmod(data, drug = "ppf", model = "eleveld")
 pkmod_true  <- poppkmod(data, drug = "ppf", model = "eleveld", sample = TRUE)
 obs_tms <- seq(1/6,10,1/6)
@@ -56,14 +56,16 @@ target_tms = c(0,3,6,10)
 # open-loop simulation (without update_tms)
 sim_ol <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
 seed = 200)
-plot(sim_ol, id = c(1,2), type = "true")
+plot(sim_ol, id = 1, type = "true")
 plot(sim_ol, yvar = "c4", type = "true")
 plot(sim_ol, yvar = "c4", type = "true", wrap_id = TRUE, show_inf = TRUE)
 
 # closed-loop simulation (with update_tms)
+\dontrun{
 sim_cl <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
-update_tms = c(2,4,6,8), seed = 200)
+update_tms = c(2,4,6), seed = 200)
 plot(sim_cl, type = "posterior", id = 1, show_inf = TRUE)
 plot(sim_cl, type = "posterior", wrap_id = TRUE, show_data = TRUE)
 plot(sim_cl, yvar = "c4", wrap_id = TRUE)
+}
 }

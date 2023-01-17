@@ -10,6 +10,7 @@ poppkmod(
   model = c("marsh", "schnider", "eleveld", "minto", "kim"),
   sample = FALSE,
   PD = TRUE,
+  custom_pkmod_fn = NULL,
   ...
 )
 }
@@ -25,6 +26,11 @@ drug = "ppf", or "minto", "kim", or "eleveld" if drug = "remi".}
 or evaluated at point estimates for covariates (FALSE)? Defaults to FALSE.}
 
 \item{PD}{Logical. If applicable, should the PD component be evaluated for PK-PD models. Defaults to TRUE.}
+
+\item{custom_pkmod_fn}{Function that generates a custom `pkmod` object. If applicable,
+this should be a function of all covariates used with names corresponding to `data` argument
+(see ?pkmod_schnider for an example). If no covariates are used, the `data`
+argument must contain a column labeled "id" indicating the set of IDs.}
 
 \item{...}{Arguments passed on to each pkmod object}
 }

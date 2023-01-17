@@ -45,7 +45,7 @@
 olc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, type=c("effect","plasma"),
                 custom_alg = NULL, resp_bounds = NULL, seed = NULL){
 
-  if(class(pkmod_prior) != "pkmod" | class(pkmod_true) != "pkmod")
+  if(!inherits(pkmod_prior, "pkmod") | !inherits(pkmod_true, "pkmod"))
     stop("Both 'pkmod_prior' and 'pkmod_true' must be pkmod objects.")
 
   if(is.null(seed)) seed <- sample(1:1e5,1)
@@ -112,10 +112,11 @@ simulate_olc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_t
   set.seed(seed)
   type <- match.arg(type)
 
-  if(class(pkmod_prior) != class(pkmod_true) | !class(pkmod_prior) %in% c("pkmod","poppkmod"))
+  if(!(inherits(pkmod_prior, "pkmod") & inherits(pkmod_true, "pkmod")) &
+     !(inherits(pkmod_prior, "poppkmod") & inherits(pkmod_true, "poppkmod")))
     stop("pkmod_prior and pkmod_true must either both have class 'pkmod' or 'poppkmod'")
 
-  if(class(pkmod_prior) == "pkmod"){
+  if(inherits(pkmod_prior, "pkmod")){
     out <- olc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, type, custom_alg, resp_bounds)
     ids <- 1
     out$obs$type = "true"
@@ -218,6 +219,7 @@ simulate_olc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_t
 #' target_tms <- c(0,3,6,10)
 #' obs_tms <- seq(1/6,10,1/6)
 #' update_tms <- seq(1,10,0.5)
+#' \dontrun{
 #' sim_pkpd <- clc(pkpdmod_prior, pkpdmod_true, target_vals, target_tms, obs_tms,
 #' update_tms, seed = 201, delay = 0.5)
 #' # plot results
@@ -235,6 +237,7 @@ simulate_olc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_t
 #'   geom_vline(xintercept = update_tms, linetype = "dotted", alpha = 0.6) +
 #'   geom_step(data = data.frame(time = target_tms, value = target_vals),
 #'   aes(x = time, y = value), inherit.aes = FALSE)
+#'}
 #' @export
 clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, update_tms,
                 type = c("effect","plasma"), custom_alg = NULL,
@@ -365,7 +368,6 @@ bayes_update <- function(lpars, pkmod, inf, tms, obs, update_init = FALSE, ...){
   opt <- try(optim(par = lpars, fn = log_posterior_neg, method = "BFGS", hessian = TRUE,
                    pkmod = pkmod, inf = inf, tms = tms, obs = obs, control = list(maxit = 5000)))
 
-  if(class(opt) == "try-error") browser()
   if(opt$convergence>0) warning(paste("Convergence:", opt$convergence))
 
   vcov_est <- solve(opt$hessian)
@@ -594,6 +596,7 @@ log_posterior_neg <- function(lpars, pkmod, inf, tms, obs){
 #' update_tms <- c(2,4,6,8)
 #' target_vals = c(75,60,50,50)
 #' target_tms = c(0,3,6,10)
+#' \dontrun{
 #' sim <- simulate_clc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
 #' update_tms, seed = 200)
 #' len <- 500
@@ -607,6 +610,7 @@ log_posterior_neg <- function(lpars, pkmod, inf, tms, obs){
 #' facet_wrap(~type) + labs(x = "Hours", y = "Bispectral Index") +
 #'   geom_step(data = data.frame(time = target_tms, value = target_vals),
 #'   aes(x = time, y = value), inherit.aes = FALSE)
+#' }
 #' @export
 simulate_clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, update_tms,
                          type = c("effect","plasma"), custom_alg = NULL,
@@ -616,11 +620,12 @@ simulate_clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_t
   set.seed(seed)
   type <- match.arg(type)
 
-  if(class(pkmod_prior) != class(pkmod_true) | !class(pkmod_prior) %in% c("pkmod","poppkmod"))
+  if(!(inherits(pkmod_prior, "pkmod") & inherits(pkmod_true, "pkmod")) &
+     !(inherits(pkmod_prior, "poppkmod") & inherits(pkmod_true, "poppkmod")))
     stop("pkmod_prior and pkmod_true must either both have class 'pkmod' or 'poppkmod'")
 
   pkmod_post <- pkmod_prior
-  if(class(pkmod_prior) == "pkmod"){
+  if(inherits(pkmod_prior,"pkmod")){
     out <- clc(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms, update_tms, type, custom_alg, resp_bounds, delay, seed)
     pkmod_post <- out$pkmod_post
     ids = as.factor(1)
@@ -719,9 +724,11 @@ simulate_clc <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_t
 #' plot(sim_ol)
 #'
 #' # closed-loop simulation (with updates)
+#' \dontrun{
 #' sim_cl <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
 #' update_tms = c(2,4,6,8), seed = 200)
 #' plot(sim_cl, wrap_id = TRUE, show_inf = TRUE, show_data = TRUE)
+#' }
 #' @export
 simulate_tci <- function(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
                          update_tms = NULL, type = c("effect","plasma"), custom_alg = NULL,

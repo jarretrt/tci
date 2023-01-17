@@ -83,7 +83,9 @@ seed = 200)
 plot(sim_ol)
 
 # closed-loop simulation (with updates)
+\dontrun{
 sim_cl <- simulate_tci(pkmod_prior, pkmod_true, target_vals, target_tms, obs_tms,
 update_tms = c(2,4,6,8), seed = 200)
 plot(sim_cl, wrap_id = TRUE, show_inf = TRUE, show_data = TRUE)
+}
 }

@@ -98,6 +98,7 @@ target_vals <- c(75,60,50,50)
 target_tms <- c(0,3,6,10)
 obs_tms <- seq(1/6,10,1/6)
 update_tms <- seq(1,10,0.5)
+\dontrun{
 sim_pkpd <- clc(pkpdmod_prior, pkpdmod_true, target_vals, target_tms, obs_tms,
 update_tms, seed = 201, delay = 0.5)
 # plot results
@@ -115,4 +116,5 @@ ggplot(df, aes(x = time, y = value, color = type)) +
   geom_vline(xintercept = update_tms, linetype = "dotted", alpha = 0.6) +
   geom_step(data = data.frame(time = target_tms, value = target_vals),
   aes(x = time, y = value), inherit.aes = FALSE)
+}
 }
